@@ -1,10 +1,30 @@
 # azd-core
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/jongio/azd-core.svg)](https://pkg.go.dev/github.com/jongio/azd-core)
+[![Go Report Card](https://goreportcard.com/badge/github.com/jongio/azd-core)](https://goreportcard.com/report/github.com/jongio/azd-core)
+
 Common reusable Go modules for building Azure Developer CLI (azd) extensions and tooling.
 
 ## Overview
 
 `azd-core` provides shared utilities extracted from the Azure Developer CLI to support building azd extensions, custom CLI tools, and automation scripts. The goal is to enable developers to create azd-compatible tools without duplicating common logic or pulling in the entire azd runtime.
+
+## Installation
+
+```bash
+go get github.com/jongio/azd-core
+```
+
+Or add specific packages to your `go.mod`:
+
+```bash
+go get github.com/jongio/azd-core/env
+go get github.com/jongio/azd-core/keyvault
+```
+
+## Documentation
+
+Full API documentation is available at [pkg.go.dev/github.com/jongio/azd-core](https://pkg.go.dev/github.com/jongio/azd-core).
 
 ## Packages
 
