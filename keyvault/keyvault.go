@@ -313,7 +313,7 @@ func validateVaultName(vaultName string) error {
 	}
 
 	for i, ch := range vaultName {
-		if !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '-') {
+		if (ch < 'a' || ch > 'z') && (ch < 'A' || ch > 'Z') && (ch < '0' || ch > '9') && ch != '-' {
 			return fmt.Errorf("vault name contains invalid character: %c", ch)
 		}
 		if i == 0 && ch >= '0' && ch <= '9' {
