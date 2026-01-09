@@ -6,8 +6,8 @@ on:
       - 'v*.*.*'
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'Tag to release (e.g., v1.0.0)'
+      version:
+        description: 'Version to release (e.g., 1.0.0 - no "v" prefix needed)'
         required: true
         type: string
 
@@ -65,22 +65,56 @@ jobs:
           cache: true
           cache-dependency-path: go.sum
 
-      - name: Determine tag
+      - name: Determine version and create tag
         id: tag
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "tag=${{ inputs.tag }}" >> $GITHUB_OUTPUT
+            VERSION="${{ inputs.version }}"
+            # Strip 'v' prefix if user included it
+            VERSION="${VERSION#v}"
+            TAG="v${VERSION}"
+            
+            # Validate semantic version format
+            if ! [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?(\+[a-zA-Z0-9.]+)?$ ]]; then
+              echo "Error: Version must follow semantic versioning (e.g., 1.0.0, 1.0.0-beta, 1.0.0-rc.1)"
+              exit 1
+            fi
+            
+            echo "tag=${TAG}" >> $GITHUB_OUTPUT
+            echo "version=${VERSION}" >> $GITHUB_OUTPUT
+            echo "is_manual=true" >> $GITHUB_OUTPUT
           else
-            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+            TAG="${GITHUB_REF#refs/tags/}"
+            VERSION="${TAG#v}"
+            echo "tag=${TAG}" >> $GITHUB_OUTPUT
+            echo "version=${VERSION}" >> $GITHUB_OUTPUT
+            echo "is_manual=false" >> $GITHUB_OUTPUT
           fi
+          
+          echo "📦 Releasing version: ${TAG}"
 
-      - name: Validate tag format
+      - name: Create and push tag (manual workflow only)
+        if: steps.tag.outputs.is_manual == 'true'
         run: |
           TAG="${{ steps.tag.outputs.tag }}"
-          if ! [[ $TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Error: Tag must follow semantic versioning (v*.*.*, e.g., v1.0.0)"
+          
+          # Check if tag already exists
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Error: Tag $TAG already exists"
             exit 1
           fi
+          
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Create annotated tag
+          git tag -a "$TAG" -m "Release $TAG"
+          
+          # Push tag
+          git push origin "$TAG"
+          
+          echo "✅ Created and pushed tag: $TAG"
 
       - name: Extract release notes
         id: release_notes
