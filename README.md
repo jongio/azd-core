@@ -2,6 +2,8 @@
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/jongio/azd-core.svg)](https://pkg.go.dev/github.com/jongio/azd-core)
 [![Go Report Card](https://goreportcard.com/badge/github.com/jongio/azd-core)](https://goreportcard.com/report/github.com/jongio/azd-core)
+[![CI](https://github.com/jongio/azd-core/workflows/CI/badge.svg)](https://github.com/jongio/azd-core/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/jongio/azd-core/branch/main/graph/badge.svg)](https://codecov.io/gh/jongio/azd-core)
 
 Common reusable Go modules for building Azure Developer CLI (azd) extensions and tooling.
 
