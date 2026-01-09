@@ -1,9 +1,14 @@
-<!-- NEXT: -->
+<!-- NEXT: 11 -->
 # Tasks - azd-core
 
 ## TODO
 
+12. Add coverage quality gates: add codecov.yml with project/patch thresholds (e.g., 75% project, 70% patch) and required status in CI, ensure go test emits a single atomic coverprofile across packages.
+13. Surface coverage to developers: add a Codecov badge to README and a short "local coverage" section (commands for coverprofile and HTML), update docs/coverage-report.md if commands or thresholds change.
+
 ## IN PROGRESS
+
+11. Diagnose and harden CI coverage upload: review run 20862431838/job/59945223747 logs, confirm coverage.txt is produced on ubuntu matrix, ensure Codecov upload succeeds without requiring an explicit token (private repo? set CODECOV_TOKEN secret if needed), and fix any path/matrix issues. (BLOCKED: Codecov rejects tokenless upload; need CODECOV_TOKEN secret configured)
 
 See docs/archive/azd-core-archive-001.md for history of completed tasks.
 

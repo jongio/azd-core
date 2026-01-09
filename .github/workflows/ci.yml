@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -39,23 +40,24 @@ jobs:
         with:
           version: latest
 
-      - name: Run tests
+      - name: Run tests with coverage (ubuntu)
+        if: matrix.os == 'ubuntu-latest'
         shell: bash
-        run: |
-          go test -race -coverprofile=env.coverage.txt -covermode=atomic ./env
-          go test -race -coverprofile=keyvault.coverage.txt -covermode=atomic ./keyvault
-          # Merge coverage files
-          echo "mode: atomic" > coverage.txt
-          tail -n +2 env.coverage.txt >> coverage.txt || true
-          tail -n +2 keyvault.coverage.txt >> coverage.txt || true
+        run: go test -race -coverprofile=coverage.txt -covermode=atomic ./...
+
+      - name: Run tests (non-ubuntu)
+        if: matrix.os != 'ubuntu-latest'
+        run: go test -race ./...
 
       - name: Build
         run: go build ./...
 
       - name: Upload coverage to Codecov
-        if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.25.5'
+        if: matrix.os == 'ubuntu-latest'
         uses: codecov/codecov-action@v5
         with:
           files: ./coverage.txt
           flags: unittests
           name: codecov-umbrella
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
