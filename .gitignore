@@ -1,0 +1,37 @@
+# Build outputs
+bin/
+dist/
+out/
+build/
+
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Dependency bundles
+vendor/
+go.work
+go.work.sum
+
+# Coverage artifacts
+coverage*/
+**/coverage*
+coverage.*
+*.cov
+*.coverprofile
+*.lcov
+*.prof
+*.profraw
+
+# Editor files
+.vscode/
+.idea/
+
+# OS metadata
+.DS_Store
+Thumbs.db
