@@ -1,0 +1,134 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g., v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  issues: read
+  pull-requests: read
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.5'
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Run tests
+        run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.txt
+          fail_ci_if_error: false
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.5'
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Determine tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Validate tag format
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          if ! [[ $TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Error: Tag must follow semantic versioning (v*.*.*, e.g., v1.0.0)"
+            exit 1
+          fi
+
+      - name: Extract release notes
+        id: release_notes
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          
+          # Try to get the tag annotation message
+          if git tag -l --format='%(contents)' "$TAG" | grep -q .; then
+            NOTES=$(git tag -l --format='%(contents)' "$TAG")
+          else
+            # If no tag message, generate from commits
+            PREV_TAG=$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || echo "")
+            if [ -n "$PREV_TAG" ]; then
+              NOTES=$(git log "$PREV_TAG..$TAG" --pretty=format:"- %s (%h)" --no-merges)
+            else
+              NOTES=$(git log "$TAG" --pretty=format:"- %s (%h)" --no-merges | head -n 20)
+            fi
+          fi
+          
+          # Save to file for multiline output
+          echo "$NOTES" > release_notes.txt
+          
+          # Set output
+          echo "notes_file=release_notes.txt" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Release ${{ steps.tag.outputs.tag }}
+          body_path: release_notes.txt
+          draft: false
+          prerelease: ${{ contains(steps.tag.outputs.tag, '-') }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify Go module can be fetched
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          echo "Waiting for GitHub to propagate the release..."
+          sleep 10
+          
+          # Test that the module can be fetched (use GOPROXY=direct to bypass cache)
+          GOPROXY=direct go list -m github.com/jongio/azd-core@$TAG || true
+          
+          echo ""
+          echo "✅ Release $TAG created successfully!"
+          echo ""
+          echo "Users can now install this version with:"
+          echo "  go get github.com/jongio/azd-core@$TAG"
