@@ -40,7 +40,14 @@ jobs:
           version: latest
 
       - name: Run tests
-        run: go test -race -coverprofile=coverage.txt -covermode=atomic ./...
+        shell: bash
+        run: |
+          go test -race -coverprofile=env.coverage.txt -covermode=atomic ./env
+          go test -race -coverprofile=keyvault.coverage.txt -covermode=atomic ./keyvault
+          # Merge coverage files
+          echo "mode: atomic" > coverage.txt
+          tail -n +2 env.coverage.txt >> coverage.txt || true
+          tail -n +2 keyvault.coverage.txt >> coverage.txt || true
 
       - name: Build
         run: go build ./...
