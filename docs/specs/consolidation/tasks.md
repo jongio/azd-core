@@ -4,92 +4,51 @@
 
 ## TODO
 
-### 13. Extract errors Package
-
-Create standardized error types for azd ecosystem.
-
-**Acceptance Criteria**:
-- Error types defined: ValidationError, NotFoundError, ExecutionError
-- Implements errors.Is/As compatibility (wrapping support)
-- Tests for error construction, wrapping, unwrapping
-- Documentation with usage examples
-- ≥85% coverage
-
----
-
-### 14. Extract testutil Package
-
-Create shared testing utilities for azd ecosystem.
-
-**Source**: azd-exec/cli/src/internal/testhelpers, azd-app test utilities
-
-**Acceptance Criteria**:
-- Functions migrated: CaptureOutput, FindTestData, TempDir helpers
-- Common assertions and test helpers
-- Tests for test utilities (≥80% coverage)
-- Documentation with usage examples
-
----
-
-### 15. Extract constants Package
-
-Create shared constants for azd ecosystem.
-
-**Source**: azd-app/cli/src/internal/constants (selective extraction)
-
-**Acceptance Criteria**:
-- File permissions constants: DirPermission, FilePermission
-- Common timeouts: BrowserTimeout
-- Only truly shared constants extracted (leave domain-specific in projects)
-- Documentation explaining when to use vs define locally
-
----
-
 ### 16. Publish azd-core v0.2.0
 
-Release azd-core v0.2.0 with all 9 packages.
+Release azd-core v0.2.0 with 6 core utility packages.
 
-**Status**: Ready after all packages complete
-
-**What's in v0.2.0** (9 packages):
+**What's in v0.2.0** (6 packages):
 - Core utilities: fileutil, pathutil, browser, security, procutil (with gopsutil), shellutil
-- Standardization: errors, testutil, constants
-- azd-exec integration complete
-- azd-app integration complete
+- All packages tested (77-89% coverage)
+- azd-exec integration complete (uses shellutil)
 - Full documentation and examples
 
 **Acceptance Criteria**:
 - ✅ 6 core utility packages complete and tested (77-89% coverage)
 - ✅ Dependencies: github.com/shirou/gopsutil/v4 v4.24.12
 - ✅ azd-exec integrated and tested
-- ⏳ azd-app integrated and tested
-- ⏳ errors package complete (≥85% coverage)
-- ⏳ testutil package complete (≥80% coverage)
-- ⏳ constants package complete
+- ⏳ azd-app analysis complete
 - ⏳ CHANGELOG.md created
 - ⏳ Git tag created: v0.2.0
 - ⏳ GitHub release published
 - ⏳ pkg.go.dev updated automatically
 
+**Note**: Standardization packages (errors, testutil, constants) deferred to Phase 4/v0.3.0 per spec.
+
 ---
 
 ## IN PROGRESS
 
-### 12. Integrate azd-app with azd-core v0.2.0
+### 12. Complete azd-app Integration Analysis
 
-Analyze and integrate azd-core utilities into azd-app where beneficial.
+Analyze azd-app codebase to determine integration opportunities with azd-core utilities.
 
-**Status**: Analyzing azd-app codebase
+**Context**: azd-app doesn't have exact duplicates of azd-core packages. This task identifies where azd-core utilities can improve code quality, security, or reduce custom implementations.
 
-**Note**: azd-app doesn't have exact duplicates of azd-core packages. This task identifies opportunities to improve code quality/security using azd-core utilities.
+**Analysis Approach**:
+1. Review azd-app internal packages (constants, cache, docker, output, yamlutil)
+2. Identify opportunities to use azd-core/security for path validation
+3. Identify opportunities to use azd-core/procutil for process management
+4. Identify opportunities to use azd-core/fileutil for atomic operations
+5. Document findings and create follow-up tasks if beneficial integrations found
 
 **Acceptance Criteria**:
 - ✅ go.work linking local azd-core for testing
-- ⏳ Code analysis complete (identify integration points)
-- ⏳ azd-core imports added where beneficial
-- ⏳ Tests updated/added for integrations
-- ⏳ 100% test pass rate (no regressions)
-- ⏳ Integration improves code quality/security
+- ⏳ Code analysis complete (document findings)
+- ⏳ Integration decision made (proceed with imports OR document why not needed)
+- ⏳ If proceeding: azd-core imports added, tests pass, no regressions
+- ⏳ If not proceeding: document rationale and close task
 
 ---
 

@@ -10,30 +10,30 @@ version: v0.2.0
 
 # azd-core Package Consolidation Spec
 
-## Status Update (2026-01-09)
+## Status Update (2026-01-10)
 
-**Current Phase**: v0.2.0 Development & Integration
+**Current Phase**: v0.2.0 Ready for Publication
 
 **Completed**:
 - ✅ 6 core utility packages created and tested (77-89% coverage)
-- ✅ azd-exec integrated with azd-core/shellutil
-- ✅ gopsutil adopted for reliable cross-platform process detection
+- ✅ azd-exec integrated with azd-core/shellutil (349 lines duplicate code removed)
+- ✅ gopsutil v4.24.12 adopted for reliable cross-platform process detection
 - ✅ go.work configured for local development/testing
 - ✅ Documentation complete (README.md + doc.go per package)
 
 **In Progress**:
-- ⏳ azd-app integration analysis
+- ⏳ azd-app integration analysis (determining if beneficial)
 
-**TODO for v0.2.0**:
-1. Complete azd-app integration
-2. Extract errors package (ValidationError, NotFoundError, ExecutionError)
-3. Extract testutil package (test helpers from azd-exec/azd-app)
-4. Extract constants package (shared constants)
-5. Create CHANGELOG.md
-6. Publish azd-core v0.2.0
-7. Update azd-app and azd-exec to use published v0.2.0
+**Blocking v0.2.0 Publication**:
+1. Complete azd-app integration analysis
+2. Create CHANGELOG.md
+3. Git tag and GitHub release
 
-**v0.2.0 Scope**: All 9 packages (fileutil, pathutil, browser, security, procutil, shellutil, errors, testutil, constants)
+**v0.2.0 Scope** (6 packages):
+- fileutil, pathutil, browser, security, procutil, shellutil
+
+**Deferred to v0.3.0** (Phase 4):
+- errors, testutil, constants packages (standardization phase per migration plan)
 
 ---
 
