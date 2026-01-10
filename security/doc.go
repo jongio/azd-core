@@ -18,11 +18,11 @@
 // # Security Model
 //
 // This package follows defense-in-depth principles:
-//   1. Validate all user input at boundaries
-//   2. Resolve symbolic links to prevent TOCTOU attacks
-//   3. Use allowlists instead of denylists where possible
-//   4. Fail securely (deny by default)
-//   5. Provide clear error messages without leaking sensitive info
+//  1. Validate all user input at boundaries
+//  2. Resolve symbolic links to prevent TOCTOU attacks
+//  3. Use allowlists instead of denylists where possible
+//  4. Fail securely (deny by default)
+//  5. Provide clear error messages without leaking sensitive info
 //
 // # Path Validation
 //

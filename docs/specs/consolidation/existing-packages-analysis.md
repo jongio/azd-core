@@ -15,12 +15,14 @@ This document analyzes whether existing Go packages could replace the utilities 
 
 ## Summary
 
-**Decision**: Keep all 6 packages as custom implementations (fileutil, pathutil, browser, security, procutil, shellutil)
+**Decision**: ~~Keep all 6 packages as custom implementations~~ 5 custom + 1 external dependency
+
+**Update (2026-01-09)**: Replaced procutil with gopsutil for better Windows reliability
 
 **Primary Rationale**:
-- Minimal external dependencies (stdlib only)
+- Minimal external dependencies (only gopsutil for critical process detection)
 - Tailored to azd-specific use cases
-- Well-tested (77-86% coverage)
+- Well-tested (77-88% coverage)
 - Simple, focused APIs
 - Successfully achieves consolidation goals
 
@@ -28,40 +30,47 @@ This document analyzes whether existing Go packages could replace the utilities 
 
 ### 1. procutil - Process Detection
 
-**Current Implementation**: Simple `IsProcessRunning(pid)` using `os.FindProcess` + `Signal(0)`
+**Decision**: ✅ **REPLACED WITH GOPSUTIL** (Implemented 2026-01-09)
 
 **Alternative Found**: `github.com/shirou/gopsutil/v4` ✅
 
 **Package Details**:
 - **Source**: github.com/shirou/gopsutil
-- **Reputation**: High (industry standard)
+- **Reputation**: High (industry standard, production-grade)
 - **Platforms**: Linux, FreeBSD, OpenBSD, macOS, Windows, Solaris, AIX
 - **Features**: Process detection, CPU usage, memory info, threads, connections, etc.
 
-**Comparison**:
+**Why We Switched**:
+1. **Windows Reliability**: Our custom implementation had a known limitation with stale PIDs on Windows
+2. **Native APIs**: gopsutil uses platform-native APIs (Windows: OpenProcess, Linux: /proc, macOS: sysctl)
+3. **Battle-tested**: Used in production systems worldwide
+4. **Better Coverage**: Improved from 84.6% to 88.9%
 
-| Aspect | Our Implementation | gopsutil |
-|--------|-------------------|----------|
-| Dependencies | stdlib only | External package |
-| Size | ~100 lines | Large package |
-| API Complexity | Simple (`IsProcessRunning(pid)`) | Complex (process objects) |
-| Windows Reliability | Known limitation (stale PID) | Better handling |
-| Features | Process existence only | Comprehensive metrics |
-
-**Example gopsutil Usage**:
+**Implementation**:
 ```go
-import "github.com/shirou/gopsutil/v4/process"
+// Before (custom):
+func IsProcessRunning(pid int) bool {
+    process, _ := os.FindProcess(pid)
+    return checkProcessRunning(process) // Platform-specific
+}
 
-proc, err := process.NewProcess(int32(pid))
-if err == nil {
+// After (gopsutil):
+func IsProcessRunning(pid int) bool {
+    proc, err := process.NewProcess(int32(pid))
+    if err != nil {
+        return false
+    }
     isRunning, _ := proc.IsRunning()
+    return isRunning
 }
 ```
 
-**Recommendation**: **KEEP** our implementation
-- **Pros**: Zero dependencies, simple API, meets current needs
-- **Cons**: Less robust Windows stale PID handling
-- **Future Consideration**: If Windows reliability becomes critical, revisit gopsutil
+**Trade-offs Accepted**:
+- ⚠️ Added external dependency (~1-2MB binary size)
+- ✅ Eliminated Windows stale PID issue
+- ✅ More comprehensive platform support
+- ✅ No API changes (drop-in replacement)
+- ✅ Better maintained with active community
 
 ---
 
@@ -192,7 +201,7 @@ os.Rename(tmpPath, finalPath) // Atomic on most filesystems
 
 | Package | Alternative Exists? | Quality | Recommendation | Reason |
 |---------|-------------------|---------|----------------|--------|
-| procutil | ✅ Yes (gopsutil) | High | **KEEP** | Zero deps, simple API, meets needs |
+| procutil | ✅ Yes (gopsutil) | High | **USE GOPSUTIL** | Eliminates Windows stale PID limitation |
 | fileutil | ⚠️ Partial (stdlib) | High | **KEEP** | Idiomatic Go + retry logic |
 | browser | ⚠️ Maybe (not found) | Medium | **KEEP** | Clean implementation, low risk |
 | pathutil | ❌ No | High | **KEEP** | Unique value-add features |

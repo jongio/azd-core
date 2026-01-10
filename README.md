@@ -136,13 +136,16 @@ Security validation utilities for path traversal prevention, input sanitization,
 - World-writable file detection (security warning)
 
 ### `procutil`
-Cross-platform process detection utilities.
+Cross-platform process detection utilities using gopsutil for reliable cross-platform behavior.
 
 **Key Functions:**
 - `IsProcessRunning` - Check if process with given PID is running
 
 **Features:**
-- Cross-platform implementation (Windows and Unix)
+- Cross-platform support (Windows, Linux, macOS, BSD, Solaris, AIX)
+- Reliable Windows process detection (no stale PID issues)
+- Uses platform-native APIs (Windows: OpenProcess, Linux: /proc, macOS: sysctl)
+- Powered by github.com/shirou/gopsutil/v4
 - Uses Signal(0) on Unix for accurate detection
 - Windows fallback with documented limitations (stale PID may return true)
 - Invalid PID handling (≤0 returns false)

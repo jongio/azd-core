@@ -16,9 +16,9 @@
 // # Shell Detection Priority
 //
 // The DetectShell function uses the following priority for shell detection:
-//   1. File extension (.ps1, .sh, .cmd, .bat, .zsh)
-//   2. Shebang line (if present and parseable)
-//   3. OS-specific default (cmd on Windows, bash on Unix)
+//  1. File extension (.ps1, .sh, .cmd, .bat, .zsh)
+//  2. Shebang line (if present and parseable)
+//  3. OS-specific default (cmd on Windows, bash on Unix)
 //
 // # Shebang Parsing
 //

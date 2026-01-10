@@ -4,30 +4,34 @@
 package procutil
 
 import (
-	"os"
+	"github.com/shirou/gopsutil/v4/process"
 )
 
 // IsProcessRunning checks if a process with the given PID is running.
-// Works cross-platform (Windows and Unix).
+// Works cross-platform (Windows, Linux, macOS, FreeBSD, OpenBSD, Solaris, AIX).
 //
-// KNOWN LIMITATION (Windows): On Windows, this function may return true for
-// stale PIDs because os.FindProcess always succeeds and Signal(0) is not
-// fully supported. For production use requiring high reliability, consider
-// using Windows API (OpenProcess) or github.com/shirou/gopsutil.
+// This function uses github.com/shirou/gopsutil for reliable cross-platform
+// process detection, including proper handling of stale PIDs on Windows.
 func IsProcessRunning(pid int) bool {
 	if pid <= 0 {
 		return false
 	}
 
-	process, err := os.FindProcess(pid)
+	// Create a process handle
+	proc, err := process.NewProcess(int32(pid))
 	if err != nil {
+		// Process doesn't exist or can't be accessed
 		return false
 	}
 
-	return checkProcessRunning(process)
-}
+	// Check if process is running
+	// gopsutil handles platform differences correctly
+	isRunning, err := proc.IsRunning()
+	if err != nil {
+		// Error checking status, assume not running
+		return false
+	}
 
-// checkProcessRunning is implemented in platform-specific files:
-// - procutil_windows.go for Windows
-// - procutil_unix.go for Unix-like systems
+	return isRunning
+}
 

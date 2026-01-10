@@ -1,41 +1,29 @@
 // Package procutil provides cross-platform process utilities for Azure Developer CLI extensions.
 //
 // This package offers utilities for managing and querying process state across
-// Windows, macOS, and Linux. It handles platform-specific differences in process
-// APIs and provides consistent behavior across operating systems.
+// Windows, macOS, Linux, FreeBSD, OpenBSD, Solaris, and AIX. It uses
+// github.com/shirou/gopsutil for reliable cross-platform process detection.
 //
 // # Key Features
 //
-//   - Cross-platform process running check (handles Windows/Unix differences)
-//   - Process existence validation using Signal(0) pattern
-//   - Documented platform limitations (Windows stale PID detection)
+//   - Cross-platform process running check (Windows/Linux/macOS/BSD/Solaris/AIX)
+//   - Reliable process existence validation using gopsutil
+//   - Handles stale PIDs correctly on Windows
+//   - Consistent behavior across all supported platforms
 //
-// # Cross-Platform Behavior
+// # Implementation
 //
-// On Unix (Linux/macOS):
-//   - Uses Signal(0) to check if process exists and is accessible
-//   - Returns false if process doesn't exist or caller lacks permission
-//   - Reliable process existence detection
+// This package wraps github.com/shirou/gopsutil/v4/process to provide a simple,
+// reliable API for process detection. gopsutil uses platform-specific APIs:
 //
-// On Windows:
-//   - Signal(0) opens process handle with minimal permissions
-//   - May return true for stale PIDs if process hasn't been reaped
-//   - Use with caution for critical process lifecycle decisions
+//   - Windows: Native Windows API (OpenProcess, GetExitCodeProcess)
+//   - Linux: /proc filesystem
+//   - macOS/BSD: sysctl system calls
+//   - Solaris: kstat API
+//   - AIX: procfs
 //
-// # Known Limitations
-//
-// Windows Stale PID Issue:
-//
-//	Windows may report a process as running even after it has exited if the
-//	process ID has not been recycled. This is a platform limitation, not a
-//	bug in this package. For critical process lifecycle management on Windows,
-//	consider using alternative approaches (e.g., Windows API OpenProcess,
-//	or github.com/shirou/gopsutil library).
-//
-// Permission Handling:
-//
-//	IsProcessRunning may return false if caller lacks permission to signal
-//	the process, even if the process is running. This is expected Unix behavior.
+// This approach provides accurate process detection without the stale PID issues
+// that affect os.FindProcess + Signal(0) on Windows.
 //
 // # Example Usage
 //
