@@ -60,9 +60,12 @@ func AtomicWriteJSON(path string, data interface{}) error {
 		return fmt.Errorf("failed to close temp file: %w", err)
 	}
 
-	// Set permissive mode on the temp file before rename so the final file
+	// Set correct permissions on the temp file before rename so the final file
 	// has expected permissions once moved into place.
-	_ = os.Chmod(tmpPath, FilePermission)
+	if err := os.Chmod(tmpPath, FilePermission); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("failed to set file permissions: %w", err)
+	}
 
 	// Rename temp file to final file (atomic operation on most filesystems).
 	// Perform a few retries to mitigate transient rename races observed on CI.
@@ -114,7 +117,10 @@ func AtomicWriteFile(path string, data []byte, perm os.FileMode) error {
 	}
 
 	// Ensure temp has requested permissions before rename
-	_ = os.Chmod(tmpPath, perm)
+	if err := os.Chmod(tmpPath, perm); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("failed to set file permissions: %w", err)
+	}
 
 	// Rename temp file to final file (atomic operation on most filesystems).
 	var renameErr2 error

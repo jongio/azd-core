@@ -44,9 +44,9 @@ const (
 
 // Environment variable names.
 const (
-	// envVarScriptDebug enables debug output for script execution.
+	// EnvVarDebug enables debug output for script execution.
 	// When set to "true", execution details are logged to stderr.
-	envVarScriptDebug = "AZD_SCRIPT_DEBUG"
+	EnvVarDebug = "AZD_DEBUG"
 )
 
 // File reading constants for shebang detection.
@@ -116,7 +116,7 @@ func ReadShebang(scriptPath string) string {
 		if closeErr := file.Close(); closeErr != nil {
 			// Log error but don't fail - we may have already read what we needed
 			// Only log to stderr if we're in debug mode to avoid noise
-			if os.Getenv(envVarScriptDebug) == "true" {
+			if os.Getenv(EnvVarDebug) == "true" {
 				fmt.Fprintf(os.Stderr, "warning: failed to close file %s: %v\n", filepath.Base(scriptPath), closeErr)
 			}
 		}

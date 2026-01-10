@@ -267,13 +267,13 @@ func TestReadShebangFilePermissionError(t *testing.T) {
 		t.Fatal(err)
 	}
 	tmpPath := tmpFile.Name()
-	
+
 	// Write content
 	if _, err := tmpFile.WriteString("#!/bin/bash\necho test"); err != nil {
 		t.Fatal(err)
 	}
 	tmpFile.Close()
-	
+
 	defer os.Remove(tmpPath)
 
 	// On Unix, we can test permission errors
@@ -430,7 +430,7 @@ func TestReadShebangEdgeCases(t *testing.T) {
 
 func TestReadShebangWithDebugMode(t *testing.T) {
 	tmpDir := t.TempDir()
-	
+
 	// Create a file with shebang
 	scriptPath := filepath.Join(tmpDir, "test.sh")
 	if err := os.WriteFile(scriptPath, []byte("#!/bin/bash\necho test"), 0600); err != nil {
@@ -438,11 +438,11 @@ func TestReadShebangWithDebugMode(t *testing.T) {
 	}
 
 	// Enable debug mode
-	originalDebug := os.Getenv(envVarScriptDebug)
-	defer os.Setenv(envVarScriptDebug, originalDebug)
-	
-	os.Setenv(envVarScriptDebug, "true")
-	
+	originalDebug := os.Getenv(EnvVarDebug)
+	defer os.Setenv(EnvVarDebug, originalDebug)
+
+	os.Setenv(EnvVarDebug, "true")
+
 	// Read shebang - this exercises the debug path
 	// The debug output goes to stderr, which we don't capture in this test
 	// but this ensures the code path is covered
@@ -462,7 +462,7 @@ func TestDetectShellOSDefaults(t *testing.T) {
 	}
 
 	got := DetectShell(scriptPath)
-	
+
 	if runtime.GOOS == osWindows {
 		if got != ShellCmd {
 			t.Errorf("DetectShell(unknown ext) on Windows = %q, want %q", got, ShellCmd)

@@ -115,7 +115,7 @@
 // - File paths are validated by callers before passing to these functions
 // - Shebang parsing reads only the first line (limited buffer)
 // - File descriptors are properly closed even on errors
-// - Debug output (when AZD_SCRIPT_DEBUG=true) goes to stderr only
+// - Debug output (when AZD_DEBUG=true) goes to stderr only
 //
 // # Testing
 //

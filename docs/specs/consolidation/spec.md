@@ -1,12 +1,41 @@
 ---
 title: azd-core Package Consolidation
-status: draft
+status: in-progress
 created: 2026-01-09
+updated: 2026-01-09
 epic: consolidation
 priority: P1
+version: v0.2.0
 ---
 
 # azd-core Package Consolidation Spec
+
+## Status Update (2026-01-09)
+
+**Current Phase**: v0.2.0 Development & Integration
+
+**Completed**:
+- ✅ 6 core utility packages created and tested (77-89% coverage)
+- ✅ azd-exec integrated with azd-core/shellutil
+- ✅ gopsutil adopted for reliable cross-platform process detection
+- ✅ go.work configured for local development/testing
+- ✅ Documentation complete (README.md + doc.go per package)
+
+**In Progress**:
+- ⏳ azd-app integration analysis
+
+**TODO for v0.2.0**:
+1. Complete azd-app integration
+2. Extract errors package (ValidationError, NotFoundError, ExecutionError)
+3. Extract testutil package (test helpers from azd-exec/azd-app)
+4. Extract constants package (shared constants)
+5. Create CHANGELOG.md
+6. Publish azd-core v0.2.0
+7. Update azd-app and azd-exec to use published v0.2.0
+
+**v0.2.0 Scope**: All 9 packages (fileutil, pathutil, browser, security, procutil, shellutil, errors, testutil, constants)
+
+---
 
 ## Summary
 
@@ -425,8 +454,26 @@ azd-core/
 ### Versioning Strategy
 
 - **Current**: azd-core v0.1.0 (env, keyvault packages)
-- **Phase 1 Complete**: azd-core v0.2.0 (adds 6 new packages)
-- **Phase 4 Complete**: azd-core v0.3.0 (adds 3 standardization packages)
+- **v0.2.0 (This Release)**: Comprehensive utility and standardization packages
+
+**v0.2.0 Contents** (9 packages):
+
+*Core Utilities:*
+- fileutil: Atomic file operations, JSON handling
+- pathutil: PATH management, tool discovery
+- browser: Cross-platform browser launching
+- security: Path validation, input sanitization
+- procutil: Process detection (using gopsutil v4.24.12)
+- shellutil: Shell detection from extension/shebang
+
+*Standardization:*
+- errors: Standardized error types (ValidationError, NotFoundError, ExecutionError)
+- testutil: Shared testing utilities (CaptureOutput, FindTestData, TempDir helpers)
+- constants: Shared constants (file permissions, timeouts)
+
+**Integration Status**:
+- azd-exec: ✅ Integrated (uses shellutil)
+- azd-app: ⏳ In progress
 
 Use semantic versioning:
 - **MAJOR**: Breaking changes to existing packages
@@ -437,10 +484,16 @@ Use semantic versioning:
 
 **Principle**: azd-core should have **minimal external dependencies**
 
-**Allowed Dependencies** (already present):
+**Current Dependencies** (v0.2.0):
 - github.com/Azure/azure-sdk-for-go/sdk/azidentity
 - github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azsecrets
-- Standard library only for new packages
+- github.com/shirou/gopsutil/v4 v4.24.12 (for procutil only)
+
+**Rationale for gopsutil**:
+- Eliminates Windows stale PID limitation
+- Uses native platform APIs (Windows: OpenProcess, Linux: /proc, macOS: sysctl)
+- Production-grade, well-maintained library
+- Acceptable ~1-2MB binary size increase for CLI tooling
 
 **Prohibited**:
 - Large framework dependencies (cobra, viper, etc.)

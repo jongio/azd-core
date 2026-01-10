@@ -34,4 +34,3 @@ func IsProcessRunning(pid int) bool {
 
 	return isRunning
 }
-
