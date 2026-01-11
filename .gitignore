@@ -28,6 +28,10 @@ coverage.*
 *.prof
 *.profraw
 
+# Temporary coverage files
+$tempFile
+cov
+
 # Editor files
 .vscode/
 .idea/

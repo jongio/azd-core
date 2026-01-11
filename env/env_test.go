@@ -304,6 +304,7 @@ func TestResolveWithDifferentOptions(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
 // Tests for ResolveMap helper function
 
 func TestResolveMap_WithReferences(t *testing.T) {
