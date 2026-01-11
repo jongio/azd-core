@@ -610,14 +610,14 @@ func TestIsContainerEnvironment_EdgeCases(t *testing.T) {
 	t.Logf("IsContainerEnvironment() with no env vars = %v", result)
 
 	// Test Kubernetes with empty value
-	os.Setenv("KUBERNETES_SERVICE_HOST", "")
+	_ = os.Setenv("KUBERNETES_SERVICE_HOST", "")
 	if IsContainerEnvironment() {
 		t.Error("Empty KUBERNETES_SERVICE_HOST should not indicate container")
 	}
-	os.Unsetenv("KUBERNETES_SERVICE_HOST")
+	_ = os.Unsetenv("KUBERNETES_SERVICE_HOST")
 
 	// Test Kubernetes with non-empty value
-	os.Setenv("KUBERNETES_SERVICE_HOST", "10.96.0.1")
+	_ = os.Setenv("KUBERNETES_SERVICE_HOST", "10.96.0.1")
 	if !IsContainerEnvironment() {
 		t.Error("Non-empty KUBERNETES_SERVICE_HOST should indicate container")
 	}
