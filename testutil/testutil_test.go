@@ -186,7 +186,7 @@ func TestFindTestData(t *testing.T) {
 
 		// Change to nested test directory
 		origWd, _ := os.Getwd()
-		defer os.Chdir(origWd)
+		defer func() { _ = os.Chdir(origWd) }()
 		if err := os.Chdir(testPath); err != nil {
 			t.Fatalf("failed to change directory: %v", err)
 		}
@@ -224,7 +224,7 @@ func TestFindTestData(t *testing.T) {
 
 		// Change to deeply nested directory
 		origWd, _ := os.Getwd()
-		defer os.Chdir(origWd)
+		defer func() { _ = os.Chdir(origWd) }()
 		if err := os.Chdir(deepPath); err != nil {
 			t.Fatalf("failed to change directory: %v", err)
 		}

@@ -484,14 +484,14 @@ func TestValidateFilePermissions_ContainerWarnings(t *testing.T) {
 	originalCodespaces := os.Getenv("CODESPACES")
 	defer func() {
 		if originalCodespaces != "" {
-			os.Setenv("CODESPACES", originalCodespaces)
+			_ = os.Setenv("CODESPACES", originalCodespaces)
 		} else {
-			os.Unsetenv("CODESPACES")
+			_ = os.Unsetenv("CODESPACES")
 		}
 	}()
 
 	// Test in container environment
-	os.Setenv("CODESPACES", "true")
+	_ = os.Setenv("CODESPACES", "true")
 
 	err := ValidateFilePermissions(tmpFile)
 	// Should still return error in container, but caller should handle as warning
@@ -592,14 +592,14 @@ func TestIsContainerEnvironment_EdgeCases(t *testing.T) {
 	originals := make(map[string]string)
 	for _, v := range vars {
 		originals[v] = os.Getenv(v)
-		os.Unsetenv(v)
+		_ = os.Unsetenv(v)
 	}
 	defer func() {
 		for k, v := range originals {
 			if v != "" {
-				os.Setenv(k, v)
+				_ = os.Setenv(k, v)
 			} else {
-				os.Unsetenv(k)
+				_ = os.Unsetenv(k)
 			}
 		}
 	}()
