@@ -482,13 +482,26 @@ func TestValidateFilePermissions_ContainerWarnings(t *testing.T) {
 
 	// Save original env vars
 	originalCodespaces := os.Getenv("CODESPACES")
+	originalRemoteContainers := os.Getenv("REMOTE_CONTAINERS")
+	originalK8s := os.Getenv("KUBERNETES_SERVICE_HOST")
 	defer func() {
+		_ = os.Unsetenv("CODESPACES")
+		_ = os.Unsetenv("REMOTE_CONTAINERS")
+		_ = os.Unsetenv("KUBERNETES_SERVICE_HOST")
 		if originalCodespaces != "" {
 			_ = os.Setenv("CODESPACES", originalCodespaces)
-		} else {
-			_ = os.Unsetenv("CODESPACES")
+		}
+		if originalRemoteContainers != "" {
+			_ = os.Setenv("REMOTE_CONTAINERS", originalRemoteContainers)
+		}
+		if originalK8s != "" {
+			_ = os.Setenv("KUBERNETES_SERVICE_HOST", originalK8s)
 		}
 	}()
+
+	// Clear all container env vars first
+	_ = os.Unsetenv("REMOTE_CONTAINERS")
+	_ = os.Unsetenv("KUBERNETES_SERVICE_HOST")
 
 	// Test in container environment
 	_ = os.Setenv("CODESPACES", "true")
