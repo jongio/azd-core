@@ -479,6 +479,11 @@ func TestValidateFilePermissions_ContainerWarnings(t *testing.T) {
 	if err := os.WriteFile(tmpFile, []byte("test"), 0666); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
+	
+	// Explicitly set insecure permissions (bypassing umask)
+	if err := os.Chmod(tmpFile, 0666); err != nil {
+		t.Fatalf("Failed to set file permissions: %v", err)
+	}
 
 	// Save original env vars
 	originalCodespaces := os.Getenv("CODESPACES")
