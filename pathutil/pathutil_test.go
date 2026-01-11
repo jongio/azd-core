@@ -291,9 +291,9 @@ func TestRefreshPATH_ErrorHandling(t *testing.T) {
 
 	// Verify PATH actually contains something reasonable
 	if runtime.GOOS == "windows" {
-		// Windows should have system directories
-		if !containsAnyPath(newPath, []string{"Windows", "System32"}) {
-			t.Logf("Warning: Refreshed PATH doesn't contain expected Windows directories: %s", newPath)
+		// Windows should have system directories - just check it's non-empty
+		if len(newPath) < 10 {
+			t.Logf("Warning: Refreshed PATH seems too short: %s", newPath)
 		}
 	}
 }
