@@ -199,18 +199,18 @@ func TestValidateFilePermissions(t *testing.T) {
 		originalCodespaces := os.Getenv("CODESPACES")
 		originalRemoteContainers := os.Getenv("REMOTE_CONTAINERS")
 		originalK8s := os.Getenv("KUBERNETES_SERVICE_HOST")
-		_ = os.Unsetenv("CODESPACES")
-		_ = os.Unsetenv("REMOTE_CONTAINERS")
-		_ = os.Unsetenv("KUBERNETES_SERVICE_HOST")
+		_ = _ = os.Unsetenv("CODESPACES")
+		_ = _ = os.Unsetenv("REMOTE_CONTAINERS")
+		_ = _ = os.Unsetenv("KUBERNETES_SERVICE_HOST")
 		defer func() {
 			if originalCodespaces != "" {
-				_ = os.Setenv("CODESPACES", originalCodespaces)
+				_ = _ = os.Setenv("CODESPACES", originalCodespaces)
 			}
 			if originalRemoteContainers != "" {
-				_ = os.Setenv("REMOTE_CONTAINERS", originalRemoteContainers)
+				_ = _ = os.Setenv("REMOTE_CONTAINERS", originalRemoteContainers)
 			}
 			if originalK8s != "" {
-				_ = os.Setenv("KUBERNETES_SERVICE_HOST", originalK8s)
+				_ = _ = os.Setenv("KUBERNETES_SERVICE_HOST", originalK8s)
 			}
 		}()
 
@@ -342,28 +342,28 @@ func TestIsContainerEnvironment(t *testing.T) {
 			originalK8s := os.Getenv("KUBERNETES_SERVICE_HOST")
 
 			// Clear all container env vars
-			os.Unsetenv("CODESPACES")
-			os.Unsetenv("REMOTE_CONTAINERS")
-			os.Unsetenv("KUBERNETES_SERVICE_HOST")
+			_ = os.Unsetenv("CODESPACES")
+			_ = os.Unsetenv("REMOTE_CONTAINERS")
+			_ = os.Unsetenv("KUBERNETES_SERVICE_HOST")
 
 			// Set test env vars
 			for k, v := range tt.envVars {
-				os.Setenv(k, v)
+				_ = os.Setenv(k, v)
 			}
 
 			// Restore original env vars after test
 			defer func() {
-				os.Unsetenv("CODESPACES")
-				os.Unsetenv("REMOTE_CONTAINERS")
-				os.Unsetenv("KUBERNETES_SERVICE_HOST")
+				_ = os.Unsetenv("CODESPACES")
+				_ = os.Unsetenv("REMOTE_CONTAINERS")
+				_ = os.Unsetenv("KUBERNETES_SERVICE_HOST")
 				if originalCodespaces != "" {
-					os.Setenv("CODESPACES", originalCodespaces)
+					_ = os.Setenv("CODESPACES", originalCodespaces)
 				}
 				if originalRemoteContainers != "" {
-					os.Setenv("REMOTE_CONTAINERS", originalRemoteContainers)
+					_ = os.Setenv("REMOTE_CONTAINERS", originalRemoteContainers)
 				}
 				if originalK8s != "" {
-					os.Setenv("KUBERNETES_SERVICE_HOST", originalK8s)
+					_ = os.Setenv("KUBERNETES_SERVICE_HOST", originalK8s)
 				}
 			}()
 
@@ -432,28 +432,28 @@ func TestValidateFilePermissions_ContainerEnvironment(t *testing.T) {
 			originalK8s := os.Getenv("KUBERNETES_SERVICE_HOST")
 
 			// Clear all container env vars
-			os.Unsetenv("CODESPACES")
-			os.Unsetenv("REMOTE_CONTAINERS")
-			os.Unsetenv("KUBERNETES_SERVICE_HOST")
+			_ = os.Unsetenv("CODESPACES")
+			_ = os.Unsetenv("REMOTE_CONTAINERS")
+			_ = os.Unsetenv("KUBERNETES_SERVICE_HOST")
 
 			// Set test env vars
 			for k, v := range tt.envVars {
-				os.Setenv(k, v)
+				_ = os.Setenv(k, v)
 			}
 
 			// Restore original env vars after test
 			defer func() {
-				os.Unsetenv("CODESPACES")
-				os.Unsetenv("REMOTE_CONTAINERS")
-				os.Unsetenv("KUBERNETES_SERVICE_HOST")
+				_ = os.Unsetenv("CODESPACES")
+				_ = os.Unsetenv("REMOTE_CONTAINERS")
+				_ = os.Unsetenv("KUBERNETES_SERVICE_HOST")
 				if originalCodespaces != "" {
-					os.Setenv("CODESPACES", originalCodespaces)
+					_ = os.Setenv("CODESPACES", originalCodespaces)
 				}
 				if originalRemoteContainers != "" {
-					os.Setenv("REMOTE_CONTAINERS", originalRemoteContainers)
+					_ = os.Setenv("REMOTE_CONTAINERS", originalRemoteContainers)
 				}
 				if originalK8s != "" {
-					os.Setenv("KUBERNETES_SERVICE_HOST", originalK8s)
+					_ = os.Setenv("KUBERNETES_SERVICE_HOST", originalK8s)
 				}
 			}()
 
@@ -740,12 +740,12 @@ func TestValidateFilePermissions_SecurePermissions_ContainerEnvironment(t *testi
 
 	// Save original env vars
 	originalCodespaces := os.Getenv("CODESPACES")
-	os.Setenv("CODESPACES", "true")
+	_ = os.Setenv("CODESPACES", "true")
 	defer func() {
 		if originalCodespaces != "" {
-			os.Setenv("CODESPACES", originalCodespaces)
+			_ = os.Setenv("CODESPACES", originalCodespaces)
 		} else {
-			os.Unsetenv("CODESPACES")
+			_ = os.Unsetenv("CODESPACES")
 		}
 	}()
 
