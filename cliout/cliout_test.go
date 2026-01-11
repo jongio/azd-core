@@ -205,53 +205,53 @@ func TestDetectUnicodeSupport(t *testing.T) {
 	// Clear all relevant environment variables
 	_ = os.Unsetenv("WT_SESSION")
 	_ = os.Unsetenv("TERM_PROGRAM")
-	os.Unsetenv("ConEmuPID")
-	os.Unsetenv("PSModulePath")
-	os.Unsetenv("POWERSHELL_DISTRIBUTION_CHANNEL")
-	os.Unsetenv("TERM")
+	_ = os.Unsetenv("ConEmuPID")
+	_ = os.Unsetenv("PSModulePath")
+	_ = os.Unsetenv("POWERSHELL_DISTRIBUTION_CHANNEL")
+	_ = os.Unsetenv("TERM")
 	
 	// Test Windows Terminal
 	if runtime.GOOS == "windows" {
-		os.Setenv("WT_SESSION", "test-session")
+		_ = os.Setenv("WT_SESSION", "test-session")
 		if !detectUnicodeSupport() {
 			t.Error("Expected Unicode support with WT_SESSION on Windows")
 		}
-		os.Unsetenv("WT_SESSION")
+		_ = os.Unsetenv("WT_SESSION")
 		
 		// Test VS Code
-		os.Setenv("TERM_PROGRAM", "vscode")
+		_ = os.Setenv("TERM_PROGRAM", "vscode")
 		if !detectUnicodeSupport() {
 			t.Error("Expected Unicode support with TERM_PROGRAM=vscode on Windows")
 		}
-		os.Unsetenv("TERM_PROGRAM")
+		_ = os.Unsetenv("TERM_PROGRAM")
 		
 		// Test ConEmu
-		os.Setenv("ConEmuPID", "12345")
+		_ = os.Setenv("ConEmuPID", "12345")
 		if !detectUnicodeSupport() {
 			t.Error("Expected Unicode support with ConEmuPID on Windows")
 		}
-		os.Unsetenv("ConEmuPID")
+		_ = os.Unsetenv("ConEmuPID")
 		
 		// Test PowerShell
-		os.Setenv("PSModulePath", "/path/to/modules")
+		_ = os.Setenv("PSModulePath", "/path/to/modules")
 		if !detectUnicodeSupport() {
 			t.Error("Expected Unicode support with PSModulePath on Windows")
 		}
-		os.Unsetenv("PSModulePath")
+		_ = os.Unsetenv("PSModulePath")
 		
 		// Test PowerShell distribution channel
-		os.Setenv("POWERSHELL_DISTRIBUTION_CHANNEL", "MSI:Windows 10")
+		_ = os.Setenv("POWERSHELL_DISTRIBUTION_CHANNEL", "MSI:Windows 10")
 		if !detectUnicodeSupport() {
 			t.Error("Expected Unicode support with POWERSHELL_DISTRIBUTION_CHANNEL on Windows")
 		}
-		os.Unsetenv("POWERSHELL_DISTRIBUTION_CHANNEL")
+		_ = os.Unsetenv("POWERSHELL_DISTRIBUTION_CHANNEL")
 		
 		// Test TERM variable
-		os.Setenv("TERM", "xterm-256color")
+		_ = os.Setenv("TERM", "xterm-256color")
 		if !detectUnicodeSupport() {
 			t.Error("Expected Unicode support with TERM on Windows")
 		}
-		os.Unsetenv("TERM")
+		_ = os.Unsetenv("TERM")
 		
 		// Test old Windows console (no env vars)
 		if detectUnicodeSupport() {
