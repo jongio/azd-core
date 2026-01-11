@@ -18,7 +18,7 @@ import (
 func TestRefreshWindowsPATH_PowerShellExecution(t *testing.T) {
 	// Test the Windows PATH refresh with PowerShell
 	originalPath := os.Getenv("PATH")
-	defer _ = os.Setenv("PATH", originalPath)
+	defer func() { _ = os.Setenv("PATH", originalPath) }()
 
 	newPath, err := refreshWindowsPATH()
 	if err != nil {
@@ -41,7 +41,7 @@ func TestRefreshWindowsPATH_MachinePathOnly(t *testing.T) {
 	// Test when user PATH is empty (machine PATH only scenario)
 	// We can't actually test this without mocking, but we can verify the function handles it
 	originalPath := os.Getenv("PATH")
-	defer _ = os.Setenv("PATH", originalPath)
+	defer func() { _ = os.Setenv("PATH", originalPath) }()
 
 	newPath, err := refreshWindowsPATH()
 	if err != nil {
@@ -58,7 +58,7 @@ func TestRefreshWindowsPATH_MachinePathOnly(t *testing.T) {
 func TestRefreshWindowsPATH_PathCombination(t *testing.T) {
 	// Test the path combination logic
 	originalPath := os.Getenv("PATH")
-	defer _ = os.Setenv("PATH", originalPath)
+	defer func() { _ = os.Setenv("PATH", originalPath) }()
 
 	newPath, err := refreshWindowsPATH()
 	if err != nil {
@@ -277,7 +277,7 @@ func TestGetInstallSuggestion_UnknownToolWindows(t *testing.T) {
 func TestRefreshPATH_WindowsIntegration(t *testing.T) {
 	// Full integration test for Windows
 	originalPath := os.Getenv("PATH")
-	defer _ = os.Setenv("PATH", originalPath)
+	defer func() { _ = os.Setenv("PATH", originalPath) }()
 
 	// Test refresh
 	newPath, err := RefreshPATH()
@@ -308,7 +308,7 @@ func TestRefreshPATH_WindowsIntegration(t *testing.T) {
 func TestRefreshPATH_SetEnvironment(t *testing.T) {
 	// Verify RefreshPATH actually updates the environment variable
 	originalPath := os.Getenv("PATH")
-	defer _ = os.Setenv("PATH", originalPath)
+	defer func() { _ = os.Setenv("PATH", originalPath) }()
 
 	// Temporarily clear PATH
 	_ = os.Setenv("PATH", "")
@@ -384,7 +384,7 @@ func TestRefreshWindowsPATH_ErrorHandling(t *testing.T) {
 	// Test error handling when PowerShell might not be available
 	// The function should return an error gracefully
 	originalPath := os.Getenv("PATH")
-	defer _ = os.Setenv("PATH", originalPath)
+	defer func() { _ = os.Setenv("PATH", originalPath) }()
 
 	// Even if PowerShell fails, the function should return a proper error
 	_, err := refreshWindowsPATH()
@@ -434,7 +434,7 @@ func TestFindToolInPath_ExtensionPriority(t *testing.T) {
 func TestRefreshPATH_OriginalValue(t *testing.T) {
 	// Test that original PATH is preserved when refresh fails
 	originalPath := os.Getenv("PATH")
-	defer _ = os.Setenv("PATH", originalPath)
+	defer func() { _ = os.Setenv("PATH", originalPath) }()
 
 	// Refresh (may succeed or fail)
 	_, err := RefreshPATH()
@@ -486,7 +486,7 @@ func TestGetInstallSuggestion_WindowsSpecificTools(t *testing.T) {
 func TestRefreshWindowsPATH_BothPathsPresent(t *testing.T) {
 	// Test the scenario where both machine and user PATH exist
 	originalPath := os.Getenv("PATH")
-	defer _ = os.Setenv("PATH", originalPath)
+	defer func() { _ = os.Setenv("PATH", originalPath) }()
 
 	newPath, err := refreshWindowsPATH()
 	if err != nil {
