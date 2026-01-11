@@ -193,9 +193,9 @@ func TestDetectUnicodeSupport(t *testing.T) {
 		// Restore environment
 		for k, v := range origEnv {
 			if v == "" {
-				os.Unsetenv(k)
+				_ = os.Unsetenv(k)
 			} else {
-				os.Setenv(k, v)
+				_ = os.Setenv(k, v)
 			}
 		}
 		// Reset detection
@@ -203,8 +203,8 @@ func TestDetectUnicodeSupport(t *testing.T) {
 	}()
 	
 	// Clear all relevant environment variables
-	os.Unsetenv("WT_SESSION")
-	os.Unsetenv("TERM_PROGRAM")
+	_ = os.Unsetenv("WT_SESSION")
+	_ = os.Unsetenv("TERM_PROGRAM")
 	os.Unsetenv("ConEmuPID")
 	os.Unsetenv("PSModulePath")
 	os.Unsetenv("POWERSHELL_DISTRIBUTION_CHANNEL")

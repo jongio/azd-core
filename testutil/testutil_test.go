@@ -153,7 +153,7 @@ func TestFindTestData(t *testing.T) {
 
 		// Change to tmpDir to test from there
 		origWd, _ := os.Getwd()
-		defer os.Chdir(origWd)
+		defer func() { _ = os.Chdir(origWd) }()
 		if err := os.Chdir(tmpDir); err != nil {
 			t.Fatalf("failed to change directory: %v", err)
 		}
@@ -255,7 +255,7 @@ func TestFindTestData(t *testing.T) {
 
 		// Change to tmpDir to test from there
 		origWd, _ := os.Getwd()
-		defer os.Chdir(origWd)
+		defer func() { _ = os.Chdir(origWd) }()
 		if err := os.Chdir(tmpDir); err != nil {
 			t.Fatalf("failed to change directory: %v", err)
 		}
