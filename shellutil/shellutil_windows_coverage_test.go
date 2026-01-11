@@ -198,12 +198,12 @@ func TestReadShebang_FileCloseOnWindows(t *testing.T) {
 
 	// Enable debug mode to exercise the close error logging path
 	originalDebug := os.Getenv(EnvVarDebug)
-	os.Setenv(EnvVarDebug, "true")
+	_ = os.Setenv(EnvVarDebug, "true")
 	defer func() {
 		if originalDebug != "" {
-			os.Setenv(EnvVarDebug, originalDebug)
+			_ = os.Setenv(EnvVarDebug, originalDebug)
 		} else {
-			os.Unsetenv(EnvVarDebug)
+			_ = os.Unsetenv(EnvVarDebug)
 		}
 	}()
 
@@ -506,10 +506,10 @@ func TestReadShebang_CloseErrorLogging_Windows(t *testing.T) {
 
 	// Test with debug mode off - close error shouldn't log
 	originalDebug := os.Getenv(EnvVarDebug)
-	os.Unsetenv(EnvVarDebug)
+	_ = os.Unsetenv(EnvVarDebug)
 	defer func() {
 		if originalDebug != "" {
-			os.Setenv(EnvVarDebug, originalDebug)
+			_ = os.Setenv(EnvVarDebug, originalDebug)
 		}
 	}()
 
@@ -519,7 +519,7 @@ func TestReadShebang_CloseErrorLogging_Windows(t *testing.T) {
 	}
 
 	// Test with debug mode on
-	os.Setenv(EnvVarDebug, "true")
+	_ = os.Setenv(EnvVarDebug, "true")
 	got = ReadShebang(scriptPath)
 	if got != "bash" {
 		t.Errorf("ReadShebang() with debug = %q, want bash", got)
