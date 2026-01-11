@@ -199,18 +199,18 @@ func TestValidateFilePermissions(t *testing.T) {
 		originalCodespaces := os.Getenv("CODESPACES")
 		originalRemoteContainers := os.Getenv("REMOTE_CONTAINERS")
 		originalK8s := os.Getenv("KUBERNETES_SERVICE_HOST")
-		_ = _ = os.Unsetenv("CODESPACES")
-		_ = _ = os.Unsetenv("REMOTE_CONTAINERS")
-		_ = _ = os.Unsetenv("KUBERNETES_SERVICE_HOST")
+		_ = os.Unsetenv("CODESPACES")
+		_ = os.Unsetenv("REMOTE_CONTAINERS")
+		_ = os.Unsetenv("KUBERNETES_SERVICE_HOST")
 		defer func() {
 			if originalCodespaces != "" {
-				_ = _ = os.Setenv("CODESPACES", originalCodespaces)
+				_ = os.Setenv("CODESPACES", originalCodespaces)
 			}
 			if originalRemoteContainers != "" {
-				_ = _ = os.Setenv("REMOTE_CONTAINERS", originalRemoteContainers)
+				_ = os.Setenv("REMOTE_CONTAINERS", originalRemoteContainers)
 			}
 			if originalK8s != "" {
-				_ = _ = os.Setenv("KUBERNETES_SERVICE_HOST", originalK8s)
+				_ = os.Setenv("KUBERNETES_SERVICE_HOST", originalK8s)
 			}
 		}()
 
