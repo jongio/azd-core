@@ -592,7 +592,7 @@ func TestAtomicWriteJSON_WriteError(t *testing.T) {
 	if err := os.Mkdir(readOnlyDir, 0555); err != nil {
 		t.Fatalf("Failed to create read-only directory: %v", err)
 	}
-	defer os.Chmod(readOnlyDir, 0755) // Restore permissions for cleanup
+	defer func() { _ = os.Chmod(readOnlyDir, 0755) }() // Restore permissions for cleanup
 
 	path := filepath.Join(readOnlyDir, "test.json")
 	data := map[string]string{"key": "value"}

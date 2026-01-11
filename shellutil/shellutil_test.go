@@ -272,9 +272,9 @@ func TestReadShebangFilePermissionError(t *testing.T) {
 	if _, err := tmpFile.WriteString("#!/bin/bash\necho test"); err != nil {
 		t.Fatal(err)
 	}
-	tmpFile.Close()
+	_ = tmpFile.Close()
 
-	defer os.Remove(tmpPath)
+	defer func() { _ = os.Remove(tmpPath) }()
 
 	// On Unix, we can test permission errors
 	if runtime.GOOS != osWindows {
@@ -282,7 +282,7 @@ func TestReadShebangFilePermissionError(t *testing.T) {
 		if err := os.Chmod(tmpPath, 0000); err != nil {
 			t.Fatal(err)
 		}
-		defer os.Chmod(tmpPath, 0644) // Restore for cleanup
+		defer func() { _ = os.Chmod(tmpPath, 0644) }() // Restore for cleanup
 
 		got := ReadShebang(tmpPath)
 		if got != "" {
@@ -439,9 +439,9 @@ func TestReadShebangWithDebugMode(t *testing.T) {
 
 	// Enable debug mode
 	originalDebug := os.Getenv(EnvVarDebug)
-	defer os.Setenv(EnvVarDebug, originalDebug)
+	defer func() { _ = os.Setenv(EnvVarDebug, originalDebug) }()
 
-	os.Setenv(EnvVarDebug, "true")
+	_ = os.Setenv(EnvVarDebug, "true")
 
 	// Read shebang - this exercises the debug path
 	// The debug output goes to stderr, which we don't capture in this test

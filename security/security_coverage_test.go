@@ -289,14 +289,14 @@ func TestIsContainerEnvironment_AllEnvironments(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Clear all env vars
-			os.Unsetenv("CODESPACES")
-			os.Unsetenv("REMOTE_CONTAINERS")
-			os.Unsetenv("KUBERNETES_SERVICE_HOST")
+			_ = os.Unsetenv("CODESPACES")
+			_ = os.Unsetenv("REMOTE_CONTAINERS")
+			_ = os.Unsetenv("KUBERNETES_SERVICE_HOST")
 
 			// Set test env vars
 			for k, v := range tt.envVars {
 				if v != "" {
-					os.Setenv(k, v)
+					_ = os.Setenv(k, v)
 				}
 			}
 
