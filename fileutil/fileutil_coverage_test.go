@@ -59,7 +59,7 @@ func TestAtomicWriteFile_CreateTempFailure(t *testing.T) {
 	if err := os.Mkdir(readOnlyDir, 0555); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Chmod(readOnlyDir, 0755) // Restore for cleanup
+	defer func() { _ = os.Chmod(readOnlyDir, 0755) }() // Restore for cleanup
 
 	path := filepath.Join(readOnlyDir, "test.txt")
 	data := []byte("test")

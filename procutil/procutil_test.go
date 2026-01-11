@@ -87,8 +87,8 @@ func TestIsProcessRunningRealProcess(t *testing.T) {
 	// Ensure the process is cleaned up
 	defer func() {
 		if cmd.Process != nil {
-			cmd.Process.Kill()
-			cmd.Wait()
+			_ = cmd.Process.Kill()
+			_ = cmd.Wait()
 		}
 	}()
 
@@ -105,7 +105,7 @@ func TestIsProcessRunningRealProcess(t *testing.T) {
 	}
 
 	// Wait for process to exit
-	cmd.Wait()
+	_ = cmd.Wait()
 
 	// Give the system a moment to clean up the process
 	time.Sleep(100 * time.Millisecond)

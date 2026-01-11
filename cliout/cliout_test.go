@@ -41,7 +41,7 @@ func captureOutput(t *testing.T, fn func()) string {
 	fn()
 	
 	// Close writer and wait for reader
-	w.Close()
+	_ = w.Close()
 	output := <-done
 	
 	return output
