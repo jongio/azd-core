@@ -1,26 +1,31 @@
 # Consolidation Tasks
 
-<!-- NEXT: 12 -->
+<!-- NEXT: 16 -->
 
 ## TODO
 
 ### 16. Publish azd-core v0.2.0
 
-Release azd-core v0.2.0 with 6 core utility packages.
+**Note**: Ready to publish after proper PR/merge workflow.
+
+Release azd-core v0.2.0 with 6 core utility packages and full integration.
 
 **What's in v0.2.0** (6 packages):
 - Core utilities: fileutil, pathutil, browser, security, procutil (with gopsutil), shellutil
 - All packages tested (77-89% coverage)
-- azd-exec integration complete (uses shellutil)
+- azd-exec: Uses shellutil for shell detection
+- azd-app: Uses fileutil (8 files), security (20+ files), pathutil (2 files), browser, procutil
 - Full documentation and examples
 
 **Acceptance Criteria**:
 - ✅ 6 core utility packages complete and tested (77-89% coverage)
 - ✅ Dependencies: github.com/shirou/gopsutil/v4 v4.24.12
-- ✅ azd-exec integrated and tested
-- ⏳ azd-app analysis complete
+- ✅ azd-exec integrated with shellutil
+- ✅ azd-app integrated with fileutil, pathutil, security
+- ⏳ Create PR from azd-core-int-2 → main  
+- ⏳ Merge PR to main
 - ⏳ CHANGELOG.md created
-- ⏳ Git tag created: v0.2.0
+- ⏳ Git tag v0.2.0 created from main (not feature branch)
 - ⏳ GitHub release published
 - ⏳ pkg.go.dev updated automatically
 
@@ -30,29 +35,71 @@ Release azd-core v0.2.0 with 6 core utility packages.
 
 ## IN PROGRESS
 
-### 12. Complete azd-app Integration Analysis
-
-Analyze azd-app codebase to determine integration opportunities with azd-core utilities.
-
-**Context**: azd-app doesn't have exact duplicates of azd-core packages. This task identifies where azd-core utilities can improve code quality, security, or reduce custom implementations.
-
-**Analysis Approach**:
-1. Review azd-app internal packages (constants, cache, docker, output, yamlutil)
-2. Identify opportunities to use azd-core/security for path validation
-3. Identify opportunities to use azd-core/procutil for process management
-4. Identify opportunities to use azd-core/fileutil for atomic operations
-5. Document findings and create follow-up tasks if beneficial integrations found
-
-**Acceptance Criteria**:
-- ✅ go.work linking local azd-core for testing
-- ⏳ Code analysis complete (document findings)
-- ⏳ Integration decision made (proceed with imports OR document why not needed)
-- ⏳ If proceeding: azd-core imports added, tests pass, no regressions
-- ⏳ If not proceeding: document rationale and close task
-
 ---
 
 ## DONE
+
+### 18. Enhance azd-app with azd-core/pathutil ✓
+
+Enhanced azd-app tool detection and installation suggestions.
+
+**Completed**:
+- ✅ root.go: Enhanced azd.exe finding with pathutil.FindToolInPath + SearchInSystemDirs
+- ✅ installer.go: Replaced custom installation suggestions with pathutil.GetInstallationSuggestion  
+- ✅ Updated 6 tests to match new URL-based suggestion format
+- ✅ All tests passing (installer: 30.023s, notify: 1.054s)
+- ✅ Eliminated ~20 lines of duplicate code
+
+**Impact**: More robust tool detection, consistent installation URLs (22+ tools), better UX
+
+---
+
+### 17. Integrate azd-app with azd-core/fileutil ✓
+
+Integrated azd-app with azd-core/fileutil for atomic file operations.
+
+**Completed**:
+- ✅ 8 files now use fileutil.AtomicWriteJSON/AtomicWriteFile
+- ✅ config.go: Fixed critical non-atomic write bug (config corruption vulnerability)
+- ✅ reqs_cache.go, notifications.go: Replaced custom atomic write patterns
+- ✅ detector.go: Wrapper functions using fileutil with path validation
+- ✅ All tests passing
+- ✅ ~50 lines of duplicate code eliminated
+
+**Files Using fileutil**:
+- config.go, reqs_cache.go, notifications.go, detector.go (4 core files)
+- Plus 4 other files across azd-app codebase
+
+---
+
+### 12. Complete azd-app Integration Analysis ✓
+
+Analyzed azd-app codebase to determine integration opportunities with azd-core utilities.
+
+**Analysis Complete**: See [azd-app-integration-analysis.md](./azd-app-integration-analysis.md)
+
+**Key Findings**:
+- ✅ azd-core/security already extensively used (21+ files)
+- ✅ fileutil integration opportunity: Replace 3 atomic write patterns + fix 1 critical bug
+- ✅ pathutil: Low priority, optional UX enhancement
+- ❌ procutil: Not needed (container-focused architecture)
+- ❌ browser: Not currently implemented (uses VS Code Simple Browser)
+- ❌ shellutil: Not needed (uses azd-exec extension)
+
+**Decision**: Proceed with targeted fileutil integration
+
+**Implementation Plan**:
+1. Replace atomic write patterns in cache/reqs_cache.go, config/notifications.go, config/config.go
+2. Fix critical non-atomic write bug in config/config.go
+3. Replace custom file helpers in service/detector.go with fileutil (adds path validation)
+4. Total impact: 4 files, -50 lines, improved reliability + security
+
+**Completed**:
+- ✅ go.work linking local azd-core for testing
+- ✅ Code analysis complete (documented in azd-app-integration-analysis.md)
+- ✅ Integration decision made: Proceed with fileutil integration after v0.2.0 release
+
+---
 
 ### 11. Integrate azd-exec with azd-core v0.2.0 ✓
 
@@ -129,3 +176,33 @@ Created 6 package directories (fileutil, pathutil, browser, security, procutil, 
 ### 1. Review and Finalize Spec ✓
 
 Spec created at docs/specs/consolidation/spec.md with Priority 1 packages confirmed: fileutil, pathutil, browser, security, procutil, shellutil. Ready for implementation.
+
+
+---
+
+## DEFERRED (After All Integration Complete)
+
+### 16. Publish azd-core v0.2.0
+
+**Note**: This task runs LAST, after all integration work is complete.
+
+Release azd-core v0.2.0 with 6 core utility packages.
+
+**What's in v0.2.0** (6 packages):
+- Core utilities: fileutil, pathutil, browser, security, procutil (with gopsutil), shellutil
+- All packages tested (77-89% coverage)
+- azd-exec integration complete (uses shellutil)
+- azd-app integration complete (uses fileutil)
+- Full documentation and examples
+
+**Acceptance Criteria**:
+- ✅ 6 core utility packages complete and tested (77-89% coverage)
+- ✅ Dependencies: github.com/shirou/gopsutil/v4 v4.24.12
+- ✅ azd-exec integrated and tested
+- ✅ azd-app integration complete
+- ⏳ CHANGELOG.md created
+- ⏳ Git tag created: v0.2.0
+- ⏳ GitHub release published
+- ⏳ pkg.go.dev updated automatically
+
+**Note**: Standardization packages (errors, testutil, constants) deferred to Phase 4/v0.3.0 per spec.
