@@ -29,6 +29,8 @@ go get github.com/jongio/azd-core
 Or add specific packages to your `go.mod`:
 
 ```bash
+go get github.com/jongio/azd-core/testutil
+go get github.com/jongio/azd-core/cliout
 go get github.com/jongio/azd-core/env
 go get github.com/jongio/azd-core/keyvault
 go get github.com/jongio/azd-core/fileutil
@@ -43,7 +45,111 @@ go get github.com/jongio/azd-core/shellutil
 
 Full API documentation is available at [pkg.go.dev/github.com/jongio/azd-core](https://pkg.go.dev/github.com/jongio/azd-core).
 
+**Extension Development:**
+- [Extension Patterns Guide](docs/extension-patterns.md) - Comprehensive patterns and best practices for building azd extensions
+
 ## Packages
+
+### `testutil`
+Common testing utilities for writing reliable tests in azd extensions.
+
+**Key Functions:**
+- `CaptureOutput` - Capture stdout during function execution for testing CLI commands
+- `FindTestData` - Locate test fixture directories with flexible path searching
+- `TempDir` - Create temporary directories with automatic cleanup via t.Cleanup()
+- `Contains` - Convenience helper for string containment checks
+
+**Features:**
+- Proper test line reporting via t.Helper() in all functions
+- Automatic cleanup of temporary resources
+- Cross-platform path handling
+- Reliable stdout capture with goroutine-based reading
+
+**Example:**
+```go
+import "github.com/jongio/azd-core/testutil"
+
+func TestCLICommand(t *testing.T) {
+    // Capture command output
+    output := testutil.CaptureOutput(t, func() error {
+        return runCommand()
+    })
+    
+    if !testutil.Contains(output, "success") {
+        t.Error("expected success message")
+    }
+}
+
+func TestWithFixtures(t *testing.T) {
+    // Find test data directory
+    fixturesDir := testutil.FindTestData(t, "tests", "fixtures")
+    
+    // Create temporary directory for outputs
+    tmpDir := testutil.TempDir(t)
+    // Automatically cleaned up after test
+}
+```
+
+### `cliout`
+Structured CLI output formatting with cross-platform terminal support and multiple output formats.
+
+**Key Functions:**
+- `Success` / `Error` / `Warning` / `Info` - Colored status messages with icons
+- `Header` / `Section` - Formatted section headers
+- `Table` - Simple table rendering with automatic column width calculation
+- `ProgressBar` - Visual progress indicators
+- `Confirm` - Interactive yes/no prompts (non-interactive in JSON mode)
+- `Print` - Hybrid output (JSON or formatted text)
+
+**Output Formats:**
+- `FormatDefault` - Human-readable text with ANSI colors and Unicode symbols
+- `FormatJSON` - Structured JSON for automation and scripting
+
+**Features:**
+- Cross-platform Unicode detection (Windows Terminal, VS Code, PowerShell, ConEmu)
+- ASCII fallback for legacy terminals (old Windows cmd.exe)
+- Orchestration mode (skip headers when composing commands)
+- Consistent color scheme across azd ecosystem
+- Non-interactive mode for CI/CD pipelines
+
+**Example:**
+```go
+import "github.com/jongio/azd-core/cliout"
+
+// Set output format
+if err := cliout.SetFormat("json"); err != nil {
+    log.Fatal(err)
+}
+
+// Print status messages
+cliout.Success("Deployment completed successfully")
+cliout.Error("Failed to connect: %s", err)
+cliout.Warning("This feature is deprecated")
+cliout.Info("Processing %d items", count)
+
+// Create tables
+headers := []string{"Name", "Status", "Port"}
+rows := []cliout.TableRow{
+    {"Name": "web", "Status": "running", "Port": "8080"},
+    {"Name": "api", "Status": "stopped", "Port": "3000"},
+}
+cliout.Table(headers, rows)
+
+// Hybrid output (JSON mode or formatted)
+data := map[string]interface{}{"status": "success", "count": 42}
+cliout.Print(data, func() {
+    cliout.Success("Processed %d items", 42)
+})
+
+// Interactive prompts
+if cliout.Confirm("Do you want to continue?") {
+    // User confirmed (always true in JSON mode)
+}
+
+// Orchestration mode for subcommands
+cliout.SetOrchestrated(true)
+// Now CommandHeader() calls are skipped
+```
 
 ### `env`
 Environment variable utilities for converting between maps and slices, resolving references, and applying transformations.

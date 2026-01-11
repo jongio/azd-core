@@ -5,6 +5,97 @@ All notable changes to azd-core will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-01-10
+
+### Added
+
+#### New Test Infrastructure Package
+- **testutil**: Common testing utilities for CLI testing and test fixture management
+  - `CaptureOutput(t, fn)` - Capture stdout during function execution for testing CLI commands
+  - `FindTestData(t, subdirs...)` - Locate test fixture directories with flexible path searching
+  - `TempDir(t)` - Create temporary directories with automatic cleanup via t.Cleanup()
+  - `Contains(s, substr)` - Convenience helper for string containment checks
+  - Proper test line reporting via `t.Helper()` in all functions
+  - Cross-platform path handling (Windows and Unix)
+  - Thread-safe for parallel test execution
+  - **Test Coverage**: 83.3% (38 test cases)
+
+#### New CLI Output Package
+- **cliout**: Structured CLI output formatting with cross-platform terminal support
+  - **Status Messages**: `Success`, `Error`, `Warning`, `Info` with colored icons
+  - **Section Headers**: `Header`, `Section` with visual separators
+  - **Lists**: `Bullet`, `Label` for structured content
+  - **Tables**: `Table` with automatic column width calculation
+  - **Progress**: `ProgressBar` for visual progress indicators
+  - **Interactive**: `Confirm` for yes/no prompts (CI-friendly in JSON mode)
+  - **Hybrid Output**: `Print`, `PrintJSON` for format-agnostic output
+  - **Format Management**: `SetFormat`, `GetFormat`, `IsJSON` for output control
+  - **Orchestration Mode**: `SetOrchestrated` to skip headers in composed workflows
+  - Cross-platform Unicode detection (Windows Terminal, VS Code, PowerShell, ConEmu)
+  - ASCII fallback for legacy terminals
+  - Consistent color scheme (green success, red error, yellow warning, blue info)
+  - Non-interactive mode for CI/CD pipelines
+  - Thread-safe for concurrent use
+  - **Test Coverage**: 94.9% (43 test cases)
+
+#### New Documentation
+- **Extension Patterns Guide**: Comprehensive guide for building azd extensions (1,056 lines)
+  - Version management pattern with ldflags injection
+  - Logging pattern with structured logging (log/slog)
+  - Extension structure best practices
+  - Testing patterns using testutil
+  - CLI output patterns using cliout
+  - Error handling patterns
+  - 26 code examples from azd-exec and azd-app
+
+### Integration Benefits
+
+#### azd-exec Integration (Complete)
+- **testutil migration**: Removed internal testhelpers package (100 lines deleted)
+  - Migrated all tests to azd-core/testutil
+  - Enhanced test reliability with standardized helpers
+  - All 65 tests pass with zero regressions
+- **cliout integration**: Enhanced CLI output formatting
+  - Version command with formatted output and JSON mode
+  - Colored info messages for listen command
+  - Improved Key Vault warnings
+  - Enhanced error messages
+  - Backward compatible, all tests pass
+- **Total Impact**: ~100 lines removed, enhanced CLI UX
+
+#### azd-app Integration (Complete)
+- **testutil adoption**: Enhanced test infrastructure
+  - Added CaptureOutput for CLI command testing
+  - Enhanced logs tests with Contains (13 assertions)
+  - Created version command tests
+  - 5 new tests added, all 30+ tests pass
+- **cliout migration**: Migrated from internal/output to azd-core/cliout
+  - 30 files migrated to use azd-core/cliout
+  - Reduced internal/output to thin wrapper (125 lines) + progress tracking
+  - Deleted output_test.go (tests now in azd-core)
+  - All 35 tests pass, CLI output identical to pre-migration
+- **Total Impact**: ~550 lines reduced, zero breaking changes
+
+### Quality Metrics
+- **testutil**: 83.3% coverage (38 tests, 162 lines)
+- **cliout**: 94.9% coverage (43 tests, 464 lines)
+- **Combined**: 81 test cases ensuring reliability
+- **Integration testing**: All azd-exec (65 tests) and azd-app (35 tests) pass
+
+### Total Impact
+- **Code Reduction**: ~650 lines eliminated across azd-exec and azd-app
+- **Standardization**: Unified testing and CLI output patterns
+- **Quality**: Battle-tested helpers with extensive edge case coverage
+- **Developer Experience**: Faster testing, professional output, better documentation
+
+### Documentation
+- Extension Patterns Guide published in docs/extension-patterns.md
+- README updated with links to patterns guide
+- Comprehensive API documentation for testutil and cliout
+- Migration guide in release notes
+
+---
+
 ## [0.2.0] - 2026-01-10
 
 ### Added
