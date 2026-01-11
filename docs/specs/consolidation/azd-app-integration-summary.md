@@ -103,7 +103,7 @@
 - Enhanced error messages for missing tools
 - Installation guidance with direct links
 - Tool discovery in non-standard paths
-- **Action**: Document for v0.3.0 UX improvements
+- **Action**: Document for v0.2.0 UX improvements
 
 ### browser (Not Currently Needed)
 - Dashboard uses VS Code Simple Browser

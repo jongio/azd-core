@@ -397,7 +397,7 @@ These packages are valuable but either:
 2. Define standardized error types
 3. Migrate test utilities
 4. Extract shared constants (selective, not all)
-5. Publish azd-core v0.3.0
+5. Publish azd-core v0.2.0
 6. Update azd-app and azd-exec to use new packages
 
 **Success Criteria**:
@@ -671,7 +671,7 @@ Each package must include:
 
 - Week 1: Extract errors, testutil, constants
 - Week 2: Testing, adoption in azd-app and azd-exec
-- Week 3: azd-core v0.3.0 release
+- Week 3: azd-core v0.2.0 release
 
 **Total Estimated Duration**: 9-14 weeks
 

@@ -29,7 +29,7 @@ Release azd-core v0.2.0 with 6 core utility packages and full integration.
 - ⏳ GitHub release published
 - ⏳ pkg.go.dev updated automatically
 
-**Note**: Standardization packages (errors, testutil, constants) deferred to Phase 4/v0.3.0 per spec.
+**Note**: Standardization packages (errors, testutil, constants) deferred to Phase 4/v0.2.0 per spec.
 
 ---
 
@@ -205,4 +205,4 @@ Release azd-core v0.2.0 with 6 core utility packages.
 - ⏳ GitHub release published
 - ⏳ pkg.go.dev updated automatically
 
-**Note**: Standardization packages (errors, testutil, constants) deferred to Phase 4/v0.3.0 per spec.
+**Note**: Standardization packages (errors, testutil, constants) deferred to Phase 4/v0.2.0 per spec.

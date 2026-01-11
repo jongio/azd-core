@@ -70,7 +70,7 @@ azd-app extensively uses `security.ValidatePath` across:
 **pathutil** (Low Priority):
 - Could enhance UX with install suggestions for missing tools
 - Not critical, current `exec.LookPath` works fine
-- Consider for v0.3.0
+- Consider for v0.2.0
 
 **browser** (Deferred):
 - Not currently implemented in azd-app

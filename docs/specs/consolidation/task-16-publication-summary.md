@@ -119,7 +119,7 @@ go get github.com/jongio/azd-core/shellutil@v0.2.0
 - Watch for any installation or integration issues
 
 ### Future
-- Plan v0.3.0 release with `env` and `keyvault` packages
+- Plan v0.2.0 release with `env` and `keyvault` packages
 - Continue consolidation roadmap
 - Monitor for feature requests and bug reports
 

@@ -517,7 +517,7 @@ c:\code\azd-app\cli\src\internal\service\detector.go        (fileExists, contain
 5. Submit PR for review
 
 **Deferred**:
-- pathutil: Consider for v0.3.0 when adding UX improvements
+- pathutil: Consider for v0.2.0 when adding UX improvements
 - browser: Consider when adding standalone mode (no VS Code)
 - procutil, shellutil: Not needed for current architecture
 
