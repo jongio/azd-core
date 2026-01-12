@@ -12,7 +12,8 @@ Common reusable Go modules for building Azure Developer CLI (azd) extensions and
 `azd-core` provides shared utilities extracted from the Azure Developer CLI to support building azd extensions, custom CLI tools, and automation scripts. The goal is to enable developers to create azd-compatible tools without duplicating common logic or pulling in the entire azd runtime.
 
 This library includes:
-- **Environment Management**: Environment variable resolution and Key Vault integration
+- **URL Validation**: RFC-compliant HTTP/HTTPS URL validation and parsing
+- **Environment Management**: Environment variable resolution, pattern extraction, and Key Vault integration
 - **File System Utilities**: Atomic writes, JSON handling, secure file operations
 - **Path Management**: Tool discovery, PATH manipulation, installation suggestions
 - **Process Utilities**: Cross-platform process detection and management
@@ -29,6 +30,7 @@ go get github.com/jongio/azd-core
 Or add specific packages to your `go.mod`:
 
 ```bash
+go get github.com/jongio/azd-core/urlutil
 go get github.com/jongio/azd-core/testutil
 go get github.com/jongio/azd-core/cliout
 go get github.com/jongio/azd-core/env
@@ -48,7 +50,58 @@ Full API documentation is available at [pkg.go.dev/github.com/jongio/azd-core](h
 **Extension Development:**
 - [Extension Patterns Guide](docs/extension-patterns.md) - Comprehensive patterns and best practices for building azd extensions
 
+**Migration Guides:**
+- [URL Validation and Environment Patterns Migration](docs/migration-urlutil-env.md) - Migrate from custom validation to azd-core utilities
+
 ## Packages
+
+### `urlutil`
+URL validation and parsing utilities with RFC-compliant validation.
+
+**Key Functions:**
+- `Validate` - Comprehensive HTTP/HTTPS URL validation using `net/url.Parse`
+- `ValidateHTTPSOnly` - Enforce HTTPS-only for production (allows localhost HTTP)
+- `Parse` - Parse and normalize URLs with validation
+- `NormalizeScheme` - Ensure URL has http:// or https:// prefix
+
+**Validation Rules:**
+- Protocol must be http:// or https:// (rejects ftp://, file://, javascript://, etc.)
+- URL must have a valid host/domain (rejects "http://", "https://")
+- URL must not exceed 2048 characters (RFC 2616 practical limit)
+- Uses `net/url.Parse` for RFC 3986 compliant parsing
+- Whitespace is trimmed before validation
+
+**Security Features:**
+- Prevents protocol injection (javascript:, file:, data: URLs)
+- Validates host presence to prevent malformed URLs
+- Length limits prevent DoS via extremely long URLs
+- HTTPS enforcement for production with localhost exception
+
+**Example:**
+```go
+import "github.com/jongio/azd-core/urlutil"
+
+// Validate custom URL from configuration
+if err := urlutil.Validate(customURL); err != nil {
+    return fmt.Errorf("invalid custom URL: %w", err)
+}
+
+// Enforce HTTPS for production endpoints (allows localhost HTTP)
+if err := urlutil.ValidateHTTPSOnly(apiEndpoint); err != nil {
+    return fmt.Errorf("production endpoint must use HTTPS: %w", err)
+}
+
+// Parse and normalize URL
+parsed, err := urlutil.Parse(userProvidedURL)
+if err != nil {
+    return err
+}
+fmt.Printf("Accessing: %s://%s\n", parsed.Scheme, parsed.Host)
+
+// Add default scheme if missing
+normalized := urlutil.NormalizeScheme("example.com", "https")
+// Returns: "https://example.com"
+```
 
 ### `testutil`
 Common testing utilities for writing reliable tests in azd extensions.
@@ -105,13 +158,6 @@ Structured CLI output formatting with cross-platform terminal support and multip
 - `FormatDefault` - Human-readable text with ANSI colors and Unicode symbols
 - `FormatJSON` - Structured JSON for automation and scripting
 
-**Features:**
-- Cross-platform Unicode detection (Windows Terminal, VS Code, PowerShell, ConEmu)
-- ASCII fallback for legacy terminals (old Windows cmd.exe)
-- Orchestration mode (skip headers when composing commands)
-- Consistent color scheme across azd ecosystem
-- Non-interactive mode for CI/CD pipelines
-
 **Example:**
 ```go
 import "github.com/jongio/azd-core/cliout"
@@ -155,10 +201,50 @@ cliout.SetOrchestrated(true)
 Environment variable utilities for converting between maps and slices, resolving references, and applying transformations.
 
 **Key Functions:**
-- `ResolveMap` - Resolve references in environment maps
-- `ResolveSlice` - Resolve references in environment slices (`[]string`)
-- `MapToSlice` / `SliceToMap` - Convert between formats
+- `ResolveMap` / `ResolveSlice` - Resolve Key Vault references in environment variables
+- `MapToSlice` / `SliceToMap` - Convert between map and slice formats
 - `HasKeyVaultReferences` - Detect Key Vault references in environment data
+- `FilterByPrefix` / `FilterByPrefixSlice` - Filter environment variables by prefix (case-insensitive)
+- `ExtractPattern` - Extract environment variables matching prefix/suffix with key transformation
+- `NormalizeServiceName` - Convert environment variable naming to service naming (MY_API → my-api)
+
+**Pattern Extraction Features:**
+- Case-insensitive prefix/suffix matching
+- Optional prefix/suffix trimming from result keys
+- Custom key transformation functions
+- Value validation with callback functions
+- Useful for extracting service URLs, Azure variables, custom domain configs
+
+**Example:**
+```go
+import "github.com/jongio/azd-core/env"
+
+// Filter by prefix (case-insensitive)
+envVars := map[string]string{
+    "AZURE_TENANT_ID": "xyz",
+    "AZURE_CLIENT_ID": "abc",
+    "DATABASE_URL": "postgres://...",
+}
+azureVars := env.FilterByPrefix(envVars, "AZURE_")
+// Returns: {"AZURE_TENANT_ID": "xyz", "AZURE_CLIENT_ID": "abc"}
+
+// Extract service URLs with normalization
+serviceEnv := map[string]string{
+    "SERVICE_MY_API_URL": "https://api.example.com",
+    "SERVICE_WEB_APP_URL": "https://web.example.com",
+    "SERVICE_DB_HOST": "db.example.com",
+}
+urls, _ := env.ExtractPattern(serviceEnv, env.PatternOptions{
+    Prefix:       "SERVICE_",
+    Suffix:       "_URL",
+    TrimPrefix:   true,
+    TrimSuffix:   true,
+    KeyTransform: env.NormalizeServiceName, // MY_API → my-api
+})
+// Returns: {"my-api": "https://api.example.com", "web-app": "https://web.example.com"}
+```
+
+**Key Vault Resolution:**
 
 ### `keyvault`
 Azure Key Vault reference detection and resolution for environment variables.
