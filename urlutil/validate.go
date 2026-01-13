@@ -216,10 +216,10 @@ func ValidateDomain(domain string) error {
 			
 			// Validate characters (alphanumeric + hyphen only)
 			for _, ch := range part {
-				if !((ch >= 'a' && ch <= 'z') ||
-					(ch >= 'A' && ch <= 'Z') ||
-					(ch >= '0' && ch <= '9') ||
-					ch == '-') {
+				if (ch < 'a' || ch > 'z') &&
+					(ch < 'A' || ch > 'Z') &&
+					(ch < '0' || ch > '9') &&
+					ch != '-' {
 					return fmt.Errorf("domain label contains invalid character: %c", ch)
 				}
 			}
