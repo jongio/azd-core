@@ -502,3 +502,226 @@ func TestIsLocalhost(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateDomain(t *testing.T) {
+	tests := []struct {
+		name    string
+		domain  string
+		wantErr bool
+		errMsg  string
+	}{
+		// Valid domains
+		{
+			name:    "valid simple domain",
+			domain:  "example.com",
+			wantErr: false,
+		},
+		{
+			name:    "valid subdomain",
+			domain:  "www.example.com",
+			wantErr: false,
+		},
+		{
+			name:    "valid api subdomain",
+			domain:  "api.example.com",
+			wantErr: false,
+		},
+		{
+			name:    "valid multi-level subdomain",
+			domain:  "api.staging.example.com",
+			wantErr: false,
+		},
+		{
+			name:    "valid domain with hyphen",
+			domain:  "my-app.example.com",
+			wantErr: false,
+		},
+		{
+			name:    "valid azure domain",
+			domain:  "myapp.azurewebsites.net",
+			wantErr: false,
+		},
+		{
+			name:    "localhost allowed",
+			domain:  "localhost",
+			wantErr: false,
+		},
+		
+		// Domain with whitespace (trimmed)
+		{
+			name:    "domain with leading whitespace",
+			domain:  "  example.com",
+			wantErr: false,
+		},
+		{
+			name:    "domain with trailing whitespace",
+			domain:  "example.com  ",
+			wantErr: false,
+		},
+		
+		// Empty/whitespace
+		{
+			name:    "empty domain",
+			domain:  "",
+			wantErr: true,
+			errMsg:  "domain cannot be empty",
+		},
+		{
+			name:    "whitespace only",
+			domain:  "   ",
+			wantErr: true,
+			errMsg:  "domain cannot be empty",
+		},
+		
+		// Protocol included (should fail)
+		{
+			name:    "http protocol",
+			domain:  "http://example.com",
+			wantErr: true,
+			errMsg:  "domain should not include protocol",
+		},
+		{
+			name:    "https protocol",
+			domain:  "https://example.com",
+			wantErr: true,
+			errMsg:  "domain should not include protocol",
+		},
+		{
+			name:    "https with subdomain",
+			domain:  "https://www.example.com",
+			wantErr: true,
+			errMsg:  "domain should not include protocol",
+		},
+		{
+			name:    "ftp protocol",
+			domain:  "ftp://example.com",
+			wantErr: true,
+			errMsg:  "domain should not include protocol",
+		},
+		
+		// Port included (should fail)
+		{
+			name:    "domain with port",
+			domain:  "example.com:8080",
+			wantErr: true,
+			errMsg:  "domain should not include port",
+		},
+		{
+			name:    "subdomain with port",
+			domain:  "api.example.com:443",
+			wantErr: true,
+			errMsg:  "domain should not include port",
+		},
+		
+		// Invalid characters
+		{
+			name:    "domain with @ symbol",
+			domain:  "hello@world.com",
+			wantErr: true,
+			errMsg:  "domain label contains invalid character",
+		},
+		{
+			name:    "domain with underscore",
+			domain:  "hello_world.com",
+			wantErr: true,
+			errMsg:  "domain label contains invalid character",
+		},
+		{
+			name:    "domain with space",
+			domain:  "hello world.com",
+			wantErr: true,
+			errMsg:  "domain label contains invalid character",
+		},
+		{
+			name:    "domain with exclamation",
+			domain:  "hello!.com",
+			wantErr: true,
+			errMsg:  "domain label contains invalid character",
+		},
+		{
+			name:    "domain with slash",
+			domain:  "hello/world.com",
+			wantErr: true,
+			errMsg:  "domain label contains invalid character",
+		},
+		
+		// Missing dot (except localhost)
+		{
+			name:    "no dot in domain",
+			domain:  "example",
+			wantErr: true,
+			errMsg:  "domain must have at least one dot",
+		},
+		
+		// Invalid formats
+		{
+			name:    "starts with hyphen",
+			domain:  "-example.com",
+			wantErr: true,
+			errMsg:  "domain label cannot start or end with hyphen",
+		},
+		{
+			name:    "ends with hyphen",
+			domain:  "example-.com",
+			wantErr: true,
+			errMsg:  "domain label cannot start or end with hyphen",
+		},
+		{
+			name:    "consecutive dots",
+			domain:  "example..com",
+			wantErr: true,
+			errMsg:  "domain has empty label",
+		},
+		{
+			name:    "ends with dot",
+			domain:  "example.com.",
+			wantErr: true,
+			errMsg:  "domain has empty label",
+		},
+		{
+			name:    "starts with dot",
+			domain:  ".example.com",
+			wantErr: true,
+			errMsg:  "domain has empty label",
+		},
+		
+		// Length limits
+		{
+			name:    "label exceeds 63 chars",
+			domain:  strings.Repeat("a", 64) + ".example.com",
+			wantErr: true,
+			errMsg:  "domain label exceeds 63 characters",
+		},
+		{
+			name:    "domain exceeds 253 chars",
+			domain:  strings.Repeat("a", 250) + ".com",
+			wantErr: true,
+			errMsg:  "domain exceeds maximum length",
+		},
+		{
+			name:    "valid long domain",
+			domain:  "a." + strings.Repeat("b", 60) + ".example.com",
+			wantErr: false,
+		},
+	}
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateDomain(tt.domain)
+			
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("ValidateDomain() expected error but got nil")
+					return
+				}
+				if tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
+					t.Errorf("ValidateDomain() error = %v, want error containing %q", err, tt.errMsg)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("ValidateDomain() unexpected error = %v", err)
+				}
+			}
+		})
+	}
+}
