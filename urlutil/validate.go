@@ -151,6 +151,84 @@ func NormalizeScheme(rawURL, defaultScheme string) string {
 	return defaultScheme + "://" + rawURL
 }
 
+// ValidateDomain validates a domain name without protocol.
+// It validates that the domain:
+//   - Is not empty or only whitespace
+//   - Does not include a protocol (http:// or https://)
+//   - Is a valid domain name format
+//   - Does not exceed 253 characters (max domain length)
+//
+// This is useful for configuration fields that expect domain names
+// rather than full URLs (e.g., Azure custom domains).
+//
+// Returns an error with context if validation fails.
+//
+// Example:
+//
+//	if err := urlutil.ValidateDomain("www.example.com"); err != nil {
+//		return fmt.Errorf("invalid domain: %w", err)
+//	}
+func ValidateDomain(domain string) error {
+	// Trim whitespace
+	domain = strings.TrimSpace(domain)
+	
+	// Check for empty domain
+	if domain == "" {
+		return fmt.Errorf("domain cannot be empty")
+	}
+	
+	// Check for protocol (should not be present)
+	if strings.Contains(domain, "://") {
+		return fmt.Errorf("domain should not include protocol (e.g., http:// or https://)")
+	}
+	
+	// Check for port (should not be present)
+	if strings.Contains(domain, ":") {
+		return fmt.Errorf("domain should not include port")
+	}
+	
+	// Check length limit (253 is max domain length per RFC 1035)
+	const maxDomainLength = 253
+	if len(domain) > maxDomainLength {
+		return fmt.Errorf("domain exceeds maximum length of %d characters", maxDomainLength)
+	}
+	
+	// Basic domain format validation
+	// Allow letters, numbers, dots, hyphens
+	// Must not start or end with hyphen
+	// Must have at least one dot (except localhost)
+	if domain != "localhost" {
+		parts := strings.Split(domain, ".")
+		if len(parts) < 2 {
+			return fmt.Errorf("domain must have at least one dot (e.g., example.com)")
+		}
+		
+		for _, part := range parts {
+			if part == "" {
+				return fmt.Errorf("domain has empty label")
+			}
+			if len(part) > 63 {
+				return fmt.Errorf("domain label exceeds 63 characters")
+			}
+			if strings.HasPrefix(part, "-") || strings.HasSuffix(part, "-") {
+				return fmt.Errorf("domain label cannot start or end with hyphen")
+			}
+			
+			// Validate characters (alphanumeric + hyphen only)
+			for _, ch := range part {
+				if !((ch >= 'a' && ch <= 'z') ||
+					(ch >= 'A' && ch <= 'Z') ||
+					(ch >= '0' && ch <= '9') ||
+					ch == '-') {
+					return fmt.Errorf("domain label contains invalid character: %c", ch)
+				}
+			}
+		}
+	}
+	
+	return nil
+}
+
 // isLocalhost checks if the hostname is a localhost address
 func isLocalhost(hostname string) bool {
 	// Normalize to lowercase for comparison
