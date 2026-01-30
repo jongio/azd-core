@@ -232,8 +232,8 @@ func TestLoadAzdEnvironment_OverwritesExistingVariables(t *testing.T) {
 
 	// Set an existing value
 	orig := os.Getenv("EXISTING_VAR")
-	defer os.Setenv("EXISTING_VAR", orig)
-	os.Setenv("EXISTING_VAR", "old-value")
+	defer func() { _ = os.Setenv("EXISTING_VAR", orig) }()
+	_ = os.Setenv("EXISTING_VAR", "old-value")
 
 	// Call the function
 	err := LoadAzdEnvironment(ctx, "test-env")
@@ -413,13 +413,13 @@ func TestLoadAzdEnvironment_SetsAzureEnvName(t *testing.T) {
 	origEnvName := os.Getenv("AZURE_ENV_NAME")
 	origOther := os.Getenv("OTHER_VAR")
 	defer func() {
-		os.Setenv("AZURE_ENV_NAME", origEnvName)
-		os.Setenv("OTHER_VAR", origOther)
+		_ = os.Setenv("AZURE_ENV_NAME", origEnvName)
+		_ = os.Setenv("OTHER_VAR", origOther)
 	}()
 
 	// Clear
-	os.Unsetenv("AZURE_ENV_NAME")
-	os.Unsetenv("OTHER_VAR")
+	_ = os.Unsetenv("AZURE_ENV_NAME")
+	_ = os.Unsetenv("OTHER_VAR")
 
 	// Call the function
 	err := LoadAzdEnvironment(ctx, "my-custom-env")
