@@ -279,7 +279,7 @@ func TestIsContainerEnvironment_AllEnvironments(t *testing.T) {
 		{
 			name: "Multiple indicators",
 			envVars: map[string]string{
-				"CODESPACES":       "true",
+				"CODESPACES":        "true",
 				"REMOTE_CONTAINERS": "true",
 			},
 			expected: true,
@@ -479,7 +479,7 @@ func TestValidateFilePermissions_ContainerWarnings(t *testing.T) {
 	if err := os.WriteFile(tmpFile, []byte("test"), 0666); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
-	
+
 	// Explicitly set insecure permissions (bypassing umask)
 	if err := os.Chmod(tmpFile, 0666); err != nil {
 		t.Fatalf("Failed to set file permissions: %v", err)

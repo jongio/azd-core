@@ -356,11 +356,11 @@ func TestSearchToolInSystemPath_AllCommonLocations(t *testing.T) {
 
 	// Common tools that might be in various locations
 	tools := []string{
-		"git",      // Program Files\Git\cmd
-		"node",     // Program Files\nodejs
-		"python",   // Program Files\Python3xx
-		"docker",   // Program Files\Docker
-		"dotnet",   // Program Files\dotnet
+		"git",    // Program Files\Git\cmd
+		"node",   // Program Files\nodejs
+		"python", // Program Files\Python3xx
+		"docker", // Program Files\Docker
+		"dotnet", // Program Files\dotnet
 	}
 
 	for _, tool := range tools {
@@ -463,11 +463,11 @@ func TestSearchToolInSystemPath_PythonVersions(t *testing.T) {
 func TestGetInstallSuggestion_WindowsSpecificTools(t *testing.T) {
 	// Test tools commonly used on Windows
 	tools := map[string]string{
-		"func":    "azure-functions",
-		"aspire":  "aspire",
-		"azd":     "azd",
-		"az":      "azure",
-		"gh":      "github.com",
+		"func":   "azure-functions",
+		"aspire": "aspire",
+		"azd":    "azd",
+		"az":     "azure",
+		"gh":     "github.com",
 	}
 
 	for tool, expectedInSuggestion := range tools {

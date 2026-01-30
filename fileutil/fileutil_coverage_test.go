@@ -369,12 +369,12 @@ func TestAtomicWriteJSON_ComplexData(t *testing.T) {
 
 	// Create complex nested data
 	data := map[string]interface{}{
-		"string":  "value",
-		"number":  42,
-		"float":   3.14,
-		"bool":    true,
-		"null":    nil,
-		"array":   []interface{}{1, 2, 3},
+		"string": "value",
+		"number": 42,
+		"float":  3.14,
+		"bool":   true,
+		"null":   nil,
+		"array":  []interface{}{1, 2, 3},
 		"object": map[string]interface{}{
 			"nested": "value",
 		},

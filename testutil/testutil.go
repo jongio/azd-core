@@ -103,12 +103,12 @@ func FindTestData(t *testing.T, subdirs ...string) string {
 
 	// Try multiple possible paths relative to common test locations
 	possiblePaths := []string{
-		filepath.Join(cwd, targetPath),                                  // From current dir
-		filepath.Join(cwd, "..", targetPath),                            // From parent dir
-		filepath.Join(cwd, "..", "..", targetPath),                      // From grandparent
-		filepath.Join(cwd, "..", "..", "..", targetPath),                // From great-grandparent
-		filepath.Join(cwd, "..", "..", "..", "..", targetPath),          // From great-great-grandparent
-		filepath.Join(cwd, "..", "..", "..", "..", "..", targetPath),    // From 5th ancestor
+		filepath.Join(cwd, targetPath),                               // From current dir
+		filepath.Join(cwd, "..", targetPath),                         // From parent dir
+		filepath.Join(cwd, "..", "..", targetPath),                   // From grandparent
+		filepath.Join(cwd, "..", "..", "..", targetPath),             // From great-grandparent
+		filepath.Join(cwd, "..", "..", "..", "..", targetPath),       // From great-great-grandparent
+		filepath.Join(cwd, "..", "..", "..", "..", "..", targetPath), // From 5th ancestor
 	}
 
 	for _, testDir := range possiblePaths {

@@ -29,23 +29,23 @@ const (
 func Validate(rawURL string) error {
 	// Trim whitespace
 	rawURL = strings.TrimSpace(rawURL)
-	
+
 	// Check for empty URL
 	if rawURL == "" {
 		return fmt.Errorf("url cannot be empty")
 	}
-	
+
 	// Check length limit
 	if len(rawURL) > MaxURLLength {
 		return fmt.Errorf("url exceeds maximum length of %d characters", MaxURLLength)
 	}
-	
+
 	// Parse URL using stdlib
 	parsed, err := neturl.Parse(rawURL)
 	if err != nil {
 		return fmt.Errorf("invalid URL format: %w", err)
 	}
-	
+
 	// Validate protocol (http or https only)
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
 		if parsed.Scheme == "" {
@@ -53,12 +53,12 @@ func Validate(rawURL string) error {
 		}
 		return fmt.Errorf("url must use http:// or https://, got: %s", parsed.Scheme)
 	}
-	
+
 	// Validate host presence
 	if parsed.Host == "" {
 		return fmt.Errorf("url missing host/domain")
 	}
-	
+
 	return nil
 }
 
@@ -79,20 +79,20 @@ func ValidateHTTPSOnly(rawURL string) error {
 	if err := Validate(rawURL); err != nil {
 		return err
 	}
-	
+
 	// Parse URL (we know it's valid from Validate)
 	parsed, _ := neturl.Parse(strings.TrimSpace(rawURL))
-	
+
 	// Allow HTTPS
 	if parsed.Scheme == "https" {
 		return nil
 	}
-	
+
 	// Allow HTTP for localhost
 	if parsed.Scheme == "http" && isLocalhost(parsed.Hostname()) {
 		return nil
 	}
-	
+
 	// Reject all other HTTP URLs
 	return fmt.Errorf("url must use https:// (http:// only allowed for localhost)")
 }
@@ -114,7 +114,7 @@ func Parse(rawURL string) (*neturl.URL, error) {
 	if err := Validate(rawURL); err != nil {
 		return nil, err
 	}
-	
+
 	// Parse (we know it's valid)
 	return neturl.Parse(strings.TrimSpace(rawURL))
 }
@@ -134,19 +134,19 @@ func Parse(rawURL string) (*neturl.URL, error) {
 //	// Returns: "http://example.com" (already has valid scheme)
 func NormalizeScheme(rawURL, defaultScheme string) string {
 	rawURL = strings.TrimSpace(rawURL)
-	
+
 	// Try to parse the URL
 	parsed, err := neturl.Parse(rawURL)
 	if err != nil {
 		// If parsing fails, prepend default scheme
 		return defaultScheme + "://" + rawURL
 	}
-	
+
 	// If it has a valid http/https scheme, return as-is
 	if parsed.Scheme == "http" || parsed.Scheme == "https" {
 		return rawURL
 	}
-	
+
 	// Otherwise, prepend default scheme
 	return defaultScheme + "://" + rawURL
 }
@@ -171,28 +171,28 @@ func NormalizeScheme(rawURL, defaultScheme string) string {
 func ValidateDomain(domain string) error {
 	// Trim whitespace
 	domain = strings.TrimSpace(domain)
-	
+
 	// Check for empty domain
 	if domain == "" {
 		return fmt.Errorf("domain cannot be empty")
 	}
-	
+
 	// Check for protocol (should not be present)
 	if strings.Contains(domain, "://") {
 		return fmt.Errorf("domain should not include protocol (e.g., http:// or https://)")
 	}
-	
+
 	// Check for port (should not be present)
 	if strings.Contains(domain, ":") {
 		return fmt.Errorf("domain should not include port")
 	}
-	
+
 	// Check length limit (253 is max domain length per RFC 1035)
 	const maxDomainLength = 253
 	if len(domain) > maxDomainLength {
 		return fmt.Errorf("domain exceeds maximum length of %d characters", maxDomainLength)
 	}
-	
+
 	// Basic domain format validation
 	// Allow letters, numbers, dots, hyphens
 	// Must not start or end with hyphen
@@ -202,7 +202,7 @@ func ValidateDomain(domain string) error {
 		if len(parts) < 2 {
 			return fmt.Errorf("domain must have at least one dot (e.g., example.com)")
 		}
-		
+
 		for _, part := range parts {
 			if part == "" {
 				return fmt.Errorf("domain has empty label")
@@ -213,7 +213,7 @@ func ValidateDomain(domain string) error {
 			if strings.HasPrefix(part, "-") || strings.HasSuffix(part, "-") {
 				return fmt.Errorf("domain label cannot start or end with hyphen")
 			}
-			
+
 			// Validate characters (alphanumeric + hyphen only)
 			for _, ch := range part {
 				if (ch < 'a' || ch > 'z') &&
@@ -225,7 +225,7 @@ func ValidateDomain(domain string) error {
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -233,7 +233,7 @@ func ValidateDomain(domain string) error {
 func isLocalhost(hostname string) bool {
 	// Normalize to lowercase for comparison
 	hostname = strings.ToLower(hostname)
-	
+
 	// Check common localhost names and IPs
 	return hostname == "localhost" ||
 		hostname == "127.0.0.1" ||

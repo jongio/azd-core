@@ -48,7 +48,7 @@ func TestValidate(t *testing.T) {
 			url:     "http://127.0.0.1:3000",
 			wantErr: false,
 		},
-		
+
 		// Valid HTTPS URLs
 		{
 			name:    "valid https",
@@ -70,7 +70,7 @@ func TestValidate(t *testing.T) {
 			url:     "https://example.com:443",
 			wantErr: false,
 		},
-		
+
 		// URLs with whitespace (should be trimmed)
 		{
 			name:    "url with leading whitespace",
@@ -87,7 +87,7 @@ func TestValidate(t *testing.T) {
 			url:     "  http://example.com  ",
 			wantErr: false,
 		},
-		
+
 		// Empty/whitespace URLs
 		{
 			name:    "empty url",
@@ -101,7 +101,7 @@ func TestValidate(t *testing.T) {
 			wantErr: true,
 			errMsg:  "url cannot be empty",
 		},
-		
+
 		// Invalid protocols
 		{
 			name:    "ftp protocol",
@@ -133,7 +133,7 @@ func TestValidate(t *testing.T) {
 			wantErr: true,
 			errMsg:  "url must use http:// or https://",
 		},
-		
+
 		// Missing host
 		{
 			name:    "http with no host",
@@ -147,7 +147,7 @@ func TestValidate(t *testing.T) {
 			wantErr: true,
 			errMsg:  "url missing host/domain",
 		},
-		
+
 		// Malformed URLs
 		{
 			name:    "not a url",
@@ -161,7 +161,7 @@ func TestValidate(t *testing.T) {
 			wantErr: true,
 			errMsg:  "invalid URL format",
 		},
-		
+
 		// Length limits
 		{
 			name:    "url at max length",
@@ -174,7 +174,7 @@ func TestValidate(t *testing.T) {
 			wantErr: true,
 			errMsg:  "url exceeds maximum length",
 		},
-		
+
 		// Edge cases
 		{
 			name:    "url with unicode domain",
@@ -197,11 +197,11 @@ func TestValidate(t *testing.T) {
 			wantErr: false,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := Validate(tt.url)
-			
+
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("Validate() expected error but got nil")
@@ -237,7 +237,7 @@ func TestValidateHTTPSOnly(t *testing.T) {
 			url:     "https://api.example.com/v1",
 			wantErr: false,
 		},
-		
+
 		// Localhost HTTP (allowed)
 		{
 			name:    "http localhost",
@@ -254,7 +254,7 @@ func TestValidateHTTPSOnly(t *testing.T) {
 			url:     "http://[::1]:3000",
 			wantErr: false,
 		},
-		
+
 		// Non-localhost HTTP (rejected)
 		{
 			name:    "http remote host",
@@ -268,7 +268,7 @@ func TestValidateHTTPSOnly(t *testing.T) {
 			wantErr: true,
 			errMsg:  "url must use https://",
 		},
-		
+
 		// Invalid URLs (should fail basic validation)
 		{
 			name:    "empty url",
@@ -283,11 +283,11 @@ func TestValidateHTTPSOnly(t *testing.T) {
 			errMsg:  "url must use http:// or https://, got: ftp",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidateHTTPSOnly(tt.url)
-			
+
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("ValidateHTTPSOnly() expected error but got nil")
@@ -348,23 +348,23 @@ func TestParse(t *testing.T) {
 			wantErr: true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			parsed, err := Parse(tt.url)
-			
+
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("Parse() expected error but got nil")
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Errorf("Parse() unexpected error = %v", err)
 				return
 			}
-			
+
 			if parsed.Scheme != tt.wantScheme {
 				t.Errorf("Parse() scheme = %v, want %v", parsed.Scheme, tt.wantScheme)
 			}
@@ -434,7 +434,7 @@ func TestNormalizeScheme(t *testing.T) {
 			want:          "http://example.com:8080",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := NormalizeScheme(tt.url, tt.defaultScheme)
@@ -492,7 +492,7 @@ func TestIsLocalhost(t *testing.T) {
 			want:     false,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := isLocalhost(tt.hostname)
@@ -546,7 +546,7 @@ func TestValidateDomain(t *testing.T) {
 			domain:  "localhost",
 			wantErr: false,
 		},
-		
+
 		// Domain with whitespace (trimmed)
 		{
 			name:    "domain with leading whitespace",
@@ -558,7 +558,7 @@ func TestValidateDomain(t *testing.T) {
 			domain:  "example.com  ",
 			wantErr: false,
 		},
-		
+
 		// Empty/whitespace
 		{
 			name:    "empty domain",
@@ -572,7 +572,7 @@ func TestValidateDomain(t *testing.T) {
 			wantErr: true,
 			errMsg:  "domain cannot be empty",
 		},
-		
+
 		// Protocol included (should fail)
 		{
 			name:    "http protocol",
@@ -598,7 +598,7 @@ func TestValidateDomain(t *testing.T) {
 			wantErr: true,
 			errMsg:  "domain should not include protocol",
 		},
-		
+
 		// Port included (should fail)
 		{
 			name:    "domain with port",
@@ -612,7 +612,7 @@ func TestValidateDomain(t *testing.T) {
 			wantErr: true,
 			errMsg:  "domain should not include port",
 		},
-		
+
 		// Invalid characters
 		{
 			name:    "domain with @ symbol",
@@ -644,7 +644,7 @@ func TestValidateDomain(t *testing.T) {
 			wantErr: true,
 			errMsg:  "domain label contains invalid character",
 		},
-		
+
 		// Missing dot (except localhost)
 		{
 			name:    "no dot in domain",
@@ -652,7 +652,7 @@ func TestValidateDomain(t *testing.T) {
 			wantErr: true,
 			errMsg:  "domain must have at least one dot",
 		},
-		
+
 		// Invalid formats
 		{
 			name:    "starts with hyphen",
@@ -684,7 +684,7 @@ func TestValidateDomain(t *testing.T) {
 			wantErr: true,
 			errMsg:  "domain has empty label",
 		},
-		
+
 		// Length limits
 		{
 			name:    "label exceeds 63 chars",
@@ -704,11 +704,11 @@ func TestValidateDomain(t *testing.T) {
 			wantErr: false,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidateDomain(tt.domain)
-			
+
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("ValidateDomain() expected error but got nil")
