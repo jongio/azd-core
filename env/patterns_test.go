@@ -85,7 +85,7 @@ func TestFilterByPrefix(t *testing.T) {
 			},
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := FilterByPrefix(tt.envVars, tt.prefix)
@@ -172,7 +172,7 @@ func TestFilterByPrefixSlice(t *testing.T) {
 			want:   []string{"AZURE_CONN=Server=localhost;User=sa"},
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := FilterByPrefixSlice(tt.envSlice, tt.prefix)
@@ -208,10 +208,10 @@ func TestExtractPattern(t *testing.T) {
 		{
 			name: "prefix and suffix",
 			envVars: map[string]string{
-				"SERVICE_API_URL":  "https://api.example.com",
-				"SERVICE_WEB_URL":  "https://web.example.com",
-				"SERVICE_DB_HOST":  "db.example.com",
-				"DATABASE_URL":     "postgres://...",
+				"SERVICE_API_URL": "https://api.example.com",
+				"SERVICE_WEB_URL": "https://web.example.com",
+				"SERVICE_DB_HOST": "db.example.com",
+				"DATABASE_URL":    "postgres://...",
 			},
 			opts: PatternOptions{
 				Prefix: "SERVICE_",
@@ -272,7 +272,7 @@ func TestExtractPattern(t *testing.T) {
 		{
 			name: "with transform function",
 			envVars: map[string]string{
-				"SERVICE_MY_API_URL": "https://api.example.com",
+				"SERVICE_MY_API_URL":  "https://api.example.com",
 				"SERVICE_WEB_APP_URL": "https://web.example.com",
 			},
 			opts: PatternOptions{
@@ -353,7 +353,7 @@ func TestExtractPattern(t *testing.T) {
 			want: map[string]string{},
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := ExtractPattern(tt.envVars, tt.opts)
@@ -416,7 +416,7 @@ func TestNormalizeServiceName(t *testing.T) {
 			want:       "",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := NormalizeServiceName(tt.envVarName)
@@ -447,7 +447,7 @@ func TestExtractPatternEdgeCases(t *testing.T) {
 			t.Errorf("ExtractPattern() with unicode = %v, want %v", got, want)
 		}
 	})
-	
+
 	t.Run("unicode in values", func(t *testing.T) {
 		envVars := map[string]string{
 			"SERVICE_API_URL": "https://例え.jp",
