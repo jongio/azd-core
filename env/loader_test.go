@@ -190,15 +190,15 @@ func TestLoadAzdEnvironment_SetsEnvironmentVariables(t *testing.T) {
 	orig2 := os.Getenv("TEST_VAR_2")
 	orig3 := os.Getenv("TEST_VAR_3")
 	defer func() {
-		os.Setenv("TEST_VAR_1", orig1)
-		os.Setenv("TEST_VAR_2", orig2)
-		os.Setenv("TEST_VAR_3", orig3)
+		_ = os.Setenv("TEST_VAR_1", orig1)
+		_ = os.Setenv("TEST_VAR_2", orig2)
+		_ = os.Setenv("TEST_VAR_3", orig3)
 	}()
 
 	// Clear any existing values
-	os.Unsetenv("TEST_VAR_1")
-	os.Unsetenv("TEST_VAR_2")
-	os.Unsetenv("TEST_VAR_3")
+	_ = os.Unsetenv("TEST_VAR_1")
+	_ = os.Unsetenv("TEST_VAR_2")
+	_ = os.Unsetenv("TEST_VAR_3")
 
 	// Call the function
 	err := LoadAzdEnvironment(ctx, "test-env")
