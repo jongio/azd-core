@@ -35,8 +35,4 @@ issues:
   # Maximum count of issues with the same text (0 = unlimited)
   max-same-issues: 0
 
-output:
-  formats:
-    colored-line-number: {}
-  print-issued-lines: true
-  print-linter-name: true
+
