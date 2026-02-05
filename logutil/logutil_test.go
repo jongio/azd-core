@@ -5,7 +5,6 @@ package logutil
 
 import (
 	"bytes"
-	"os"
 	"strings"
 	"testing"
 )
@@ -55,19 +54,15 @@ func TestParseLevel(t *testing.T) {
 }
 
 func TestIsDebugEnabledEnvVar(t *testing.T) {
-	// Save and restore original value
-	original := os.Getenv(EnvDebug)
-	defer os.Setenv(EnvDebug, original)
-
 	// Test with env var set
 	SetupLogger(false, false)
-	os.Setenv(EnvDebug, "true")
+	t.Setenv(EnvDebug, "true")
 	if !IsDebugEnabled() {
 		t.Error("expected debug to be enabled via env var")
 	}
 
 	// Test with env var unset
-	os.Setenv(EnvDebug, "")
+	t.Setenv(EnvDebug, "")
 	if IsDebugEnabled() {
 		t.Error("expected debug to be disabled")
 	}
@@ -188,9 +183,7 @@ func TestDebugWhenDisabled(t *testing.T) {
 	SetupLoggerWithWriter(&buf, false, false)
 
 	// Clear AZD_DEBUG env var
-	original := os.Getenv(EnvDebug)
-	defer os.Setenv(EnvDebug, original)
-	os.Setenv(EnvDebug, "")
+	t.Setenv(EnvDebug, "")
 
 	Debug("should not appear")
 

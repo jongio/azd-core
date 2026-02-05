@@ -71,7 +71,11 @@ func GetAzdEnvironmentValues(ctx context.Context, envName string) (map[string]st
 	}
 	// Only allow alphanumeric characters, hyphens, underscores, and dots
 	for _, ch := range envName {
-		if !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '-' || ch == '_' || ch == '.') {
+		isLower := ch >= 'a' && ch <= 'z'
+		isUpper := ch >= 'A' && ch <= 'Z'
+		isDigit := ch >= '0' && ch <= '9'
+		isAllowed := ch == '-' || ch == '_' || ch == '.'
+		if !isLower && !isUpper && !isDigit && !isAllowed {
 			return nil, fmt.Errorf("invalid environment name: contains invalid character %q", ch)
 		}
 	}

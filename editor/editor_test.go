@@ -12,14 +12,6 @@ import (
 )
 
 func TestDetectEditor(t *testing.T) {
-	// Save and restore EDITOR env var
-	originalEditor := os.Getenv("EDITOR")
-	originalVisual := os.Getenv("VISUAL")
-	defer func() {
-		os.Setenv("EDITOR", originalEditor)
-		os.Setenv("VISUAL", originalVisual)
-	}()
-
 	t.Run("uses EDITOR env var with valid editor", func(t *testing.T) {
 		// Set EDITOR to a known valid editor (notepad on Windows, vi on Unix)
 		var testEditor string
@@ -38,8 +30,8 @@ func TestDetectEditor(t *testing.T) {
 			}
 		}
 
-		os.Setenv("EDITOR", testEditor)
-		os.Setenv("VISUAL", "")
+		t.Setenv("EDITOR", testEditor)
+		t.Setenv("VISUAL", "")
 
 		editor := detectEditor()
 		if editor != testEditor {
@@ -48,8 +40,8 @@ func TestDetectEditor(t *testing.T) {
 	})
 
 	t.Run("rejects invalid EDITOR env var", func(t *testing.T) {
-		os.Setenv("EDITOR", "nonexistent-editor-xyz-123")
-		os.Setenv("VISUAL", "")
+		t.Setenv("EDITOR", "nonexistent-editor-xyz-123")
+		t.Setenv("VISUAL", "")
 
 		editor := detectEditor()
 		// Should fall back to auto-detection, not use the invalid editor
@@ -74,8 +66,8 @@ func TestDetectEditor(t *testing.T) {
 			}
 		}
 
-		os.Setenv("EDITOR", "")
-		os.Setenv("VISUAL", testEditor)
+		t.Setenv("EDITOR", "")
+		t.Setenv("VISUAL", testEditor)
 
 		editor := detectEditor()
 		if editor != testEditor {
@@ -84,8 +76,8 @@ func TestDetectEditor(t *testing.T) {
 	})
 
 	t.Run("auto-detects editor when env vars not set", func(t *testing.T) {
-		os.Setenv("EDITOR", "")
-		os.Setenv("VISUAL", "")
+		t.Setenv("EDITOR", "")
+		t.Setenv("VISUAL", "")
 
 		editor := detectEditor()
 		// Should find something (notepad on Windows, vim/nano on Unix)
@@ -187,22 +179,12 @@ func TestOpen(t *testing.T) {
 	}
 
 	t.Run("fails with invalid EDITOR env var", func(t *testing.T) {
-		// Save and restore EDITOR
-		original := os.Getenv("EDITOR")
-		originalVisual := os.Getenv("VISUAL")
-		defer func() {
-			os.Setenv("EDITOR", original)
-			os.Setenv("VISUAL", originalVisual)
-		}()
-
 		// Set to invalid editor - validation will reject it
-		os.Setenv("EDITOR", "nonexistent-editor-xyz-123")
-		os.Setenv("VISUAL", "")
+		t.Setenv("EDITOR", "nonexistent-editor-xyz-123")
+		t.Setenv("VISUAL", "")
 
 		// Save auto-detect by clearing PATH temporarily
-		originalPath := os.Getenv("PATH")
-		os.Setenv("PATH", "")
-		defer os.Setenv("PATH", originalPath)
+		t.Setenv("PATH", "")
 
 		err := Open(testFile)
 		// Should fail because no valid editor is found
