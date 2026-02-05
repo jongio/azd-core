@@ -846,3 +846,39 @@ func TestConfirmJSONMode(t *testing.T) {
 
 // Note: Interactive Confirm testing in default mode would require simulating stdin,
 // which is complex. The JSON mode test covers the non-interactive behavior.
+
+func TestForceColorAndNoColor(t *testing.T) {
+	// Reset initial state
+	noColor = false
+
+	// Test NoColor
+	NoColor()
+	if !getNoColor() {
+		t.Error("Expected noColor to be true after NoColor()")
+	}
+
+	// Test ForceColor
+	ForceColor()
+	if getNoColor() {
+		t.Error("Expected noColor to be false after ForceColor()")
+	}
+}
+
+func TestGetNoColor(t *testing.T) {
+	// Reset initial state
+	mu.Lock()
+	noColor = true
+	mu.Unlock()
+
+	if !getNoColor() {
+		t.Error("Expected getNoColor() to return true")
+	}
+
+	mu.Lock()
+	noColor = false
+	mu.Unlock()
+
+	if getNoColor() {
+		t.Error("Expected getNoColor() to return false")
+	}
+}

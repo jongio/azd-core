@@ -9,6 +9,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 )
 
 // Format represents the output format.
@@ -89,18 +90,49 @@ var (
 // Global output format setting
 var globalFormat Format = FormatDefault
 
+// noColor disables all color output
+var noColor = false
+
 // orchestratedMode indicates if running as part of command orchestration
 var orchestratedMode = false
+
+// mu protects global state variables
+var mu sync.RWMutex
+
+// ForceColor enables color output regardless of terminal detection.
+func ForceColor() {
+	mu.Lock()
+	noColor = false
+	mu.Unlock()
+}
+
+// NoColor disables color output.
+func NoColor() {
+	mu.Lock()
+	noColor = true
+	mu.Unlock()
+}
 
 // SetOrchestrated sets the orchestration mode flag.
 // When true, subcommands skip their headers.
 func SetOrchestrated(value bool) {
+	mu.Lock()
 	orchestratedMode = value
+	mu.Unlock()
 }
 
 // IsOrchestrated returns true if running in orchestrated mode.
 func IsOrchestrated() bool {
+	mu.RLock()
+	defer mu.RUnlock()
 	return orchestratedMode
+}
+
+// getNoColor returns the current noColor setting (thread-safe).
+func getNoColor() bool {
+	mu.RLock()
+	defer mu.RUnlock()
+	return noColor
 }
 
 // supportsUnicode detects if the terminal supports Unicode/emojis

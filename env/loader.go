@@ -65,12 +65,15 @@ func LoadAzdEnvironment(ctx context.Context, envName string) error {
 // azd environment without setting them. This is useful when you need the values
 // but don't want to modify the current process environment.
 func GetAzdEnvironmentValues(ctx context.Context, envName string) (map[string]string, error) {
-	// Validate envName to prevent injection attacks
+	// Validate envName to prevent injection attacks using whitelist
 	if envName == "" {
 		return nil, fmt.Errorf("environment name cannot be empty")
 	}
-	if strings.Contains(envName, " ") || strings.Contains(envName, ";") || strings.Contains(envName, "&") {
-		return nil, fmt.Errorf("invalid environment name: %q", envName)
+	// Only allow alphanumeric characters, hyphens, underscores, and dots
+	for _, ch := range envName {
+		if !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '-' || ch == '_' || ch == '.') {
+			return nil, fmt.Errorf("invalid environment name: contains invalid character %q", ch)
+		}
 	}
 
 	// Use 'azd env get-values' with the -e flag to get environment variables (JSON format)
