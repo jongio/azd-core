@@ -178,7 +178,7 @@ func (r *KeyVaultResolver) getClient(vaultURL string) (*azsecrets.Client, error)
 
 	client, err := azsecrets.NewClient(vaultURL, r.credential, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create Key Vault client for %s: %w", vaultURL, err)
+		return nil, fmt.Errorf("failed to create Key Vault client: %w", err)
 	}
 
 	r.clients[vaultURL] = client
@@ -188,7 +188,7 @@ func (r *KeyVaultResolver) getClient(vaultURL string) (*azsecrets.Client, error)
 func (r *KeyVaultResolver) resolveBySecretURI(ctx context.Context, secretURI string) (string, error) {
 	parts := strings.Split(secretURI, "/secrets/")
 	if len(parts) != 2 {
-		return "", fmt.Errorf("invalid secret URI format: %s", secretURI)
+		return "", fmt.Errorf("invalid secret URI format")
 	}
 
 	vaultURL := parts[0]

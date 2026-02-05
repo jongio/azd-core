@@ -68,15 +68,17 @@ func AtomicWriteJSON(path string, data interface{}) error {
 	}
 
 	// Rename temp file to final file (atomic operation on most filesystems).
-	// Perform a few retries to mitigate transient rename races observed on CI.
+	// Perform a few retries with exponential backoff to mitigate transient rename races.
 	var renameErr error
-	for i := 0; i < 5; i++ {
+	for attempt := 0; attempt < 5; attempt++ {
 		renameErr = os.Rename(tmpPath, path)
 		if renameErr == nil {
 			break
 		}
-		// Small backoff
-		time.Sleep(20 * time.Millisecond)
+		if attempt < 4 { // Don't sleep on last attempt
+			delay := time.Duration(20*(attempt+1)) * time.Millisecond // 20ms, 40ms, 60ms, 80ms
+			time.Sleep(delay)
+		}
 	}
 	if renameErr != nil {
 		_ = os.Remove(tmpPath)
@@ -123,13 +125,17 @@ func AtomicWriteFile(path string, data []byte, perm os.FileMode) error {
 	}
 
 	// Rename temp file to final file (atomic operation on most filesystems).
+	// Perform a few retries with exponential backoff to mitigate transient rename races.
 	var renameErr2 error
-	for i := 0; i < 5; i++ {
+	for attempt := 0; attempt < 5; attempt++ {
 		renameErr2 = os.Rename(tmpPath, path)
 		if renameErr2 == nil {
 			break
 		}
-		time.Sleep(20 * time.Millisecond)
+		if attempt < 4 { // Don't sleep on last attempt
+			delay := time.Duration(20*(attempt+1)) * time.Millisecond // 20ms, 40ms, 60ms, 80ms
+			time.Sleep(delay)
+		}
 	}
 	if renameErr2 != nil {
 		_ = os.Remove(tmpPath)
@@ -235,4 +241,127 @@ func HasAnyFileWithExts(dir string, exts ...string) bool {
 		}
 	}
 	return false
+}
+
+// CacheOptions configures cache behavior for LoadCacheJSON.
+type CacheOptions struct {
+	// TTL is the time-to-live for the cache. If the cache is older than this, it's considered invalid.
+	TTL time.Duration
+	// Version is used to invalidate the cache when it changes (e.g., app version).
+	Version string
+}
+
+// CacheMetadata is embedded in cached data to track validity.
+type CacheMetadata struct {
+	// CachedAt is when the cache was created.
+	CachedAt time.Time `json:"cachedAt"`
+	// Version is the version string when the cache was created.
+	Version string `json:"version,omitempty"`
+}
+
+// CacheEntry wraps cached data with metadata.
+// Use this structure when saving cache data:
+//
+//	entry := fileutil.CacheEntry{
+//	    Metadata: fileutil.CacheMetadata{CachedAt: time.Now(), Version: "1.0.0"},
+//	    Data:     myData,
+//	}
+//	fileutil.SaveCacheJSON(path, entry)
+type CacheEntry struct {
+	Metadata CacheMetadata `json:"_cache"`
+	Data     interface{}   `json:"data"`
+}
+
+// IsCacheValid checks if a cache entry is still valid according to the options.
+func (m CacheMetadata) IsCacheValid(opts CacheOptions) bool {
+	// Check TTL
+	if opts.TTL > 0 && time.Since(m.CachedAt) > opts.TTL {
+		return false
+	}
+
+	// Check version
+	if opts.Version != "" && m.Version != opts.Version {
+		return false
+	}
+
+	return true
+}
+
+// LoadCacheJSON loads a JSON cache file if it exists and is valid.
+// Returns:
+//   - valid=true if cache was loaded and is valid
+//   - valid=false if cache doesn't exist, is expired, or version mismatched
+//   - error only for actual read/parse errors (not for missing files)
+//
+// The target should be a pointer to a CacheEntry or a struct containing CacheMetadata.
+//
+// Example:
+//
+//	type MyCache struct {
+//	    Metadata fileutil.CacheMetadata `json:"_cache"`
+//	    Items    []string               `json:"items"`
+//	}
+//	var cache MyCache
+//	valid, err := fileutil.LoadCacheJSON(path, &cache, fileutil.CacheOptions{TTL: 24*time.Hour})
+//	if err != nil {
+//	    return err
+//	}
+//	if !valid {
+//	    // Rebuild cache
+//	}
+func LoadCacheJSON(path string, target interface{}, opts CacheOptions) (valid bool, err error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil // Cache doesn't exist, not an error
+		}
+		return false, fmt.Errorf("failed to read cache file: %w", err)
+	}
+
+	if err := json.Unmarshal(data, target); err != nil {
+		return false, fmt.Errorf("failed to parse cache JSON: %w", err)
+	}
+
+	// Try to extract metadata for validation
+	// We need to re-parse to get the metadata
+	var metaWrapper struct {
+		Cache CacheMetadata `json:"_cache"`
+	}
+	if err := json.Unmarshal(data, &metaWrapper); err == nil {
+		if !metaWrapper.Cache.IsCacheValid(opts) {
+			return false, nil // Cache is invalid (expired or version mismatch)
+		}
+	}
+
+	return true, nil
+}
+
+// SaveCacheJSON saves data to a JSON cache file with metadata.
+// It wraps the data in a CacheEntry with the current timestamp.
+//
+// Example:
+//
+//	err := fileutil.SaveCacheJSON(path, myData, "1.0.0")
+func SaveCacheJSON(path string, data interface{}, version string) error {
+	entry := struct {
+		Cache CacheMetadata `json:"_cache"`
+		Data  interface{}   `json:"data"`
+	}{
+		Cache: CacheMetadata{
+			CachedAt: time.Now(),
+			Version:  version,
+		},
+		Data: data,
+	}
+
+	return AtomicWriteJSON(path, entry)
+}
+
+// ClearCache removes a cache file if it exists.
+// Returns nil if the file doesn't exist.
+func ClearCache(path string) error {
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to clear cache: %w", err)
+	}
+	return nil
 }

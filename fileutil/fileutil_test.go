@@ -265,7 +265,11 @@ func TestAtomicWriteJSON(t *testing.T) {
 					t.Errorf("Failed to unmarshal written JSON: %v", err)
 					return
 				}
-				expected := tt.data.(TestData)
+				expected, ok := tt.data.(TestData)
+				if !ok {
+					t.Errorf("Failed to convert test data to TestData type")
+					return
+				}
 				if result.Name != expected.Name || result.Value != expected.Value {
 					t.Errorf("AtomicWriteJSON() wrote %+v, want %+v", result, expected)
 				}

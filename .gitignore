@@ -31,6 +31,14 @@ coverage.*
 # Temporary coverage files
 $tempFile
 cov
+cover
+cover.out
+*_cover
+*_cover.out
+*cov
+*cov.out
+pathcov
+pathutil_cover
 
 # Editor files
 .vscode/
