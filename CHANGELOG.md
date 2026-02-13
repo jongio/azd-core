@@ -1,3 +1,8 @@
+## [0.4.2] - 2026-02-13
+
+- fix: update release workflow to use bump type (patch/minor/major) (9310829)
+- Implement mTLS-based authentication server for Azure credentials (#11) (14570d7)
+
 # Changelog
 
 All notable changes to azd-core will be documented in this file.
