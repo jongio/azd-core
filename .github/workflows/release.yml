@@ -1,20 +1,24 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Version to release (e.g., 1.0.0 - no "v" prefix needed)'
+      bump:
+        description: 'Version bump type'
         required: true
-        type: string
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
 
 permissions:
   contents: write
   issues: read
-  pull-requests: read
+  pull-requests: write
+
+env:
+  GO_VERSION: '1.25.7'
 
 jobs:
   test:
@@ -29,7 +33,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25.6'
+          go-version: ${{ env.GO_VERSION }}
           cache: true
           cache-dependency-path: go.sum
 
@@ -61,104 +65,227 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25.6'
+          go-version: ${{ env.GO_VERSION }}
           cache: true
           cache-dependency-path: go.sum
 
-      - name: Determine version and create tag
-        id: tag
+      - name: Calculate next version
+        id: version
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            VERSION="${{ inputs.version }}"
-            # Strip 'v' prefix if user included it
-            VERSION="${VERSION#v}"
-            TAG="v${VERSION}"
-            
-            # Validate semantic version format
-            if ! [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?(\+[a-zA-Z0-9.]+)?$ ]]; then
-              echo "Error: Version must follow semantic versioning (e.g., 1.0.0, 1.0.0-beta, 1.0.0-rc.1)"
-              exit 1
-            fi
-            
-            echo "tag=${TAG}" >> $GITHUB_OUTPUT
-            echo "version=${VERSION}" >> $GITHUB_OUTPUT
-            echo "is_manual=true" >> $GITHUB_OUTPUT
-          else
-            TAG="${GITHUB_REF#refs/tags/}"
-            VERSION="${TAG#v}"
-            echo "tag=${TAG}" >> $GITHUB_OUTPUT
-            echo "version=${VERSION}" >> $GITHUB_OUTPUT
-            echo "is_manual=false" >> $GITHUB_OUTPUT
-          fi
+          # Get latest version tag
+          LATEST_TAG=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || echo "v0.0.0")
+          CURRENT="${LATEST_TAG#v}"
+          echo "Current version: $CURRENT (from tag $LATEST_TAG)"
           
-          echo "📦 Releasing version: ${TAG}"
+          IFS='.' read -r major minor patch <<< "$CURRENT"
+          
+          case "${{ inputs.bump }}" in
+            major)
+              major=$((major + 1))
+              minor=0
+              patch=0
+              ;;
+            minor)
+              minor=$((minor + 1))
+              patch=0
+              ;;
+            patch)
+              patch=$((patch + 1))
+              ;;
+          esac
+          
+          NEXT="$major.$minor.$patch"
+          TAG="v${NEXT}"
+          echo "current=$CURRENT" >> $GITHUB_OUTPUT
+          echo "next=$NEXT" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Bumping from $CURRENT to $NEXT"
 
-      - name: Create and push tag (manual workflow only)
-        if: steps.tag.outputs.is_manual == 'true'
+      - name: Generate changelog and create PR
+        id: version_pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${{ steps.tag.outputs.tag }}"
+          VERSION="${{ steps.version.outputs.next }}"
+          PREV="v${{ steps.version.outputs.current }}"
+          BRANCH="release/v${VERSION}"
           
-          # Check if tag already exists
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Error: Tag $TAG already exists"
-            exit 1
-          fi
+          # Delete branch if it already exists (from previous failed runs)
+          git push origin --delete "$BRANCH" 2>/dev/null || true
+          git branch -D "$BRANCH" 2>/dev/null || true
           
-          # Configure git
+          # Create and switch to release branch
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
           
-          # Create annotated tag
+          # Generate changelog entry
+          if git rev-parse "$PREV" >/dev/null 2>&1; then
+            COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges ${PREV}..HEAD)
+          else
+            COMMITS=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          fi
+          
+          DATE=$(date +%Y-%m-%d)
+          
+          if [ -f CHANGELOG.md ]; then
+            {
+              echo "## [$VERSION] - $DATE"
+              echo ""
+              echo "$COMMITS"
+              echo ""
+              cat CHANGELOG.md
+            } > CHANGELOG.new.md
+            mv CHANGELOG.new.md CHANGELOG.md
+          else
+            {
+              echo "# Changelog"
+              echo ""
+              echo "## [$VERSION] - $DATE"
+              echo ""
+              echo "$COMMITS"
+            } > CHANGELOG.md
+          fi
+          
+          # Commit and push to branch
+          git add CHANGELOG.md
+          git commit -m "chore: bump version to $VERSION"
+          git push origin "$BRANCH"
+          
+          # Create PR
+          PR_URL=$(gh pr create \
+            --title "chore: Release v${VERSION}" \
+            --body "Automated version bump to ${VERSION} for release." \
+            --base main \
+            --head "$BRANCH")
+          
+          echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+          
+          PR_NUMBER=$(echo "$PR_URL" | grep -oP '\d+$')
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+
+      - name: Enable auto-merge and wait for merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER="${{ steps.version_pr.outputs.pr_number }}"
+          
+          echo "Waiting for CI checks to be queued..."
+          sleep 10
+          
+          echo "Enabling auto-merge for PR #${PR_NUMBER}..."
+          
+          MAX_RETRIES=3
+          RETRY=0
+          while [ $RETRY -lt $MAX_RETRIES ]; do
+            if gh pr merge "$PR_NUMBER" --auto --squash 2>&1; then
+              echo "Auto-merge enabled successfully!"
+              break
+            else
+              RETRY=$((RETRY + 1))
+              if [ $RETRY -lt $MAX_RETRIES ]; then
+                echo "Retrying in 10 seconds... (attempt $RETRY/$MAX_RETRIES)"
+                sleep 10
+              else
+                echo "Failed to enable auto-merge after $MAX_RETRIES attempts"
+                exit 1
+              fi
+            fi
+          done
+          
+          echo "Waiting for PR to be merged..."
+          
+          TIMEOUT=600
+          ELAPSED=0
+          INTERVAL=15
+          
+          while [ $ELAPSED -lt $TIMEOUT ]; do
+            PR_DATA=$(gh pr view "$PR_NUMBER" --json state,mergeable,statusCheckRollup)
+            STATE=$(echo "$PR_DATA" | jq -r '.state')
+            MERGEABLE=$(echo "$PR_DATA" | jq -r '.mergeable')
+            
+            echo "PR state: $STATE, Mergeable: $MERGEABLE"
+            
+            if [ "$STATE" = "MERGED" ]; then
+              echo "PR merged successfully!"
+              break
+            fi
+            
+            PENDING_CHECKS=$(echo "$PR_DATA" | jq '[.statusCheckRollup[] | select(.status == "IN_PROGRESS" or .status == "QUEUED" or .status == "PENDING")] | length')
+            TOTAL_CHECKS=$(echo "$PR_DATA" | jq '.statusCheckRollup | length')
+            
+            echo "Checks: $((TOTAL_CHECKS - PENDING_CHECKS))/$TOTAL_CHECKS complete"
+            
+            if [ "$PENDING_CHECKS" -eq 0 ] && [ "$TOTAL_CHECKS" -gt 0 ]; then
+              FAILED_CHECKS=$(echo "$PR_DATA" | jq -r '.statusCheckRollup[] | select(.conclusion == "FAILURE" or .conclusion == "CANCELLED") | .name')
+              if [ -n "$FAILED_CHECKS" ]; then
+                echo "ERROR: Some checks failed:"
+                echo "$FAILED_CHECKS"
+                exit 1
+              fi
+              
+              if [ "$MERGEABLE" = "MERGEABLE" ]; then
+                echo "All checks passed and PR is mergeable. GitHub should auto-merge shortly..."
+              fi
+            fi
+            
+            sleep $INTERVAL
+            ELAPSED=$((ELAPSED + INTERVAL))
+          done
+          
+          if [ "$STATE" != "MERGED" ]; then
+            echo "ERROR: PR did not merge within timeout"
+            echo "Final state: $STATE, Mergeable: $MERGEABLE"
+            exit 1
+          fi
+
+      - name: Checkout main and create tag
+        run: |
+          VERSION="${{ steps.version.outputs.next }}"
+          TAG="${{ steps.version.outputs.tag }}"
+          
+          git checkout main
+          git pull origin main
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "$TAG" -m "Release $TAG"
-          
-          # Push tag
           git push origin "$TAG"
-          
-          echo "✅ Created and pushed tag: $TAG"
 
       - name: Extract release notes
         id: release_notes
         run: |
-          TAG="${{ steps.tag.outputs.tag }}"
+          VERSION="${{ steps.version.outputs.next }}"
           
-          # Try to get the tag annotation message
-          if git tag -l --format='%(contents)' "$TAG" | grep -q .; then
-            NOTES=$(git tag -l --format='%(contents)' "$TAG")
-          else
-            # If no tag message, generate from commits
-            PREV_TAG=$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || echo "")
-            if [ -n "$PREV_TAG" ]; then
-              NOTES=$(git log "$PREV_TAG..$TAG" --pretty=format:"- %s (%h)" --no-merges)
-            else
-              NOTES=$(git log "$TAG" --pretty=format:"- %s (%h)" --no-merges | head -n 20)
-            fi
-          fi
+          awk '
+            BEGIN { in_section = 0 }
+            /^## \['"$VERSION"'\]/ { in_section = 1; next }
+            /^## \[/ { in_section = 0 }
+            in_section && NF > 0 { print }
+          ' CHANGELOG.md > release_notes.txt
           
-          # Save to file for multiline output
-          echo "$NOTES" > release_notes.txt
-          
-          # Set output
-          echo "notes_file=release_notes.txt" >> $GITHUB_OUTPUT
+          echo "Release notes for v$VERSION:"
+          cat release_notes.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          name: Release ${{ steps.tag.outputs.tag }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Release ${{ steps.version.outputs.tag }}
           body_path: release_notes.txt
           draft: false
-          prerelease: ${{ contains(steps.tag.outputs.tag, '-') }}
+          prerelease: false
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify Go module can be fetched
         run: |
-          TAG="${{ steps.tag.outputs.tag }}"
+          TAG="${{ steps.version.outputs.tag }}"
           echo "Waiting for GitHub to propagate the release..."
           sleep 10
           
-          # Test that the module can be fetched (use GOPROXY=direct to bypass cache)
           GOPROXY=direct go list -m github.com/jongio/azd-core@$TAG || true
           
           echo ""
