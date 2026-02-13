@@ -180,7 +180,7 @@ func TestServerMTLSEnforcement(t *testing.T) {
 	if err != nil {
 		t.Fatalf("mTLS request failed: %v", err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	// Without client cert: TLS handshake should fail
 	caCertPool := x509.NewCertPool()
@@ -208,7 +208,7 @@ func TestServerRejectsWrongMethod(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusMethodNotAllowed {
 		t.Errorf("expected 405, got %d", resp.StatusCode)
 	}
@@ -223,7 +223,7 @@ func TestServerRejectsInvalidContentType(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusUnsupportedMediaType {
 		t.Errorf("expected 415, got %d", resp.StatusCode)
 	}
@@ -235,7 +235,7 @@ func TestServerRejectsEmptyScope(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d", resp.StatusCode)
 	}
@@ -249,7 +249,7 @@ func TestServerRejectsMultipleScopes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d", resp.StatusCode)
 	}
@@ -263,7 +263,7 @@ func TestServerRejectsInvalidScopeFormat(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d", resp.StatusCode)
 	}
@@ -279,7 +279,7 @@ func TestServerScopeAllowlist(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode == http.StatusForbidden {
 		t.Error("allowed scope got 403")
 	}
@@ -289,7 +289,7 @@ func TestServerScopeAllowlist(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusForbidden {
 		t.Errorf("disallowed scope: expected 403, got %d", resp.StatusCode)
 	}
@@ -305,7 +305,7 @@ func TestServerRateLimiting(t *testing.T) {
 		if err != nil {
 			t.Fatalf("request %d failed: %v", i, err)
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if resp.StatusCode == http.StatusTooManyRequests {
 			t.Fatalf("request %d got 429 unexpectedly", i)
 		}
@@ -316,7 +316,7 @@ func TestServerRateLimiting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request 31 failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusTooManyRequests {
 		t.Errorf("expected 429, got %d", resp.StatusCode)
 	}
@@ -330,7 +330,7 @@ func TestServerRequestSizeLimit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d", resp.StatusCode)
 	}
@@ -358,7 +358,7 @@ func TestIPv6RateLimiterNormalization(t *testing.T) {
 		}
 	}
 
-	// If different representations are treated as different IPs, 
+	// If different representations are treated as different IPs,
 	// we'd get more than 5 requests allowed
 	if totalAllowed > 5 {
 		t.Errorf("Rate limiter can be bypassed! Allowed %d requests using IPv6 variants (limit was 5)", totalAllowed)

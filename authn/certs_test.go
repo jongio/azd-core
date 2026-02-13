@@ -169,24 +169,28 @@ func TestBundleMTLSHandshake(t *testing.T) {
 	if err != nil {
 		t.Fatalf("tls.Listen() error: %v", err)
 	}
-	defer ln.Close()
+	defer func() { _ = ln.Close() }()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("pong"))
+		_, _ = w.Write([]byte("pong"))
 	})
 	srv := &http.Server{Handler: mux}
-	go srv.Serve(ln)
-	defer srv.Close()
+	go func() { _ = srv.Serve(ln) }()
+	defer func() { _ = srv.Close() }()
 
 	client := &http.Client{
 		Transport: &http.Transport{TLSClientConfig: clientTLS},
 	}
-	resp, err := client.Get(fmt.Sprintf("https://localhost:%d/ping", ln.Addr().(*net.TCPAddr).Port))
+	tcpAddr, ok := ln.Addr().(*net.TCPAddr)
+	if !ok {
+		t.Fatal("listener address is not TCP")
+	}
+	resp, err := client.Get(fmt.Sprintf("https://localhost:%d/ping", tcpAddr.Port))
 	if err != nil {
 		t.Fatalf("mTLS request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != 200 {
 		t.Errorf("expected 200, got %d", resp.StatusCode)
 	}

@@ -130,7 +130,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 	tcpAddr, ok := s.listener.Addr().(*net.TCPAddr)
 	if !ok {
-		s.listener.Close()
+		_ = s.listener.Close()
 		return fmt.Errorf("listener address is not a TCP address")
 	}
 	s.port = tcpAddr.Port

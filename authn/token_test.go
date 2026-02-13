@@ -120,6 +120,6 @@ func TestTokenProviderInterface(t *testing.T) {
 	// AzdTokenProvider is declared to implement TokenProvider but currently
 	// uses a package-level GetToken function instead of a method receiver.
 	// Verify the types exist and the interface is defined.
-	var _ TokenProvider // interface exists
-	_ = AzdTokenProvider{}  // struct exists
+	var _ TokenProvider    // interface exists
+	_ = AzdTokenProvider{} // struct exists
 }
