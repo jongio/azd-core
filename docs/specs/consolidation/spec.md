@@ -527,7 +527,7 @@ Use semantic versioning:
 ### CI Requirements
 
 - Run on Linux, Windows, macOS
-- Go versions: 1.25.5+ (match azd-app/azd-exec)
+- Go versions: 1.26.0+ (match azd-app/azd-exec)
 - Static analysis: golangci-lint, gosec
 - Coverage reporting: codecov
 

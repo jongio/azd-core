@@ -18,7 +18,7 @@ permissions:
   pull-requests: write
 
 env:
-  GO_VERSION: '1.25.7'
+  GO_VERSION: '1.26.0'
 
 jobs:
   test:
@@ -291,5 +291,5 @@ jobs:
           echo ""
           echo "✅ Release $TAG created successfully!"
           echo ""
-          echo "Users can now install this version with:"
-          echo "  go get github.com/jongio/azd-core@$TAG"
+          echo "To update extension repos, run:"
+          echo "  ./scripts/release-extensions.sh $TAG"
