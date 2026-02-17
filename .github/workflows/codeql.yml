@@ -29,7 +29,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25.6'
+go-version: '1.26.0'
+
           cache: true
 
       - name: Initialize CodeQL
@@ -51,3 +52,4 @@ jobs:
         continue-on-error: true
         with:
           sarif_file: ../results
+

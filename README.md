@@ -18,6 +18,7 @@ This library includes:
 - **Path Management**: Tool discovery, PATH manipulation, installation suggestions
 - **Process Utilities**: Cross-platform process detection and management
 - **Shell Detection**: Script type detection from extensions, shebangs, and OS defaults
+- **Copilot Skill Installation**: Version-aware installation of agentskills.io SKILL.md files
 - **Browser Launching**: Secure cross-platform URL opening
 - **Security Validation**: Path traversal prevention, input sanitization, permission checks
 
@@ -41,6 +42,7 @@ go get github.com/jongio/azd-core/browser
 go get github.com/jongio/azd-core/security
 go get github.com/jongio/azd-core/procutil
 go get github.com/jongio/azd-core/shellutil
+go get github.com/jongio/azd-core/copilotskills
 ```
 
 ## Documentation
@@ -341,6 +343,30 @@ Cross-platform process detection utilities using gopsutil for reliable cross-pla
 - Uses Signal(0) on Unix for accurate detection
 - Windows fallback with documented limitations (stale PID may return true)
 - Invalid PID handling (≤0 returns false)
+
+### `copilotskills`
+Installs agentskills.io-compliant SKILL.md files from an embedded filesystem to `~/.copilot/skills/{name}/`.
+
+**Key Functions:**
+- `Install` - Write embedded skill files to `~/.copilot/skills/{name}/` with version-based skip logic
+
+**Features:**
+- Version-based skip: reads `.version` file and skips if it matches (no unnecessary I/O)
+- Atomic file writes via `fileutil.AtomicWriteFile`
+- Name validation per agentskills.io spec (lowercase, hyphens, digits only)
+- Walks embedded `embed.FS` under a configurable root directory
+
+**Example:**
+```go
+import "github.com/jongio/azd-core/copilotskills"
+
+//go:embed skills/my-extension
+var skillFS embed.FS
+
+func installSkills(version string) error {
+    return copilotskills.Install("my-extension", version, skillFS, "skills/my-extension")
+}
+```
 
 ### `shellutil`
 Shell detection from file extensions, shebangs, and OS defaults.
