@@ -1,3 +1,7 @@
+## [0.4.4] - 2026-02-17
+
+
+
 ## [0.4.3] - 2026-02-17
 
 - chore: Go 1.26.0, copilot skills, and release coordination (#13) (9713d31)
