@@ -1,3 +1,7 @@
+## [0.4.3] - 2026-02-17
+
+- chore: Go 1.26.0, copilot skills, and release coordination (#13) (9713d31)
+
 ## [0.4.2] - 2026-02-13
 
 - fix: update release workflow to use bump type (patch/minor/major) (9310829)
