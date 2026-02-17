@@ -11,6 +11,22 @@ on:
           - patch
           - minor
           - major
+      azd_app_branch:
+        description: 'azd-app branch to update (leave empty to create new PR)'
+        required: false
+        type: string
+      azd_copilot_branch:
+        description: 'azd-copilot branch to update (leave empty to create new PR)'
+        required: false
+        type: string
+      azd_exec_branch:
+        description: 'azd-exec branch to update (leave empty to create new PR)'
+        required: false
+        type: string
+      azd_rest_branch:
+        description: 'azd-rest branch to update (leave empty to create new PR)'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -280,16 +296,38 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verify Go module can be fetched
+      - name: Notify extension repos
+        env:
+          GH_TOKEN: ${{ secrets.EXTENSIONS_DISPATCH_TOKEN }}
         run: |
           TAG="${{ steps.version.outputs.tag }}"
-          echo "Waiting for GitHub to propagate the release..."
+          echo "Waiting for Go module proxy to pick up the release..."
           sleep 10
-          
           GOPROXY=direct go list -m github.com/jongio/azd-core@$TAG || true
-          
+
           echo ""
           echo "✅ Release $TAG created successfully!"
           echo ""
-          echo "To update extension repos, run:"
-          echo "  ./scripts/release-extensions.sh $TAG"
+          echo "Dispatching azd-core update to extension repos..."
+          echo ""
+
+          REPOS=("jongio/azd-app" "jongio/azd-copilot" "jongio/azd-exec" "jongio/azd-rest")
+          BRANCHES=("${{ inputs.azd_app_branch }}" "${{ inputs.azd_copilot_branch }}" "${{ inputs.azd_exec_branch }}" "${{ inputs.azd_rest_branch }}")
+
+          for i in "${!REPOS[@]}"; do
+            REPO="${REPOS[$i]}"
+            BRANCH="${BRANCHES[$i]}"
+            echo "📦 ${REPO}:"
+
+            gh api \
+              --method POST \
+              "/repos/${REPO}/dispatches" \
+              -f event_type="azd-core-released" \
+              -f "client_payload[version]=${TAG}" \
+              -f "client_payload[branch]=${BRANCH}" \
+              && echo "   ✅ Dispatched (branch: ${BRANCH:-<new PR>})" \
+              || echo "   ⚠️  Failed to dispatch"
+          done
+
+          echo ""
+          echo "🎉 Done! Check each repo's Actions tab for the update-azd-core workflow runs."
