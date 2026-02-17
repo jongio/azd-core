@@ -308,6 +308,16 @@ jobs:
           echo ""
           echo "✅ Release $TAG created successfully!"
           echo ""
+
+          if [ -z "$GH_TOKEN" ]; then
+            echo "⚠️  EXTENSIONS_DISPATCH_TOKEN secret is not set."
+            echo "   Add a PAT with 'repo' scope as the EXTENSIONS_DISPATCH_TOKEN secret"
+            echo "   in the azd-core repo to enable cross-repo dispatch."
+            echo ""
+            echo "   Manually trigger 'Update azd-core' in each extension repo with version=$TAG"
+            exit 0
+          fi
+
           echo "Dispatching azd-core update to extension repos..."
           echo ""
 
@@ -319,14 +329,18 @@ jobs:
             BRANCH="${BRANCHES[$i]}"
             echo "📦 ${REPO}:"
 
-            gh api \
-              --method POST \
-              "/repos/${REPO}/dispatches" \
-              -f event_type="azd-core-released" \
-              -f "client_payload[version]=${TAG}" \
-              -f "client_payload[branch]=${BRANCH}" \
-              && echo "   ✅ Dispatched (branch: ${BRANCH:-<new PR>})" \
-              || echo "   ⚠️  Failed to dispatch"
+            HTTP_CODE=$(curl -s -o /tmp/dispatch_response.txt -w "%{http_code}" \
+              -X POST \
+              -H "Accept: application/vnd.github.v3+json" \
+              -H "Authorization: token ${GH_TOKEN}" \
+              "https://api.github.com/repos/${REPO}/dispatches" \
+              -d "{\"event_type\":\"azd-core-released\",\"client_payload\":{\"version\":\"${TAG}\",\"branch\":\"${BRANCH}\"}}")
+
+            if [ "$HTTP_CODE" = "204" ]; then
+              echo "   ✅ Dispatched (branch: ${BRANCH:-<new PR>})"
+            else
+              echo "   ⚠️  Failed (HTTP $HTTP_CODE): $(cat /tmp/dispatch_response.txt)"
+            fi
           done
 
           echo ""
