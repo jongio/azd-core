@@ -1,3 +1,15 @@
+## [0.5.0] - 2026-02-18
+
+- chore: bump version to 0.4.2 (#16) (8afab35)
+- fix: handle nil cases in TestGetClient_CachingBehavior (dcdf451)
+- fix: correct indentation for Go version in CodeQL workflow (100df81)
+- chore: bump version to 0.4.4 (#15) (32f4c78)
+- chore: bump version to 0.4.3 (#14) (61a99e8)
+- fix: handle missing EXTENSIONS_DISPATCH_TOKEN in release workflow (dab40e5)
+- chore: Go 1.26.0, copilot skills, and release coordination (#13) (500ee97)
+- chore: bump version to 0.4.2 (#12) (7c275ce)
+- fix: update release workflow to use bump type (patch/minor/major) (14c29a6)
+
 ## [0.4.2] - 2026-02-18
 
 - fix: handle nil cases in TestGetClient_CachingBehavior (dcdf451)
