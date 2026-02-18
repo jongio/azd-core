@@ -723,15 +723,18 @@ func TestGetClient_CachingBehavior(t *testing.T) {
 	resolver, err := NewKeyVaultResolver()
 	if err != nil {
 		t.Skipf("Skipping due to credential setup: %v", err)
+		return
 	}
 
 	if resolver == nil {
 		t.Skip("Skipping - NewKeyVaultResolver returned nil")
+		return
 	}
 
 	// Verify clients map exists and is initialized
 	if resolver.clients == nil {
 		t.Error("KeyVaultResolver.clients is nil")
+		return
 	}
 
 	// The getClient method uses caching internally
