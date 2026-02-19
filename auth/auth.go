@@ -68,13 +68,16 @@ func NewAzureTokenProvider() (*AzureTokenProvider, error) {
 
 // GetAzureToken acquires a bearer token for the supplied scope using the
 // shared provider instance (cached credential and token reuse).
-func GetAzureToken(scope string) (string, error) {
+func GetAzureToken(ctx context.Context, scope string) (string, error) {
 	provider, err := getDefaultProvider()
 	if err != nil {
 		return "", err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), defaultAuthTimeout)
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(ctx, defaultAuthTimeout)
 	defer cancel()
 
 	return provider.GetToken(ctx, scope)
@@ -121,9 +124,9 @@ func (p *AzureTokenProvider) GetToken(ctx context.Context, scope string) (string
 
 func (p *AzureTokenProvider) getCached(scope string) (string, bool) {
 	p.mu.RLock()
-	token, ok := p.cache[scope]
-	p.mu.RUnlock()
+	defer p.mu.RUnlock()
 
+	token, ok := p.cache[scope]
 	if !ok || token.Token == "" || token.ExpiresOn.IsZero() {
 		return "", false
 	}

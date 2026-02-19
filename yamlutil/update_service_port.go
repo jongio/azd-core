@@ -199,6 +199,9 @@ func FindServiceInSection(lines []string, servicesInfo *sectionInfo, serviceName
 		if len(lineIndent) == len(serviceIndent) && (trimmed == searchKey || strings.HasPrefix(trimmed, searchKey+" ")) {
 			// Calculate property indent (same delta as service indent from services indent)
 			indentDelta := len(serviceIndent) - len(servicesInfo.indent)
+			if indentDelta < 0 {
+				return nil, fmt.Errorf("malformed YAML: service indent (%d) shorter than services section indent (%d)", len(serviceIndent), len(servicesInfo.indent))
+			}
 			propertyIndent := serviceIndent + strings.Repeat(" ", indentDelta)
 			return &serviceInfo{
 				lineIdx: i,

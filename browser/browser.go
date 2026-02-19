@@ -89,9 +89,20 @@ func Launch(opts LaunchOptions) error {
 
 	// Launch in goroutine to avoid blocking
 	go func() {
-		if err := pkgbrowser.OpenURL(opts.URL); err != nil {
-			// Log error but don't fail - this is non-critical
-			fmt.Fprintf(os.Stderr, "⚠️  Could not open browser automatically: %v\n", err)
+		done := make(chan error, 1)
+		go func() {
+			done <- pkgbrowser.OpenURL(opts.URL)
+		}()
+
+		select {
+		case err := <-done:
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "⚠️  Could not open browser automatically: %v\n", err)
+				fmt.Fprintf(os.Stderr, "   Please open this URL manually: %s\n", opts.URL)
+			}
+		case <-time.After(opts.Timeout):
+			fmt.Fprintf(os.Stderr, "⚠️  Browser launch timed out\n")
+			fmt.Fprintf(os.Stderr, "   Please open this URL manually: %s\n", opts.URL)
 		}
 	}()
 
