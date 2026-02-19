@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+// Package cache provides file-based caching with TTL and version support.
 package cache
 
 import (

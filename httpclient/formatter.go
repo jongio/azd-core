@@ -43,14 +43,14 @@ func (f *Formatter) Format(resp *Response) (string, error) {
 
 	// Verbose mode - show headers and timing
 	if f.verbose {
-		output.WriteString(fmt.Sprintf("< %s\n", resp.Status))
-		output.WriteString(fmt.Sprintf("< Duration: %v\n", resp.Duration))
+		fmt.Fprintf(&output, "< %s\n", resp.Status)
+		fmt.Fprintf(&output, "< Duration: %v\n", resp.Duration)
 		output.WriteString("< \n")
 		output.WriteString("< Response Headers:\n")
 		for key, values := range resp.Headers {
 			for _, value := range values {
 				value = RedactSensitiveHeader(key, value)
-				output.WriteString(fmt.Sprintf("<   %s: %s\n", key, value))
+				fmt.Fprintf(&output, "<   %s: %s\n", key, value)
 			}
 		}
 		output.WriteString("< \n")

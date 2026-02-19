@@ -1,3 +1,4 @@
+// Package projecttype defines types for detected project frameworks and languages.
 package projecttype
 
 // PythonProject represents a detected Python project.

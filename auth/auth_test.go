@@ -79,7 +79,7 @@ func TestAzureTokenProvider_NewProvider(t *testing.T) {
 	// Test that we can create a provider
 	// This will fail if credentials are not available, but that's expected behavior
 	provider, err := NewAzureTokenProvider()
-	
+
 	// If credentials are available, provider should be created successfully
 	// If not, we get an error which is also valid behavior
 	if err != nil {
@@ -88,9 +88,9 @@ func TestAzureTokenProvider_NewProvider(t *testing.T) {
 		t.Skipf("Skipping - no Azure credentials available: %v", err)
 		return
 	}
-	
+
 	require.NotNil(t, provider)
-	
+
 	// If we got here, credentials are available, so test token acquisition
 	token, err := provider.GetToken(context.Background(), "https://management.azure.com/.default")
 	if err != nil {
@@ -99,7 +99,7 @@ func TestAzureTokenProvider_NewProvider(t *testing.T) {
 		assert.Contains(t, err.Error(), "authentication", "Error should mention authentication")
 		return
 	}
-	
+
 	// If we got a token, verify it's not empty
 	assert.NotEmpty(t, token)
 	assert.Greater(t, len(token), 10, "Token should be a meaningful string")
@@ -111,7 +111,7 @@ func TestAzureTokenProvider_InvalidScope(t *testing.T) {
 		t.Skipf("Skipping - no Azure credentials available: %v", err)
 		return
 	}
-	
+
 	require.NotNil(t, provider)
 
 	// Try to get token with invalid scope
@@ -127,7 +127,7 @@ func TestAzureTokenProvider_EmptyScope(t *testing.T) {
 		t.Skipf("Skipping - no Azure credentials available: %v", err)
 		return
 	}
-	
+
 	require.NotNil(t, provider)
 
 	// Try to get token with empty scope
@@ -143,26 +143,26 @@ func TestAzureTokenProvider_TokenCaching(t *testing.T) {
 		t.Skipf("Skipping - no Azure credentials available: %v", err)
 		return
 	}
-	
+
 	require.NotNil(t, provider)
 
 	scope := "https://management.azure.com/.default"
-	
+
 	// Get token first time
 	token1, err := provider.GetToken(context.Background(), scope)
 	if err != nil {
 		t.Skipf("Skipping - authentication failed: %v", err)
 		return
 	}
-	
+
 	require.NoError(t, err)
 	assert.NotEmpty(t, token1)
-	
+
 	// Get token second time - should use cache if token hasn't expired
 	token2, err := provider.GetToken(context.Background(), scope)
 	require.NoError(t, err)
 	assert.NotEmpty(t, token2)
-	
+
 	// Tokens should be the same (cached) or different (if expired and refreshed)
 	// Both are valid behaviors
 	assert.NotEmpty(t, token2)

@@ -32,7 +32,7 @@ func TestClient_Execute_GET(t *testing.T) {
 		assert.Equal(t, "GET", r.Method)
 		assert.Equal(t, "/test", r.URL.Path)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"message":"success"}`))
+		_, _ = w.Write([]byte(`{"message":"success"}`))
 	}))
 	defer server.Close()
 
@@ -62,7 +62,7 @@ func TestClient_Execute_POST_WithBody(t *testing.T) {
 		assert.Equal(t, `{"data":"test"}`, string(body))
 
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(`{"id":"123"}`))
+		_, _ = w.Write([]byte(`{"id":"123"}`))
 	}))
 	defer server.Close()
 
@@ -89,7 +89,7 @@ func TestClient_Execute_WithAuthentication(t *testing.T) {
 		assert.Equal(t, "Bearer test-token", authHeader)
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"authenticated":true}`))
+		_, _ = w.Write([]byte(`{"authenticated":true}`))
 	}))
 	defer server.Close()
 
@@ -367,7 +367,7 @@ func TestClient_Execute_AllHTTPMethods(t *testing.T) {
 				assert.Equal(t, method, r.Method)
 				w.WriteHeader(http.StatusOK)
 				if method != "HEAD" {
-					w.Write([]byte(`{"method":"` + method + `"}`))
+					_, _ = w.Write([]byte(`{"method":"` + method + `"}`))
 				}
 			}))
 			defer server.Close()
@@ -393,7 +393,7 @@ func TestClient_Execute_Redirects(t *testing.T) {
 	t.Run("Follow redirects by default", func(t *testing.T) {
 		finalServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"final":true}`))
+			_, _ = w.Write([]byte(`{"final":true}`))
 		}))
 		defer finalServer.Close()
 
@@ -423,7 +423,7 @@ func TestClient_Execute_Redirects(t *testing.T) {
 	t.Run("Respect max redirects limit", func(t *testing.T) {
 		finalServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"final":true}`))
+			_, _ = w.Write([]byte(`{"final":true}`))
 		}))
 		defer finalServer.Close()
 
@@ -497,7 +497,7 @@ func TestClient_Execute_Redirects(t *testing.T) {
 
 		finalServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"done":true}`))
+			_, _ = w.Write([]byte(`{"done":true}`))
 		}))
 		defer finalServer.Close()
 		serverURLs = append(serverURLs, finalServer.URL)
@@ -543,26 +543,26 @@ func TestClient_ProxySupport(t *testing.T) {
 	originalNOProxy := os.Getenv("NO_PROXY")
 	defer func() {
 		if originalHTTPProxy != "" {
-			os.Setenv("HTTP_PROXY", originalHTTPProxy)
+			_ = os.Setenv("HTTP_PROXY", originalHTTPProxy)
 		} else {
-			os.Unsetenv("HTTP_PROXY")
+			_ = os.Unsetenv("HTTP_PROXY")
 		}
 		if originalHTTPSProxy != "" {
-			os.Setenv("HTTPS_PROXY", originalHTTPSProxy)
+			_ = os.Setenv("HTTPS_PROXY", originalHTTPSProxy)
 		} else {
-			os.Unsetenv("HTTPS_PROXY")
+			_ = os.Unsetenv("HTTPS_PROXY")
 		}
 		if originalNOProxy != "" {
-			os.Setenv("NO_PROXY", originalNOProxy)
+			_ = os.Setenv("NO_PROXY", originalNOProxy)
 		} else {
-			os.Unsetenv("NO_PROXY")
+			_ = os.Unsetenv("NO_PROXY")
 		}
 	}()
 
 	testProxyURL := "http://test-proxy.example.com:8080"
-	os.Setenv("HTTP_PROXY", testProxyURL)
-	os.Unsetenv("HTTPS_PROXY")
-	os.Unsetenv("NO_PROXY")
+	_ = os.Setenv("HTTP_PROXY", testProxyURL)
+	_ = os.Unsetenv("HTTPS_PROXY")
+	_ = os.Unsetenv("NO_PROXY")
 
 	client2 := NewClient(provider, false, 30*time.Second)
 	transport2, ok := client2.httpClient.Transport.(*http.Transport)
@@ -578,7 +578,7 @@ func TestClient_ProxySupport(t *testing.T) {
 		t.Logf("Proxy returned nil for http://example.com/test (may be due to NO_PROXY or other factors)")
 	}
 
-	os.Setenv("NO_PROXY", "example.com")
+	_ = os.Setenv("NO_PROXY", "example.com")
 	client3 := NewClient(provider, false, 30*time.Second)
 	transport3, ok := client3.httpClient.Transport.(*http.Transport)
 	require.True(t, ok)
@@ -592,7 +592,7 @@ func TestClient_ProxySupport(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"test":true}`))
+		_, _ = w.Write([]byte(`{"test":true}`))
 	}))
 	defer server.Close()
 

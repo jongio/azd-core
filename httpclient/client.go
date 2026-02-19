@@ -1,3 +1,4 @@
+// Package httpclient provides an HTTP client with auth, retry, and pagination support.
 package httpclient
 
 import (
@@ -167,7 +168,7 @@ func (c *Client) Execute(ctx context.Context, opts RequestOptions) (*Response, e
 
 	var lastErr error
 	var bodyBytes []byte
-	var bodyReader io.Reader = opts.Body
+	bodyReader := io.Reader(opts.Body)
 
 	// If body is provided and we might retry, read it into memory for retries
 	if opts.Body != nil && maxRetries > 0 && opts.Retry > 0 {
@@ -199,20 +200,20 @@ func (c *Client) Execute(ctx context.Context, opts RequestOptions) (*Response, e
 			// Recreate request for retry
 			if bodyReader != nil {
 				if br, ok := bodyReader.(*bytes.Reader); ok {
-					br.Seek(0, io.SeekStart)
+					_, _ = br.Seek(0, io.SeekStart)
 					req.Body = io.NopCloser(br)
 					req.GetBody = func() (io.ReadCloser, error) {
-						br.Seek(0, io.SeekStart)
+						_, _ = br.Seek(0, io.SeekStart)
 						return io.NopCloser(br), nil
 					}
 				} else if seekerReader, ok := bodyReader.(interface {
 					io.Reader
 					io.Seeker
 				}); ok {
-					seekerReader.Seek(0, io.SeekStart)
+					_, _ = seekerReader.Seek(0, io.SeekStart)
 					req.Body = io.NopCloser(seekerReader)
 					req.GetBody = func() (io.ReadCloser, error) {
-						seekerReader.Seek(0, io.SeekStart)
+						_, _ = seekerReader.Seek(0, io.SeekStart)
 						return io.NopCloser(seekerReader), nil
 					}
 				} else {
@@ -225,7 +226,7 @@ func (c *Client) Execute(ctx context.Context, opts RequestOptions) (*Response, e
 		if lastErr == nil {
 			// Check if response status is retryable (5xx errors)
 			if resp.StatusCode >= 500 && resp.StatusCode < 600 && attempt < maxRetries {
-				resp.Body.Close()
+				_ = resp.Body.Close()
 				continue
 			}
 			break // Success or non-retryable error
@@ -245,7 +246,7 @@ func (c *Client) Execute(ctx context.Context, opts RequestOptions) (*Response, e
 	if resp == nil {
 		return nil, fmt.Errorf("request failed: %w", lastErr)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Read response body with size limit
 	maxSize := opts.MaxResponseSize
@@ -489,7 +490,7 @@ func handlePagination(ctx context.Context, client *http.Client, opts RequestOpti
 
 		limitedReader := io.LimitReader(resp.Body, opts.MaxResponseSize)
 		body, err := io.ReadAll(limitedReader)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 
 		if err != nil {
 			break

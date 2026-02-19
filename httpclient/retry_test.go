@@ -18,10 +18,10 @@ func TestClient_Execute_RetryOn5xx(t *testing.T) {
 		attemptCount++
 		if attemptCount < 3 {
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(`{"error":"internal server error"}`))
+			_, _ = w.Write([]byte(`{"error":"internal server error"}`))
 		} else {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"success":true}`))
+			_, _ = w.Write([]byte(`{"success":true}`))
 		}
 	}))
 	defer server.Close()
@@ -64,7 +64,7 @@ func TestClient_Execute_NoRetryOn4xx(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		attemptCount++
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"error":"bad request"}`))
+		_, _ = w.Write([]byte(`{"error":"bad request"}`))
 	}))
 	defer server.Close()
 
@@ -134,7 +134,7 @@ func TestClient_Execute_ResponseSizeLimit(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write(largeBody)
+		_, _ = w.Write(largeBody)
 	}))
 	defer server.Close()
 
@@ -162,7 +162,7 @@ func TestClient_Execute_ResponseSizeWithinLimit(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write(body)
+		_, _ = w.Write(body)
 	}))
 	defer server.Close()
 
@@ -188,7 +188,7 @@ func TestClient_Execute_RetryExponentialBackoff(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		attemptCount++
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"error":"server error"}`))
+		_, _ = w.Write([]byte(`{"error":"server error"}`))
 	}))
 	defer server.Close()
 

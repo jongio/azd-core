@@ -17,7 +17,8 @@ func TestPagination_NextLinkInBody(t *testing.T) {
 	var serverURL string
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		pageCount++
-		if pageCount == 1 {
+		switch pageCount {
+		case 1:
 			response := map[string]interface{}{
 				"value": []interface{}{
 					map[string]interface{}{"id": "1", "name": "item1"},
@@ -26,15 +27,15 @@ func TestPagination_NextLinkInBody(t *testing.T) {
 				"nextLink": serverURL + "?page=2",
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(response)
-		} else if pageCount == 2 {
+			_ = json.NewEncoder(w).Encode(response)
+		case 2:
 			response := map[string]interface{}{
 				"value": []interface{}{
 					map[string]interface{}{"id": "3", "name": "item3"},
 				},
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(response)
+			_ = json.NewEncoder(w).Encode(response)
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -83,7 +84,7 @@ func TestPagination_LinkHeader(t *testing.T) {
 				},
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(response)
+			_ = json.NewEncoder(w).Encode(response)
 		} else {
 			response := map[string]interface{}{
 				"value": []interface{}{
@@ -91,7 +92,7 @@ func TestPagination_LinkHeader(t *testing.T) {
 				},
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(response)
+			_ = json.NewEncoder(w).Encode(response)
 		}
 	})
 	server := httptest.NewServer(handler)
@@ -131,7 +132,7 @@ func TestPagination_NoPagination(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
 

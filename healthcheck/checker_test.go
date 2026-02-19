@@ -238,7 +238,8 @@ func TestCheckPort(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create listener: %v", err)
 	}
-	port := listener.Addr().(*net.TCPAddr).Port
+	tcpAddr, _ := listener.Addr().(*net.TCPAddr)
+	port := tcpAddr.Port
 	defer func() { _ = listener.Close() }()
 
 	tests := []struct {
@@ -611,7 +612,8 @@ func TestCheckSingleEndpoint_404(t *testing.T) {
 	}))
 	defer server.Close()
 
-	port := server.Listener.Addr().(*net.TCPAddr).Port
+	tcpAddr, _ := server.Listener.Addr().(*net.TCPAddr)
+	port := tcpAddr.Port
 	ctx := context.Background()
 
 	result := checker.checkSingleEndpoint(ctx, port, "/nonexistent")
@@ -864,7 +866,8 @@ func TestHTTPCheck_StatusCodeSuggestions(t *testing.T) {
 			}))
 			defer server.Close()
 
-			port := server.Listener.Addr().(*net.TCPAddr).Port
+			tcpAddr, _ := server.Listener.Addr().(*net.TCPAddr)
+			port := tcpAddr.Port
 
 			checker := &HealthChecker{
 				timeout:         5 * time.Second,

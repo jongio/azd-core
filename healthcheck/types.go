@@ -6,9 +6,6 @@ import (
 )
 
 const (
-	// maxConcurrentChecks limits parallel health check execution
-	maxConcurrentChecks = 10
-
 	// maxResponseBodySize limits the size of health check response bodies to prevent memory issues
 	maxResponseBodySize = 1024 * 1024 // 1MB
 
@@ -22,11 +19,11 @@ const (
 
 // HTTP transport timeout constants (previously from azd-app constants package).
 const (
-	HTTPIdleConnTimeout        = 90 * time.Second
-	HTTPDialTimeout            = 5 * time.Second
-	HTTPKeepAliveTimeout       = 30 * time.Second
-	HTTPTLSHandshakeTimeout    = 5 * time.Second
-	HTTPExpectContinueTimeout  = 1 * time.Second
+	HTTPIdleConnTimeout       = 90 * time.Second
+	HTTPDialTimeout           = 5 * time.Second
+	HTTPKeepAliveTimeout      = 30 * time.Second
+	HTTPTLSHandshakeTimeout   = 5 * time.Second
+	HTTPExpectContinueTimeout = 1 * time.Second
 )
 
 // Service type constants (previously from azd-app service package).

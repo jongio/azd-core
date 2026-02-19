@@ -28,8 +28,10 @@ other: data
 				{"id": "item3", "value": "baz"},
 			},
 			FormatItem: func(item map[string]any, indent string) string {
-				return indent + "- id: " + item["id"].(string) + "\n" +
-					indent + "  value: " + item["value"].(string) + "\n"
+				id, _ := item["id"].(string)
+				value, _ := item["value"].(string)
+				return indent + "- id: " + id + "\n" +
+					indent + "  value: " + value + "\n"
 			},
 		}
 
@@ -69,7 +71,8 @@ items:
 				{"id": "item1", "value": "duplicate"},
 			},
 			FormatItem: func(item map[string]any, indent string) string {
-				return indent + "- id: " + item["id"].(string) + "\n"
+				id, _ := item["id"].(string)
+				return indent + "- id: " + id + "\n"
 			},
 		}
 
@@ -105,8 +108,10 @@ items:
 				{"id": "item3", "value": "baz"},
 			},
 			FormatItem: func(item map[string]any, indent string) string {
-				return indent + "- id: " + item["id"].(string) + "\n" +
-					indent + "  value: " + item["value"].(string) + "\n"
+				id, _ := item["id"].(string)
+				value, _ := item["value"].(string)
+				return indent + "- id: " + id + "\n" +
+					indent + "  value: " + value + "\n"
 			},
 		}
 
@@ -137,8 +142,10 @@ other: data
 				{"id": "item1", "value": "foo"},
 			},
 			FormatItem: func(item map[string]any, indent string) string {
-				return indent + "- id: " + item["id"].(string) + "\n" +
-					indent + "  value: " + item["value"].(string) + "\n"
+				id, _ := item["id"].(string)
+				value, _ := item["value"].(string)
+				return indent + "- id: " + id + "\n" +
+					indent + "  value: " + value + "\n"
 			},
 		}
 
@@ -208,8 +215,10 @@ items:
 				{"id": "item4", "value": "d"},
 			},
 			FormatItem: func(item map[string]any, indent string) string {
-				return indent + "- id: " + item["id"].(string) + "\n" +
-					indent + "  value: " + item["value"].(string) + "\n"
+				id, _ := item["id"].(string)
+				value, _ := item["value"].(string)
+				return indent + "- id: " + id + "\n" +
+					indent + "  value: " + value + "\n"
 			},
 		}
 
@@ -250,8 +259,10 @@ other: data
 				{"id": "item2", "value": "bar"},
 			},
 			FormatItem: func(item map[string]any, indent string) string {
-				return indent + "- id: " + item["id"].(string) + "\n" +
-					indent + "  value: " + item["value"].(string) + "\n"
+				id, _ := item["id"].(string)
+				value, _ := item["value"].(string)
+				return indent + "- id: " + id + "\n" +
+					indent + "  value: " + value + "\n"
 			},
 		}
 
@@ -301,7 +312,8 @@ items:
 				{"id": "item2"},
 			},
 			FormatItem: func(item map[string]any, indent string) string {
-				return indent + "- id: " + item["id"].(string) + "\n"
+				id, _ := item["id"].(string)
+				return indent + "- id: " + id + "\n"
 			},
 		}
 
@@ -341,7 +353,8 @@ version: 1.0
 				{"id": "item2"},
 			},
 			FormatItem: func(item map[string]any, indent string) string {
-				return indent + "- id: " + item["id"].(string) + "\n"
+				id, _ := item["id"].(string)
+				return indent + "- id: " + id + "\n"
 			},
 		}
 
@@ -379,8 +392,10 @@ services:
 				{"id": "item1", "value": "foo"},
 			},
 			FormatItem: func(item map[string]any, indent string) string {
-				return indent + "- id: " + item["id"].(string) + "\n" +
-					indent + "  value: " + item["value"].(string) + "\n"
+				id, _ := item["id"].(string)
+				value, _ := item["value"].(string)
+				return indent + "- id: " + id + "\n" +
+					indent + "  value: " + value + "\n"
 			},
 		}
 
@@ -422,7 +437,8 @@ config:
 				{"id": "item1"},
 			},
 			FormatItem: func(item map[string]any, indent string) string {
-				return indent + "- id: " + item["id"].(string) + "\n"
+				id, _ := item["id"].(string)
+				return indent + "- id: " + id + "\n"
 			},
 		}
 
@@ -476,8 +492,10 @@ reqs: {}
 				{"name": "node", "minVersion": "20.0.0"},
 			},
 			FormatItem: func(item map[string]any, indent string) string {
-				return indent + "- name: " + item["name"].(string) + "\n" +
-					indent + "  minVersion: \"" + item["minVersion"].(string) + "\"\n"
+				name, _ := item["name"].(string)
+				minVersion, _ := item["minVersion"].(string)
+				return indent + "- name: " + name + "\n" +
+					indent + "  minVersion: \"" + minVersion + "\"\n"
 			},
 		}
 

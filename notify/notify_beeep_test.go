@@ -64,7 +64,7 @@ func TestBeeepNotifier_Config(t *testing.T) {
 		Timeout: 10 * time.Second,
 	}
 	notifier, _ := newPlatformNotifier(config)
-	bn := notifier.(*beeepNotifier)
+	bn, _ := notifier.(*beeepNotifier)
 
 	if bn.config.AppName != "Custom App" {
 		t.Errorf("expected app name 'Custom App', got %s", bn.config.AppName)

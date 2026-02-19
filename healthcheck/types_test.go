@@ -159,7 +159,8 @@ func TestHTTPHealthCheck(t *testing.T) {
 			}))
 			defer server.Close()
 
-			port := server.Listener.Addr().(*net.TCPAddr).Port
+			tcpAddr, _ := server.Listener.Addr().(*net.TCPAddr)
+			port := tcpAddr.Port
 
 			checker := &HealthChecker{
 				timeout:         5 * time.Second,
@@ -195,7 +196,8 @@ func TestPortCheck(t *testing.T) {
 	}))
 	defer server.Close()
 
-	port := server.Listener.Addr().(*net.TCPAddr).Port
+	tcpAddr, _ := server.Listener.Addr().(*net.TCPAddr)
+	port := tcpAddr.Port
 
 	checker := &HealthChecker{
 		timeout: 5 * time.Second,
@@ -238,7 +240,8 @@ func TestCheckService(t *testing.T) {
 	}))
 	defer server.Close()
 
-	port := server.Listener.Addr().(*net.TCPAddr).Port
+	tcpAddr, _ := server.Listener.Addr().(*net.TCPAddr)
+	port := tcpAddr.Port
 
 	checker := &HealthChecker{
 		timeout:         5 * time.Second,

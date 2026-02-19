@@ -5,7 +5,7 @@ package logutil
 
 import "log/slog"
 
-// Logger provides component-scoped structured logging.
+// ComponentLogger provides component-scoped structured logging.
 // It wraps slog.Logger with convenient context chaining.
 type ComponentLogger struct {
 	slogger   *slog.Logger
