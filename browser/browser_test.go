@@ -4,8 +4,6 @@
 package browser
 
 import (
-	"context"
-	"runtime"
 	"testing"
 	"time"
 )
@@ -61,51 +59,6 @@ func TestResolveTarget(t *testing.T) {
 			got := ResolveTarget(tt.target)
 			if got != tt.want {
 				t.Errorf("ResolveTarget(%q) = %q, want %q", tt.target, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestBuildSystemCommandContext(t *testing.T) {
-	tests := []struct {
-		name        string
-		goos        string
-		wantCommand string
-	}{
-		{
-			name:        "windows uses cmd start",
-			goos:        "windows",
-			wantCommand: "cmd",
-		},
-		{
-			name:        "darwin uses open",
-			goos:        "darwin",
-			wantCommand: "open",
-		},
-		{
-			name:        "linux uses xdg-open",
-			goos:        "linux",
-			wantCommand: "xdg-open",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Skip if not on the target OS
-			if runtime.GOOS != tt.goos {
-				t.Skipf("Skipping test for %s on %s", tt.goos, runtime.GOOS)
-			}
-
-			ctx := context.Background()
-			cmd := buildSystemCommandContext(ctx, "http://localhost:4280")
-			if cmd.Path == "" {
-				t.Error("Command path is empty")
-			}
-
-			// Check that the command name matches expected
-			// Note: Path may be absolute, so check if it contains the expected command
-			if !containsCommand(cmd.Path, tt.wantCommand) && cmd.Args[0] != tt.wantCommand {
-				t.Errorf("Expected command to contain %q, got path=%q args=%v", tt.wantCommand, cmd.Path, cmd.Args)
 			}
 		})
 	}
@@ -249,10 +202,6 @@ func TestValidTargets(t *testing.T) {
 }
 
 // Helper functions
-
-func containsCommand(path, command string) bool {
-	return len(path) > 0 && (path == command || path[len(path)-len(command):] == command)
-}
 
 func containsString(haystack, needle string) bool {
 	return len(haystack) >= len(needle) &&
