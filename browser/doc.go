@@ -1,18 +1,15 @@
 // Package browser provides secure cross-platform utilities for launching URLs in web browsers.
 //
-// This package handles the complexity of opening URLs in the system default browser
-// across Windows, macOS, and Linux, with built-in security validation and timeout
-// handling. It prevents command injection and validates that only http/https URLs
-// are opened.
+// This package delegates to github.com/pkg/browser for the actual browser launching,
+// while adding URL validation, target selection, and a consistent API for callers.
 //
 // # Key Features
 //
-//   - Launch URLs in system default browser
-//   - Cross-platform command construction (Windows/macOS/Linux)
-//   - Non-blocking launch with configurable timeout
+//   - Launch URLs in system default browser (via github.com/pkg/browser)
+//   - Cross-platform support (Windows/macOS/Linux)
+//   - Non-blocking launch
 //   - Target options (default browser, system browser, none)
 //   - URL validation (http/https only, prevents file:// and javascript:)
-//   - Command injection prevention
 //
 // # Security Considerations
 //
@@ -23,17 +20,8 @@
 //
 // # Cross-Platform Behavior
 //
-// On Windows:
-//   - Uses "cmd /c start" command with empty title to avoid URL parsing issues
-//   - Handles URL escaping for cmd.exe
-//
-// On macOS:
-//   - Uses "open" command
-//   - Automatically opens in default browser
-//
-// On Linux:
-//   - Uses "xdg-open" command (most common)
-//   - Falls back to "sensible-browser" if xdg-open unavailable
+// Browser launching is handled by github.com/pkg/browser, which supports
+// Windows (cmd /c start), macOS (open), and Linux (xdg-open).
 //
 // # Browser Targets
 //

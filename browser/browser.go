@@ -8,13 +8,12 @@
 package browser
 
 import (
-	"context"
 	"fmt"
 	"os"
-	"os/exec"
-	"runtime"
 	"strings"
 	"time"
+
+	pkgbrowser "github.com/pkg/browser"
 )
 
 // Target represents the browser target for launching URLs.
@@ -90,54 +89,24 @@ func Launch(opts LaunchOptions) error {
 
 	// Launch in goroutine to avoid blocking
 	go func() {
-		if err := launchSync(opts.URL, target, opts.Timeout); err != nil {
-			// Log error but don't fail - this is non-critical
-			fmt.Fprintf(os.Stderr, "⚠️  Could not open browser automatically: %v\n", err)
+		done := make(chan error, 1)
+		go func() {
+			done <- pkgbrowser.OpenURL(opts.URL)
+		}()
+
+		select {
+		case err := <-done:
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "⚠️  Could not open browser automatically: %v\n", err)
+				fmt.Fprintf(os.Stderr, "   Please open this URL manually: %s\n", opts.URL)
+			}
+		case <-time.After(opts.Timeout):
+			fmt.Fprintf(os.Stderr, "⚠️  Browser launch timed out\n")
+			fmt.Fprintf(os.Stderr, "   Please open this URL manually: %s\n", opts.URL)
 		}
 	}()
 
 	return nil
-}
-
-// launchSync performs the actual browser launch synchronously.
-func launchSync(url string, target Target, timeout time.Duration) error {
-	// Create context with timeout for proper cancellation
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	var cmd *exec.Cmd
-
-	switch target {
-	case TargetSystem, TargetDefault:
-		cmd = buildSystemCommandContext(ctx, url)
-	default:
-		return fmt.Errorf("unsupported browser target: %s", target)
-	}
-
-	// Execute command - context handles timeout automatically
-	return cmd.Run()
-}
-
-// buildSystemCommandContext builds the command to launch the system default browser with context.
-func buildSystemCommandContext(ctx context.Context, url string) *exec.Cmd {
-	switch runtime.GOOS {
-	case "windows":
-		// Use 'start' command with empty title to avoid issues with URLs
-		return exec.CommandContext(ctx, "cmd", "/c", "start", "", url)
-	case "darwin":
-		// macOS
-		return exec.CommandContext(ctx, "open", url)
-	case "linux":
-		// Try xdg-open first (most common)
-		if _, err := exec.LookPath("xdg-open"); err == nil {
-			return exec.CommandContext(ctx, "xdg-open", url)
-		}
-		// Fallback to sensible-browser
-		return exec.CommandContext(ctx, "sensible-browser", url)
-	default:
-		// Unknown OS - try xdg-open as a guess
-		return exec.CommandContext(ctx, "xdg-open", url)
-	}
 }
 
 // GetTargetDisplayName returns a human-readable name for the browser target.
