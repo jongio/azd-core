@@ -311,11 +311,21 @@ jobs:
 
           if [ -z "$GH_TOKEN" ]; then
             echo "⚠️  EXTENSIONS_DISPATCH_TOKEN secret is not set."
-            echo "   Add a PAT with 'repo' scope as the EXTENSIONS_DISPATCH_TOKEN secret"
-            echo "   in the azd-core repo to enable cross-repo dispatch."
+            echo "   To enable cross-repo dispatch, create a fine-grained PAT with:"
+            echo "     - Repository access: jongio/azd-app, jongio/azd-copilot, jongio/azd-exec, jongio/azd-rest"
+            echo "     - Permissions: Contents (read+write)"
+            echo "   Then add it as EXTENSIONS_DISPATCH_TOKEN in azd-core repo secrets."
             echo ""
             echo "   Manually trigger 'Update azd-core' in each extension repo with version=$TAG"
             exit 0
+          fi
+
+          # Validate token has cross-repo access before dispatching
+          echo "Validating token permissions..."
+          if ! gh api /user --silent 2>/dev/null; then
+            echo "⚠️  EXTENSIONS_DISPATCH_TOKEN is invalid or expired."
+            echo "   Update the secret with a valid PAT that has Contents (read+write) on extension repos."
+            exit 1
           fi
 
           echo "Dispatching azd-core update to extension repos..."
@@ -323,25 +333,41 @@ jobs:
 
           REPOS=("jongio/azd-app" "jongio/azd-copilot" "jongio/azd-exec" "jongio/azd-rest")
           BRANCHES=("${{ inputs.azd_app_branch }}" "${{ inputs.azd_copilot_branch }}" "${{ inputs.azd_exec_branch }}" "${{ inputs.azd_rest_branch }}")
+          FAILED=0
 
           for i in "${!REPOS[@]}"; do
             REPO="${REPOS[$i]}"
             BRANCH="${BRANCHES[$i]}"
             echo "📦 ${REPO}:"
 
-            HTTP_CODE=$(curl -s -o /tmp/dispatch_response.txt -w "%{http_code}" \
-              -X POST \
-              -H "Accept: application/vnd.github.v3+json" \
-              -H "Authorization: token ${GH_TOKEN}" \
-              "https://api.github.com/repos/${REPO}/dispatches" \
-              -d "{\"event_type\":\"azd-core-released\",\"client_payload\":{\"version\":\"${TAG}\",\"branch\":\"${BRANCH}\"}}")
+            RESPONSE=$(gh api "repos/${REPO}/dispatches" \
+              --method POST \
+              --field event_type=azd-core-released \
+              --raw-field "client_payload={\"version\":\"${TAG}\",\"branch\":\"${BRANCH}\"}" 2>&1) && RC=$? || RC=$?
 
-            if [ "$HTTP_CODE" = "204" ]; then
+            if [ $RC -eq 0 ]; then
               echo "   ✅ Dispatched (branch: ${BRANCH:-<new PR>})"
             else
-              echo "   ⚠️  Failed (HTTP $HTTP_CODE): $(cat /tmp/dispatch_response.txt)"
+              FAILED=$((FAILED + 1))
+              if echo "$RESPONSE" | grep -q "403"; then
+                echo "   ❌ Permission denied. The EXTENSIONS_DISPATCH_TOKEN needs Contents (read+write) on ${REPO}."
+              elif echo "$RESPONSE" | grep -q "404"; then
+                echo "   ⏭️  Skipped — repo not found or no repository_dispatch workflow configured."
+              else
+                echo "   ⚠️  Failed: $RESPONSE"
+              fi
             fi
           done
 
           echo ""
-          echo "🎉 Done! Check each repo's Actions tab for the update-azd-core workflow runs."
+          if [ $FAILED -gt 0 ]; then
+            echo "⚠️  $FAILED dispatch(es) failed."
+            echo ""
+            echo "To fix, update the EXTENSIONS_DISPATCH_TOKEN secret with a fine-grained PAT:"
+            echo "  1. Go to https://github.com/settings/personal-access-tokens/new"
+            echo "  2. Set repository access to: jongio/azd-app, jongio/azd-copilot, jongio/azd-exec, jongio/azd-rest"
+            echo "  3. Grant permission: Contents → Read and write"
+            echo "  4. Save the token as EXTENSIONS_DISPATCH_TOKEN in https://github.com/jongio/azd-core/settings/secrets/actions"
+          else
+            echo "🎉 All dispatches succeeded! Check each repo's Actions tab for the update-azd-core workflow runs."
+          fi
