@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/spf13/cobra"
 )
 
@@ -171,5 +172,32 @@ func TestNewMetadataCommand(t *testing.T) {
 	}
 	if meta.ID != "testext" {
 		t.Errorf("expected ID testext, got %s", meta.ID)
+	}
+}
+
+func TestGetArgsMap_NilArgs(t *testing.T) {
+	req := mcp.CallToolRequest{}
+	args := GetArgsMap(req)
+	if len(args) != 0 {
+		t.Error("expected empty map for nil args")
+	}
+}
+
+func TestGetStringParam(t *testing.T) {
+	args := map[string]interface{}{"key": "value", "num": 42}
+
+	val, ok := GetStringParam(args, "key")
+	if !ok || val != "value" {
+		t.Errorf("expected 'value', got %q (ok=%v)", val, ok)
+	}
+
+	_, ok = GetStringParam(args, "num")
+	if ok {
+		t.Error("expected false for non-string value")
+	}
+
+	_, ok = GetStringParam(args, "missing")
+	if ok {
+		t.Error("expected false for missing key")
 	}
 }
