@@ -201,3 +201,104 @@ func TestGetStringParam(t *testing.T) {
 		t.Error("expected false for missing key")
 	}
 }
+
+func TestMarshalToolResult_Success(t *testing.T) {
+	data := map[string]string{"status": "ok"}
+	result, err := MarshalToolResult(data)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+}
+
+func TestMarshalToolResult_Failure(t *testing.T) {
+	// Channels cannot be marshaled to JSON.
+	_, err := MarshalToolResult(make(chan int))
+	if err == nil {
+		t.Fatal("expected error for un-marshalable value")
+	}
+}
+
+func TestGetArgsMap_WithArgs(t *testing.T) {
+	req := mcp.CallToolRequest{}
+	req.Params.Arguments = map[string]interface{}{
+		"path":  "/tmp/test",
+		"shell": "bash",
+	}
+	args := GetArgsMap(req)
+	if len(args) != 2 {
+		t.Fatalf("expected 2 args, got %d", len(args))
+	}
+	if args["path"] != "/tmp/test" {
+		t.Errorf("expected '/tmp/test', got %v", args["path"])
+	}
+}
+
+func TestGetArgsMap_NonMapArgs(t *testing.T) {
+	req := mcp.CallToolRequest{}
+	req.Params.Arguments = "not-a-map"
+	args := GetArgsMap(req)
+	if len(args) != 0 {
+		t.Error("expected empty map for non-map arguments")
+	}
+}
+
+func TestGenerateMetadataFromCobra_WithFlags(t *testing.T) {
+	root := &cobra.Command{Use: "myext"}
+	child := &cobra.Command{
+		Use:   "serve",
+		Short: "Start server",
+		Long:  "Start the development server",
+	}
+	child.Flags().StringP("port", "p", "8080", "Port to listen on")
+	child.Flags().Bool("verbose", false, "Verbose output")
+
+	sub := &cobra.Command{Use: "status", Short: "Show status"}
+	child.AddCommand(sub)
+	root.AddCommand(child)
+
+	meta := GenerateMetadataFromCobra("1.0", "myext", root)
+	if len(meta.Commands) != 1 {
+		t.Fatalf("expected 1 command, got %d", len(meta.Commands))
+	}
+	cmd := meta.Commands[0]
+	if cmd.Short != "Start server" {
+		t.Errorf("unexpected short: %s", cmd.Short)
+	}
+	if cmd.Long != "Start the development server" {
+		t.Errorf("unexpected long: %s", cmd.Long)
+	}
+	if len(cmd.Flags) < 2 {
+		t.Errorf("expected at least 2 flags, got %d", len(cmd.Flags))
+	}
+	if len(cmd.Subcommands) != 1 {
+		t.Errorf("expected 1 subcommand, got %d", len(cmd.Subcommands))
+	}
+}
+
+func TestGenerateMetadataFromCobra_HiddenAndHelp(t *testing.T) {
+	root := &cobra.Command{Use: "myext"}
+	root.AddCommand(&cobra.Command{Use: "visible", Short: "Visible cmd"})
+	hidden := &cobra.Command{Use: "secret", Short: "Hidden cmd", Hidden: true}
+	root.AddCommand(hidden)
+
+	meta := GenerateMetadataFromCobra("1.0", "myext", root)
+	for _, cmd := range meta.Commands {
+		if cmd.Name[0] == "secret" {
+			t.Error("hidden commands should be excluded from metadata")
+		}
+	}
+}
+
+func TestGetProjectDir_FromEnv(t *testing.T) {
+	t.Setenv("TEST_PROJECT_DIR_12345", t.TempDir())
+	dir, err := GetProjectDir("TEST_PROJECT_DIR_12345")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dir == "" {
+		t.Error("expected non-empty dir")
+	}
+}
