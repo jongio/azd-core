@@ -203,7 +203,17 @@ func ValidatePathWithinBases(path string, allowedBases ...string) (string, error
 				continue
 			}
 			absBase = filepath.Clean(absBase)
-			if strings.HasPrefix(realPath, absBase+string(filepath.Separator)) || realPath == absBase {
+
+			// Resolve symlinks on base directories for consistent comparison
+			realBase, err := filepath.EvalSymlinks(absBase)
+			if err != nil {
+				if !os.IsNotExist(err) {
+					continue // skip bases we can't resolve
+				}
+				realBase = absBase
+			}
+
+			if strings.HasPrefix(realPath, realBase+string(filepath.Separator)) || realPath == realBase {
 				allowed = true
 				break
 			}

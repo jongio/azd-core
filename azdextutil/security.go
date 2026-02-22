@@ -10,6 +10,10 @@ import (
 // Deprecated: Use security.ValidatePathWithinBases() from github.com/jongio/azd-core/security instead.
 // It provides the same base directory containment check with better error types.
 //
+// WARNING: This function silently falls back to the unresolved path on ALL symlink errors,
+// not just os.IsNotExist. This may allow access to paths that should fail validation.
+// The replacement ValidatePathWithinBases correctly distinguishes error types.
+//
 // ValidatePath ensures a path is safe to access:
 //   - Resolves to absolute path
 //   - No path traversal (..)
