@@ -1,3 +1,7 @@
+## [0.5.1] - 2026-02-22
+
+- refactor: extract shared packages for azd extensions (#18) (dd4e15d)
+
 ## [0.5.0] - 2026-02-18
 
 - chore: bump version to 0.4.2 (#16) (8afab35)
