@@ -7,6 +7,9 @@ import (
 	"strings"
 )
 
+// Deprecated: Use security.ValidatePathWithinBases() from github.com/jongio/azd-core/security instead.
+// It provides the same base directory containment check with better error types.
+//
 // ValidatePath ensures a path is safe to access:
 //   - Resolves to absolute path
 //   - No path traversal (..)

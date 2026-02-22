@@ -8,6 +8,9 @@ import (
 	"github.com/spf13/pflag"
 )
 
+// Deprecated: Use azdext.GenerateExtensionMetadata() from github.com/azure/azure-dev/cli/azd/pkg/azdext instead.
+// The azdext version produces the correct framework schema (extensions.ExtensionCommandMetadata).
+//
 // ExtensionMetadata represents the metadata output for an azd extension.
 type ExtensionMetadata struct {
 	SchemaVersion string            `json:"schemaVersion"`
@@ -16,6 +19,8 @@ type ExtensionMetadata struct {
 	Configuration *ConfigMetadata   `json:"configuration,omitempty"`
 }
 
+// Deprecated: Use azdext.GenerateExtensionMetadata() from github.com/azure/azure-dev/cli/azd/pkg/azdext instead.
+//
 // CommandMetadata describes a single command in the extension.
 type CommandMetadata struct {
 	Name        []string          `json:"name"`
@@ -31,6 +36,8 @@ type CommandMetadata struct {
 	Deprecated  string            `json:"deprecated,omitempty"`
 }
 
+// Deprecated: Use azdext.GenerateExtensionMetadata() from github.com/azure/azure-dev/cli/azd/pkg/azdext instead.
+//
 // ExampleMetadata describes a usage example for a command.
 type ExampleMetadata struct {
 	Name        string `json:"name,omitempty"`
@@ -39,6 +46,8 @@ type ExampleMetadata struct {
 	Usage       string `json:"usage,omitempty"`
 }
 
+// Deprecated: Use azdext.GenerateExtensionMetadata() from github.com/azure/azure-dev/cli/azd/pkg/azdext instead.
+//
 // ArgMetadata describes a positional argument for a command.
 type ArgMetadata struct {
 	Name        string   `json:"name"`
@@ -48,6 +57,8 @@ type ArgMetadata struct {
 	ValidValues []string `json:"validValues,omitempty"`
 }
 
+// Deprecated: Use azdext.GenerateExtensionMetadata() from github.com/azure/azure-dev/cli/azd/pkg/azdext instead.
+//
 // FlagMetadata describes a flag for a command.
 type FlagMetadata struct {
 	Name        string `json:"name"`
@@ -60,11 +71,15 @@ type FlagMetadata struct {
 	Deprecated  string `json:"deprecated,omitempty"`
 }
 
+// Deprecated: Use azdext.GenerateExtensionMetadata() from github.com/azure/azure-dev/cli/azd/pkg/azdext instead.
+//
 // ConfigMetadata describes configuration for the extension.
 type ConfigMetadata struct {
 	EnvironmentVariables []EnvVarMetadata `json:"environmentVariables,omitempty"`
 }
 
+// Deprecated: Use azdext.GenerateExtensionMetadata() from github.com/azure/azure-dev/cli/azd/pkg/azdext instead.
+//
 // EnvVarMetadata describes an environment variable used by the extension.
 type EnvVarMetadata struct {
 	Name        string `json:"name"`
@@ -73,6 +88,9 @@ type EnvVarMetadata struct {
 	Example     string `json:"example,omitempty"`
 }
 
+// Deprecated: Use azdext.GenerateExtensionMetadata() from github.com/azure/azure-dev/cli/azd/pkg/azdext instead.
+// The azdext version produces the correct framework schema (extensions.ExtensionCommandMetadata).
+//
 // GenerateMetadataFromCobra generates ExtensionMetadata by introspecting a Cobra command tree.
 // This is a lightweight alternative to azdext.GenerateExtensionMetadata that doesn't
 // require the azure-dev/cli/azd dependency.
@@ -84,6 +102,9 @@ func GenerateMetadataFromCobra(schemaVersion, extensionID string, rootCmd *cobra
 	}
 }
 
+// Deprecated: Use azdext.NewMetadataCommand() from github.com/azure/azure-dev/cli/azd/pkg/azdext instead.
+// The azdext version produces the correct framework schema (extensions.ExtensionCommandMetadata).
+//
 // NewMetadataCommand creates a standard hidden metadata command that outputs
 // extension metadata as JSON to stdout.
 func NewMetadataCommand(extensionID string, rootCmdProvider func() *cobra.Command) *cobra.Command {

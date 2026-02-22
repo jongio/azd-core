@@ -6,6 +6,7 @@ package security
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -229,6 +230,43 @@ func TestValidateFilePermissions(t *testing.T) {
 		if err == nil {
 			t.Error("ValidateFilePermissions() with non-existent file should fail on Unix")
 		}
+	}
+}
+
+func TestValidatePathWithinBases(t *testing.T) {
+	// Create a temp directory structure
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.txt")
+	os.WriteFile(testFile, []byte("test"), 0644)
+
+	// Valid path within base
+	result, err := ValidatePathWithinBases(testFile, tmpDir)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if result == "" {
+		t.Fatal("expected non-empty result")
+	}
+
+	// Path outside base
+	_, err = ValidatePathWithinBases(testFile, filepath.Join(tmpDir, "subdir"))
+	if err == nil {
+		t.Fatal("expected error for path outside base")
+	}
+
+	// No bases provided — should still validate
+	result, err = ValidatePathWithinBases(testFile)
+	if err != nil {
+		t.Fatalf("expected no error without bases, got: %v", err)
+	}
+	if result == "" {
+		t.Fatal("expected non-empty result without bases")
+	}
+
+	// Path traversal
+	_, err = ValidatePathWithinBases("../../../etc/passwd", tmpDir)
+	if err == nil {
+		t.Fatal("expected error for path traversal")
 	}
 }
 

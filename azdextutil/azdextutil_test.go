@@ -42,6 +42,7 @@ func TestRateLimiter_CheckRateLimit(t *testing.T) {
 	}
 }
 
+// Deprecated: Tests deprecated ValidatePath function. Keep for backwards compatibility.
 func TestValidatePath_TraversalBlocked(t *testing.T) {
 	_, err := ValidatePath("../../../etc/passwd")
 	if err == nil {
@@ -49,6 +50,7 @@ func TestValidatePath_TraversalBlocked(t *testing.T) {
 	}
 }
 
+// Deprecated: Tests deprecated ValidatePath function. Keep for backwards compatibility.
 func TestValidatePath_EmptyBlocked(t *testing.T) {
 	_, err := ValidatePath("")
 	if err == nil {
@@ -56,6 +58,7 @@ func TestValidatePath_EmptyBlocked(t *testing.T) {
 	}
 }
 
+// Deprecated: Tests deprecated ValidatePath function. Keep for backwards compatibility.
 func TestValidatePath_AllowedBase(t *testing.T) {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -85,6 +88,7 @@ func TestValidateShellName(t *testing.T) {
 	}
 }
 
+// Deprecated: Tests deprecated SetupTracingFromEnv/GetTraceContext functions. Keep for backwards compatibility.
 func TestSetupTracingFromEnv(t *testing.T) {
 	ctx := context.Background()
 
@@ -119,6 +123,7 @@ func TestGetProjectDir_Fallback(t *testing.T) {
 	}
 }
 
+// Deprecated: Tests deprecated GenerateMetadataFromCobra function. Keep for backwards compatibility.
 func TestGenerateMetadataFromCobra(t *testing.T) {
 	root := &cobra.Command{Use: "myext"}
 	root.AddCommand(&cobra.Command{
@@ -141,6 +146,7 @@ func TestGenerateMetadataFromCobra(t *testing.T) {
 	}
 }
 
+// Deprecated: Tests deprecated NewMetadataCommand function. Keep for backwards compatibility.
 func TestNewMetadataCommand(t *testing.T) {
 	rootProvider := func() *cobra.Command {
 		root := &cobra.Command{Use: "testext"}

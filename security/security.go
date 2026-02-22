@@ -172,6 +172,50 @@ func IsContainerEnvironment() bool {
 // ErrInsecureFilePermissions indicates a file has insecure (world-writable) permissions.
 var ErrInsecureFilePermissions = errors.New("insecure file permissions")
 
+// ValidatePathWithinBases validates a path and ensures it's within one of the allowed base directories.
+// Returns the resolved absolute path or an error.
+// If no allowedBases are provided, it just validates the path structure.
+func ValidatePathWithinBases(path string, allowedBases ...string) (string, error) {
+	if err := ValidatePath(path); err != nil {
+		return "", err
+	}
+
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("%w: cannot resolve path: %w", ErrInvalidPath, err)
+	}
+	absPath = filepath.Clean(absPath)
+
+	// Resolve symlinks
+	realPath, err := filepath.EvalSymlinks(absPath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return "", fmt.Errorf("%w: cannot resolve symbolic links: %w", ErrInvalidPath, err)
+		}
+		realPath = absPath
+	}
+
+	if len(allowedBases) > 0 {
+		allowed := false
+		for _, base := range allowedBases {
+			absBase, err := filepath.Abs(base)
+			if err != nil {
+				continue
+			}
+			absBase = filepath.Clean(absBase)
+			if strings.HasPrefix(realPath, absBase+string(filepath.Separator)) || realPath == absBase {
+				allowed = true
+				break
+			}
+		}
+		if !allowed {
+			return "", fmt.Errorf("%w: path is outside allowed directories", ErrPathTraversal)
+		}
+	}
+
+	return realPath, nil
+}
+
 // ValidateFilePermissions checks if a file has secure permissions.
 // On Unix systems, it ensures the file is not world-writable.
 // On Windows, this check is skipped as Windows uses ACLs differently.
