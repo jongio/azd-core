@@ -128,7 +128,7 @@ func ValidatePackageManager(pm string) error {
 // SanitizeScriptName ensures a script name doesn't contain shell metacharacters.
 func SanitizeScriptName(name string) error {
 	// Disallow shell metacharacters
-	dangerous := []string{";", "&", "|", ">", "<", "`", "$", "(", ")", "{", "}", "[", "]", "\n", "\r"}
+	dangerous := []string{";", "&", "|", ">", "<", "`", "$", "(", ")", "{", "}", "[", "]", "\n", "\r", "\"", "'", "\\", "#"}
 
 	for _, char := range dangerous {
 		if strings.Contains(name, char) {

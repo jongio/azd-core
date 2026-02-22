@@ -2,6 +2,7 @@ package azdextutil
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -32,7 +33,7 @@ func GetStringParam(args map[string]interface{}, key string) (string, bool) {
 func MarshalToolResult(data interface{}) (*mcp.CallToolResult, error) {
 	jsonData, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
-		return mcp.NewToolResultError("failed to marshal result: " + err.Error()), nil
+		return nil, fmt.Errorf("failed to marshal result: %w", err)
 	}
 	return mcp.NewToolResultText(string(jsonData)), nil
 }
