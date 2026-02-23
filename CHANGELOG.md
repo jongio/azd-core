@@ -1,3 +1,8 @@
+## [0.5.2] - 2026-02-23
+
+- feat: add azdextutil shared library for azd extension framework (#20) (39a75ce)
+- fix: use gh api for release dispatch (fixes fine-grained PAT 403) (6a09e7a)
+
 ## [0.5.1] - 2026-02-22
 
 - refactor: extract shared packages for azd extensions (#18) (dd4e15d)
