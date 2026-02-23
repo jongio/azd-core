@@ -6,6 +6,7 @@ package security
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -229,6 +230,45 @@ func TestValidateFilePermissions(t *testing.T) {
 		if err == nil {
 			t.Error("ValidateFilePermissions() with non-existent file should fail on Unix")
 		}
+	}
+}
+
+func TestValidatePathWithinBases(t *testing.T) {
+	// Create a temp directory structure
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "test.txt")
+	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	// Valid path within base
+	result, err := ValidatePathWithinBases(testFile, tmpDir)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	if result == "" {
+		t.Fatal("expected non-empty result")
+	}
+
+	// Path outside base
+	_, err = ValidatePathWithinBases(testFile, filepath.Join(tmpDir, "subdir"))
+	if err == nil {
+		t.Fatal("expected error for path outside base")
+	}
+
+	// No bases provided — should still validate
+	result, err = ValidatePathWithinBases(testFile)
+	if err != nil {
+		t.Fatalf("expected no error without bases, got: %v", err)
+	}
+	if result == "" {
+		t.Fatal("expected non-empty result without bases")
+	}
+
+	// Path traversal
+	_, err = ValidatePathWithinBases("../../../etc/passwd", tmpDir)
+	if err == nil {
+		t.Fatal("expected error for path traversal")
 	}
 }
 
@@ -752,6 +792,146 @@ func TestValidateFilePermissions_SecurePermissions_ContainerEnvironment(t *testi
 	// Even in container environment, secure permissions should not produce error
 	if err := ValidateFilePermissions(tmpFile); err != nil {
 		t.Errorf("ValidateFilePermissions() with 0644 should not error, got: %v", err)
+	}
+}
+
+func TestSanitizeScriptName_QuotesBlocked(t *testing.T) {
+	dangerous := []struct {
+		name string
+		char string
+	}{
+		{"double quote", "\""},
+		{"single quote", "'"},
+		{"backslash", "\\"},
+		{"hash", "#"},
+	}
+
+	for _, tt := range dangerous {
+		t.Run(tt.name, func(t *testing.T) {
+			err := SanitizeScriptName("test" + tt.char + "name")
+			if err == nil {
+				t.Errorf("SanitizeScriptName() should block %s", tt.name)
+			}
+			if err != nil && !strings.Contains(err.Error(), "dangerous character") {
+				t.Errorf("expected 'dangerous character' in error, got: %v", err)
+			}
+		})
+	}
+}
+
+func TestSanitizeScriptName_ValidNames(t *testing.T) {
+	valid := []string{
+		"build",
+		"test-unit",
+		"lint:fix",
+		"my_script",
+		"run123",
+		"start.dev",
+	}
+	for _, name := range valid {
+		t.Run(name, func(t *testing.T) {
+			if err := SanitizeScriptName(name); err != nil {
+				t.Errorf("SanitizeScriptName(%q) should pass, got: %v", name, err)
+			}
+		})
+	}
+}
+
+func TestValidatePathWithinBases_SymlinkedBase(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Symlink tests more reliable on Unix")
+	}
+
+	tmpDir := t.TempDir()
+	realBase := filepath.Join(tmpDir, "realbase")
+	if err := os.MkdirAll(realBase, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	testFile := filepath.Join(realBase, "file.txt")
+	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	symlinkBase := filepath.Join(tmpDir, "linkbase")
+	if err := os.Symlink(realBase, symlinkBase); err != nil {
+		t.Skipf("Cannot create symlink: %v", err)
+	}
+
+	// File accessed via symlinked base should be allowed
+	symlinkFile := filepath.Join(symlinkBase, "file.txt")
+	result, err := ValidatePathWithinBases(symlinkFile, symlinkBase)
+	if err != nil {
+		t.Errorf("expected path within symlinked base to pass, got: %v", err)
+	}
+	if result == "" {
+		t.Error("expected non-empty result")
+	}
+}
+
+func TestValidatePathWithinBases_UnresolvableBase(t *testing.T) {
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "file.txt")
+	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Providing a base that cannot be resolved should be skipped
+	_, err := ValidatePathWithinBases(testFile, filepath.Join(tmpDir, "no-such-base"), tmpDir)
+	if err != nil {
+		t.Errorf("should fall through to valid base, got: %v", err)
+	}
+}
+
+func TestValidatePathWithinBases_NonExistentFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	futurePath := filepath.Join(tmpDir, "future-file.txt")
+
+	// Non-existent file within a valid base should succeed
+	result, err := ValidatePathWithinBases(futurePath, tmpDir)
+	if err != nil {
+		t.Errorf("non-existent path within base should pass, got: %v", err)
+	}
+	if result == "" {
+		t.Error("expected non-empty result")
+	}
+}
+
+func TestValidatePathWithinBases_NoBases(t *testing.T) {
+	tmpDir := t.TempDir()
+	futurePath := filepath.Join(tmpDir, "another-future.txt")
+
+	// No bases: just validates path structure
+	result, err := ValidatePathWithinBases(futurePath)
+	if err != nil {
+		t.Errorf("expected no error, got: %v", err)
+	}
+	if result == "" {
+		t.Error("expected non-empty result")
+	}
+}
+
+func TestValidateFilePermissions_WindowsSkip(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-specific test")
+	}
+	tmpFile := filepath.Join(t.TempDir(), "win-test.txt")
+	if err := os.WriteFile(tmpFile, []byte("test"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	// On Windows, always returns nil regardless of permissions
+	if err := ValidateFilePermissions(tmpFile); err != nil {
+		t.Errorf("expected nil on Windows, got: %v", err)
+	}
+}
+
+func TestValidateFilePermissions_NonExistentFile(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping on Windows - always returns nil")
+	}
+	err := ValidateFilePermissions("/this/path/should/not/exist.txt")
+	if err == nil {
+		t.Error("expected error for non-existent file")
 	}
 }
 

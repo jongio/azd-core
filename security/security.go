@@ -128,7 +128,7 @@ func ValidatePackageManager(pm string) error {
 // SanitizeScriptName ensures a script name doesn't contain shell metacharacters.
 func SanitizeScriptName(name string) error {
 	// Disallow shell metacharacters
-	dangerous := []string{";", "&", "|", ">", "<", "`", "$", "(", ")", "{", "}", "[", "]", "\n", "\r"}
+	dangerous := []string{";", "&", "|", ">", "<", "`", "$", "(", ")", "{", "}", "[", "]", "\n", "\r", "\"", "'", "\\", "#"}
 
 	for _, char := range dangerous {
 		if strings.Contains(name, char) {
@@ -171,6 +171,68 @@ func IsContainerEnvironment() bool {
 
 // ErrInsecureFilePermissions indicates a file has insecure (world-writable) permissions.
 var ErrInsecureFilePermissions = errors.New("insecure file permissions")
+
+// ValidatePathWithinBases validates a path and ensures it's within one of the allowed base directories.
+// Returns the resolved absolute path or an error.
+// If no allowedBases are provided, it just validates the path structure.
+func ValidatePathWithinBases(path string, allowedBases ...string) (string, error) {
+	if err := ValidatePath(path); err != nil {
+		return "", err
+	}
+
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("%w: cannot resolve path: %w", ErrInvalidPath, err)
+	}
+	absPath = filepath.Clean(absPath)
+
+	// Resolve symlinks
+	realPath, err := filepath.EvalSymlinks(absPath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return "", fmt.Errorf("%w: cannot resolve symbolic links: %w", ErrInvalidPath, err)
+		}
+		// File doesn't exist yet — resolve symlinks on parent directory
+		// to handle platforms where temp dirs are symlinked (e.g., macOS /var → /private/var)
+		parentDir := filepath.Dir(absPath)
+		realParent, parentErr := filepath.EvalSymlinks(parentDir)
+		if parentErr != nil {
+			realPath = absPath
+		} else {
+			realPath = filepath.Join(realParent, filepath.Base(absPath))
+		}
+	}
+
+	if len(allowedBases) > 0 {
+		allowed := false
+		for _, base := range allowedBases {
+			absBase, err := filepath.Abs(base)
+			if err != nil {
+				continue
+			}
+			absBase = filepath.Clean(absBase)
+
+			// Resolve symlinks on base directories for consistent comparison
+			realBase, err := filepath.EvalSymlinks(absBase)
+			if err != nil {
+				if !os.IsNotExist(err) {
+					continue // skip bases we can't resolve
+				}
+				realBase = absBase
+			}
+
+			if strings.HasPrefix(realPath, realBase+string(filepath.Separator)) || realPath == realBase {
+				allowed = true
+				break
+			}
+		}
+		if !allowed {
+			return "", fmt.Errorf("%w: path is outside allowed directories", ErrPathTraversal)
+		}
+	}
+
+	return realPath, nil
+}
 
 // ValidateFilePermissions checks if a file has secure permissions.
 // On Unix systems, it ensures the file is not world-writable.
