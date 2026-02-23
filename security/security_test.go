@@ -237,7 +237,9 @@ func TestValidatePathWithinBases(t *testing.T) {
 	// Create a temp directory structure
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
-	os.WriteFile(testFile, []byte("test"), 0644)
+	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
 
 	// Valid path within base
 	result, err := ValidatePathWithinBases(testFile, tmpDir)
