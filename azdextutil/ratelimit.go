@@ -6,6 +6,10 @@ import (
 	"time"
 )
 
+// Deprecated: Use azdext.MCPServerBuilder.WithRateLimit() from github.com/azure/azure-dev/cli/azd/pkg/azdext instead.
+// The MCPServerBuilder wraps mcp-go with automatic rate limiting via golang.org/x/time/rate,
+// typed argument parsing, and an attachable security policy.
+//
 // RateLimiter implements a token bucket rate limiter for MCP tool calls.
 type RateLimiter struct {
 	mu         sync.Mutex
@@ -15,6 +19,8 @@ type RateLimiter struct {
 	lastRefill time.Time
 }
 
+// Deprecated: Use azdext.MCPServerBuilder.WithRateLimit() from github.com/azure/azure-dev/cli/azd/pkg/azdext instead.
+//
 // NewRateLimiter creates a rate limiter with the specified max tokens and refill rate.
 // For example, NewRateLimiter(10, 1.0) allows 10 burst calls and refills 1 token/second.
 func NewRateLimiter(maxTokens float64, refillRate float64) *RateLimiter {
@@ -46,6 +52,8 @@ func (r *RateLimiter) Allow() bool {
 	return false
 }
 
+// Deprecated: Use azdext.MCPServerBuilder.WithRateLimit() from github.com/azure/azure-dev/cli/azd/pkg/azdext instead.
+//
 // CheckRateLimit checks the rate limiter and returns an error if the limit is exceeded.
 func (r *RateLimiter) CheckRateLimit(toolName string) error {
 	if !r.Allow() {
