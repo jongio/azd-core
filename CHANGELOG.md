@@ -1,3 +1,7 @@
+## [0.5.3] - 2026-02-28
+
+- chore: deprecate azdextutil helpers in favor of azdext SDK helpers (#22) (02cc93a)
+
 ## [0.5.2] - 2026-02-23
 
 - feat: add azdextutil shared library for azd extension framework (#20) (39a75ce)
