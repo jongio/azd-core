@@ -39,8 +39,7 @@ type AzureTokenProvider struct {
 
 var (
 	defaultProvider   TokenProvider
-	providerOnce      sync.Once
-	providerErr       error
+	providerMu        sync.Mutex
 	credentialFactory = func() (tokenCredential, error) {
 		cred, err := azidentity.NewDefaultAzureCredential(nil)
 		if err != nil {
@@ -85,11 +84,21 @@ func GetAzureToken(ctx context.Context, scope string) (string, error) {
 }
 
 func getDefaultProvider() (TokenProvider, error) {
-	providerOnce.Do(func() {
-		defaultProvider, providerErr = NewAzureTokenProvider()
-	})
+	providerMu.Lock()
+	defer providerMu.Unlock()
 
-	return defaultProvider, providerErr
+	if defaultProvider != nil {
+		return defaultProvider, nil
+	}
+
+	provider, err := NewAzureTokenProvider()
+	if err != nil {
+		// Don't cache the error — allow retry on next call
+		return nil, err
+	}
+
+	defaultProvider = provider
+	return defaultProvider, nil
 }
 
 // GetToken retrieves an access token for the specified scope with caching.

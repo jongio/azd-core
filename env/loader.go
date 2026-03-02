@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 )
 
 // CommandRunner is an interface for running external commands.
@@ -27,12 +28,24 @@ func (r *DefaultCommandRunner) Run(ctx context.Context, name string, args ...str
 // defaultRunner is the default command runner used by the package.
 var defaultRunner CommandRunner = &DefaultCommandRunner{}
 
+// runnerMu protects defaultRunner from concurrent access.
+var runnerMu sync.RWMutex
+
 // SetCommandRunner sets a custom command runner (useful for testing).
 // Returns the previous runner so it can be restored.
 func SetCommandRunner(runner CommandRunner) CommandRunner {
+	runnerMu.Lock()
+	defer runnerMu.Unlock()
 	prev := defaultRunner
 	defaultRunner = runner
 	return prev
+}
+
+// getRunner returns the current command runner under read lock.
+func getRunner() CommandRunner {
+	runnerMu.RLock()
+	defer runnerMu.RUnlock()
+	return defaultRunner
 }
 
 // LoadAzdEnvironment loads all environment variables from the specified azd environment
@@ -81,10 +94,11 @@ func GetAzdEnvironmentValues(ctx context.Context, envName string) (map[string]st
 	}
 
 	// Use 'azd env get-values' with the -e flag to get environment variables (JSON format)
-	output, err := defaultRunner.Run(ctx, "azd", "env", "get-values", "-e", envName, "--output", "json")
+	runner := getRunner()
+	output, err := runner.Run(ctx, "azd", "env", "get-values", "-e", envName, "--output", "json")
 	if err != nil {
 		// If azd env get-values fails, try without JSON output (older azd versions)
-		output, err = defaultRunner.Run(ctx, "azd", "env", "get-values", "-e", envName)
+		output, err = runner.Run(ctx, "azd", "env", "get-values", "-e", envName)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get environment values for '%s': %w", envName, err)
 		}
@@ -118,8 +132,8 @@ func ParseKeyValueFormat(output []byte) (map[string]string, error) {
 
 		// Find the first '=' separator
 		idx := strings.Index(line, "=")
-		if idx <= 0 || idx == len(line)-1 {
-			// Invalid line: no '=', '=' at start, or '=' at end
+		if idx <= 0 {
+			// Invalid line: no '=' or '=' at start
 			continue
 		}
 

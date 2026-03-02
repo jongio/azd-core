@@ -190,6 +190,8 @@ func getIcon(unicode, ascii string) string {
 
 // SetFormat sets the global output format.
 func SetFormat(format string) error {
+	mu.Lock()
+	defer mu.Unlock()
 	switch format {
 	case "default", "":
 		globalFormat = FormatDefault
@@ -203,11 +205,15 @@ func SetFormat(format string) error {
 
 // GetFormat returns the current output format.
 func GetFormat() Format {
+	mu.RLock()
+	defer mu.RUnlock()
 	return globalFormat
 }
 
 // IsJSON returns true if the output format is JSON.
 func IsJSON() bool {
+	mu.RLock()
+	defer mu.RUnlock()
 	return globalFormat == FormatJSON
 }
 
@@ -220,7 +226,7 @@ func PrintJSON(data interface{}) error {
 
 // PrintDefault prints data in default format using a custom formatter function.
 func PrintDefault(formatter func()) {
-	if globalFormat == FormatDefault {
+	if GetFormat() == FormatDefault {
 		formatter()
 	}
 }
@@ -229,7 +235,7 @@ func PrintDefault(formatter func()) {
 // For default format, uses the formatter function.
 // For JSON format, marshals the data object.
 func Print(data interface{}, formatter func()) error {
-	if globalFormat == FormatJSON {
+	if GetFormat() == FormatJSON {
 		return PrintJSON(data)
 	}
 	formatter()
@@ -248,7 +254,7 @@ func Header(text string) {
 // Shows just the command name with a short divider.
 // Skipped when in orchestrated mode (subcommands don't print headers).
 func CommandHeader(command, _ string) {
-	if globalFormat == FormatJSON || orchestratedMode {
+	if IsJSON() || IsOrchestrated() {
 		return
 	}
 	fmt.Println()
@@ -372,7 +378,7 @@ func Plain(format string, args ...interface{}) {
 // Returns true immediately if in JSON mode (non-interactive).
 // The prompt displays the message and waits for y/n input.
 func Confirm(message string) bool {
-	if globalFormat == FormatJSON {
+	if IsJSON() {
 		return true // Non-interactive mode, assume yes
 	}
 	fmt.Printf("%s%s%s [y/N]: ", BrightYellow, message, Reset)

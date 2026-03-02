@@ -173,6 +173,8 @@ func TestContainsTextInFile(t *testing.T) {
 		{"contains json key", filename, "test-package", true},
 		{"does not contain", filename, "missing-value", false},
 		{"missing file", "missing.json", "anything", false},
+		{"rejects absolute path", filepath.Join(tmpDir, filename), "test-package", false},
+		{"rejects path traversal outside dir", "../../etc/passwd", "root", false},
 	}
 
 	for _, tt := range tests {

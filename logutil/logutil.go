@@ -164,6 +164,13 @@ func IsDebugEnabled() bool {
 	return level == LevelDebug || os.Getenv(EnvDebug) == "true"
 }
 
+// getLogger returns the global logger under read lock for safe concurrent access.
+func getLogger() *slog.Logger {
+	mu.RLock()
+	defer mu.RUnlock()
+	return globalLogger
+}
+
 // Debug logs a debug message with optional key-value pairs.
 // Debug messages are only logged when debug mode is enabled.
 //
@@ -172,7 +179,7 @@ func IsDebugEnabled() bool {
 //	logutil.Debug("processing request", "method", "GET", "path", "/api/users")
 func Debug(msg string, args ...any) {
 	if IsDebugEnabled() {
-		globalLogger.Debug(msg, args...)
+		getLogger().Debug(msg, args...)
 	}
 }
 
@@ -182,7 +189,7 @@ func Debug(msg string, args ...any) {
 //
 //	logutil.Info("server started", "port", 8080)
 func Info(msg string, args ...any) {
-	globalLogger.Info(msg, args...)
+	getLogger().Info(msg, args...)
 }
 
 // Warn logs a warning message with optional key-value pairs.
@@ -191,7 +198,7 @@ func Info(msg string, args ...any) {
 //
 //	logutil.Warn("deprecated API called", "endpoint", "/v1/users")
 func Warn(msg string, args ...any) {
-	globalLogger.Warn(msg, args...)
+	getLogger().Warn(msg, args...)
 }
 
 // Error logs an error message with optional key-value pairs.
@@ -200,7 +207,7 @@ func Warn(msg string, args ...any) {
 //
 //	logutil.Error("failed to connect", "error", err, "host", dbHost)
 func Error(msg string, args ...any) {
-	globalLogger.Error(msg, args...)
+	getLogger().Error(msg, args...)
 }
 
 // ParseLevel parses a string into a Level.
