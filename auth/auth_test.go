@@ -12,6 +12,103 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// --- resilientChainCredential tests ---
+
+func TestResilientChain_FirstCredentialSucceeds(t *testing.T) {
+	chain := &resilientChainCredential{
+		creds: []namedCredential{
+			{"Cred1", &mockCredential{token: "token-from-cred1"}},
+			{"Cred2", &mockCredential{err: fmt.Errorf("should not be reached")}},
+		},
+	}
+
+	token, err := chain.GetToken(context.Background(), policy.TokenRequestOptions{
+		Scopes: []string{"scope"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "token-from-cred1", token.Token)
+}
+
+func TestResilientChain_SkipsHardErrorAndContinues(t *testing.T) {
+	// This is the core fix for issue #12: ManagedIdentityCredential returns
+	// a hard AuthenticationFailedError, but the chain must continue.
+	chain := &resilientChainCredential{
+		creds: []namedCredential{
+			{"FailingCred", &mockCredential{err: fmt.Errorf("AuthenticationFailedError: Access is denied")}},
+			{"WorkingCred", &mockCredential{token: "fallback-token"}},
+		},
+	}
+
+	token, err := chain.GetToken(context.Background(), policy.TokenRequestOptions{
+		Scopes: []string{"scope"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "fallback-token", token.Token)
+}
+
+func TestResilientChain_AllCredentialsFail(t *testing.T) {
+	chain := &resilientChainCredential{
+		creds: []namedCredential{
+			{"Cred1", &mockCredential{err: fmt.Errorf("error one")}},
+			{"Cred2", &mockCredential{err: fmt.Errorf("error two")}},
+			{"Cred3", &mockCredential{err: fmt.Errorf("error three")}},
+		},
+	}
+
+	_, err := chain.GetToken(context.Background(), policy.TokenRequestOptions{
+		Scopes: []string{"scope"},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "all 3 credentials failed")
+	assert.Contains(t, err.Error(), "Cred1: error one")
+	assert.Contains(t, err.Error(), "Cred2: error two")
+	assert.Contains(t, err.Error(), "Cred3: error three")
+}
+
+func TestResilientChain_RespectsContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel before calling
+
+	chain := &resilientChainCredential{
+		creds: []namedCredential{
+			{"Cred1", &mockCredential{token: "should-not-be-reached"}},
+		},
+	}
+
+	_, err := chain.GetToken(ctx, policy.TokenRequestOptions{
+		Scopes: []string{"scope"},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "credential chain cancelled")
+}
+
+func TestResilientChain_ThirdCredentialSucceeds(t *testing.T) {
+	chain := &resilientChainCredential{
+		creds: []namedCredential{
+			{"Cred1", &mockCredential{err: fmt.Errorf("credential unavailable")}},
+			{"Cred2", &mockCredential{err: fmt.Errorf("access denied")}},
+			{"Cred3", &mockCredential{token: "third-time-charm"}},
+		},
+	}
+
+	token, err := chain.GetToken(context.Background(), policy.TokenRequestOptions{
+		Scopes: []string{"scope"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "third-time-charm", token.Token)
+}
+
+func TestNewResilientCredentialChain_ReturnsChain(t *testing.T) {
+	cred, err := newResilientCredentialChain()
+	require.NoError(t, err)
+	require.NotNil(t, cred)
+
+	chain, ok := cred.(*resilientChainCredential)
+	require.True(t, ok, "should return a resilientChainCredential")
+	assert.GreaterOrEqual(t, len(chain.creds), 2,
+		"should have at least CLI credentials (AzureDeveloperCLI + AzureCLI)")
+}
+
 func TestMockTokenProvider(t *testing.T) {
 	tests := []struct {
 		name        string

@@ -13,6 +13,79 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 )
 
+// namedCredential pairs a credential with its display name for diagnostics.
+type namedCredential struct {
+	name string
+	cred tokenCredential
+}
+
+// resilientChainCredential tries every credential in order, continuing past
+// hard errors (unlike DefaultAzureCredential which stops on
+// AuthenticationFailedError). Only fails when ALL credentials fail.
+type resilientChainCredential struct {
+	creds []namedCredential
+}
+
+// GetToken iterates through all credentials, returning the first successful
+// token. If all fail, returns an aggregate error listing every attempt.
+func (c *resilientChainCredential) GetToken(
+	ctx context.Context,
+	options policy.TokenRequestOptions,
+) (azcore.AccessToken, error) {
+	var errs []string
+	for _, nc := range c.creds {
+		if ctx.Err() != nil {
+			return azcore.AccessToken{}, fmt.Errorf("credential chain cancelled: %w", ctx.Err())
+		}
+		token, err := nc.cred.GetToken(ctx, options)
+		if err == nil {
+			return token, nil
+		}
+		errs = append(errs, fmt.Sprintf("  %s: %s", nc.name, err.Error()))
+	}
+	return azcore.AccessToken{}, fmt.Errorf(
+		"all %d credentials failed:\n%s",
+		len(c.creds),
+		strings.Join(errs, "\n"),
+	)
+}
+
+// newResilientCredentialChain builds a credential chain that tries every
+// credential type regardless of error kind. Order is optimised for developer
+// workstations: CLI credentials first (fast), then environment/workload
+// (conditional on env-vars), then managed identity last (may be slow).
+func newResilientCredentialChain() (tokenCredential, error) {
+	var creds []namedCredential
+
+	// Developer CLI credentials first — fast and most relevant for azd users.
+	if cred, err := azidentity.NewAzureDeveloperCLICredential(nil); err == nil {
+		creds = append(creds, namedCredential{"AzureDeveloperCLICredential", cred})
+	}
+	if cred, err := azidentity.NewAzureCLICredential(nil); err == nil {
+		creds = append(creds, namedCredential{"AzureCLICredential", cred})
+	}
+
+	// Environment and workload credentials — only available when env-vars are set.
+	if cred, err := azidentity.NewEnvironmentCredential(nil); err == nil {
+		creds = append(creds, namedCredential{"EnvironmentCredential", cred})
+	}
+	if cred, err := azidentity.NewWorkloadIdentityCredential(nil); err == nil {
+		creds = append(creds, namedCredential{"WorkloadIdentityCredential", cred})
+	}
+
+	// Managed identity last — may timeout on non-Azure hosts and causes
+	// hard errors on Azure Arc machines (the root cause of issue #12).
+	if cred, err := azidentity.NewManagedIdentityCredential(nil); err == nil {
+		creds = append(creds, namedCredential{"ManagedIdentityCredential", cred})
+	}
+
+	if len(creds) == 0 {
+		return nil, fmt.Errorf("no Azure credential types could be constructed")
+	}
+
+	return &resilientChainCredential{creds: creds}, nil
+}
+
 const (
 	tokenExpirySkew    = 2 * time.Minute
 	defaultAuthTimeout = 30 * time.Second
@@ -41,17 +114,14 @@ var (
 	defaultProvider   TokenProvider
 	providerMu        sync.Mutex
 	credentialFactory = func() (tokenCredential, error) {
-		cred, err := azidentity.NewDefaultAzureCredential(nil)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build Azure credential chain: %w", err)
-		}
-		return cred, nil
+		return newResilientCredentialChain()
 	}
 	timeNow = time.Now
 )
 
-// NewAzureTokenProvider creates a provider backed by DefaultAzureCredential.
-// The provider caches tokens per scope until close to expiration.
+// NewAzureTokenProvider creates a provider backed by a resilient credential
+// chain that tries all Azure credential types regardless of individual error
+// types. The provider caches tokens per scope until close to expiration.
 func NewAzureTokenProvider() (*AzureTokenProvider, error) {
 	cred, err := credentialFactory()
 	if err != nil {
