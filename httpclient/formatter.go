@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strings"
 )
@@ -156,6 +157,70 @@ func RedactSensitiveHeader(key, value string) string {
 	}
 
 	return value
+}
+
+// sensitiveQueryKeys lists URL query parameter names that may contain secrets.
+// Values for these keys are replaced with "***REDACTED***" in verbose logging.
+var sensitiveQueryKeys = map[string]bool{
+	"sig":          true,
+	"token":        true,
+	"access_token": true,
+	"api_key":      true,
+	"api-key":      true,
+	"apikey":       true,
+	"key":          true,
+	"secret":       true,
+	"password":     true,
+	"sas":          true,
+	"se":           true, // SAS expiry
+	"sp":           true, // SAS permissions
+	"st":           true, // SAS start
+	"sv":           true, // SAS version
+	"sr":           true, // SAS resource
+	"spr":          true, // SAS protocol
+	"skt":          true, // SAS key start
+	"ske":          true, // SAS key expiry
+	"skv":          true, // SAS key version
+	"sdd":          true, // SAS directory depth
+	"sip":          true, // SAS IP range
+	"si":           true, // SAS identifier
+}
+
+// RedactURL redacts sensitive query parameters from a URL string.
+// It replaces values of known secret-bearing query keys with [REDACTED].
+// If the URL cannot be parsed, the original URL is returned unchanged.
+func RedactURL(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed.RawQuery == "" {
+		return rawURL
+	}
+
+	// Rebuild query string preserving original order and encoding
+	parts := strings.Split(parsed.RawQuery, "&")
+	redacted := false
+	for i, part := range parts {
+		eqIdx := strings.IndexByte(part, '=')
+		if eqIdx < 0 {
+			continue
+		}
+		key := part[:eqIdx]
+		// Decode the key for case-insensitive lookup
+		decodedKey, decErr := url.QueryUnescape(key)
+		if decErr != nil {
+			decodedKey = key
+		}
+		if sensitiveQueryKeys[strings.ToLower(decodedKey)] {
+			parts[i] = key + "=REDACTED"
+			redacted = true
+		}
+	}
+
+	if !redacted {
+		return rawURL
+	}
+
+	parsed.RawQuery = strings.Join(parts, "&")
+	return parsed.String()
 }
 
 // RedactToken redacts sensitive parts of an authorization token

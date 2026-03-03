@@ -249,6 +249,62 @@ func TestFormatter_FormatJSON_Array(t *testing.T) {
 	assert.Contains(t, formatted, "id")
 }
 
+func TestRedactURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "No query params",
+			input:    "https://example.com/api/v1",
+			expected: "https://example.com/api/v1",
+		},
+		{
+			name:     "Non-sensitive query params preserved",
+			input:    "https://example.com/api?page=2&limit=50",
+			expected: "https://example.com/api?page=2&limit=50",
+		},
+		{
+			name:     "SAS sig is redacted",
+			input:    "https://storage.blob.core.windows.net/container/blob?sig=abc123secret&se=2025-01-01",
+			expected: "https://storage.blob.core.windows.net/container/blob?sig=REDACTED&se=REDACTED",
+		},
+		{
+			name:     "access_token is redacted",
+			input:    "https://api.example.com/data?access_token=my-secret-token&format=json",
+			expected: "https://api.example.com/data?access_token=REDACTED&format=json",
+		},
+		{
+			name:     "api_key is redacted",
+			input:    "https://api.example.com/data?api_key=secret123",
+			expected: "https://api.example.com/data?api_key=REDACTED",
+		},
+		{
+			name:     "api-key is redacted",
+			input:    "https://api.example.com/data?api-key=secret456",
+			expected: "https://api.example.com/data?api-key=REDACTED",
+		},
+		{
+			name:     "key is redacted",
+			input:    "https://api.example.com/data?key=mysecretkey",
+			expected: "https://api.example.com/data?key=REDACTED",
+		},
+		{
+			name:     "Multiple sensitive params redacted, non-sensitive preserved",
+			input:    "https://example.com?sig=abc&token=xyz&page=1",
+			expected: "https://example.com?sig=REDACTED&token=REDACTED&page=1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := RedactURL(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 func TestIsJSON_EdgeCases(t *testing.T) {
 	tests := []struct {
 		name     string

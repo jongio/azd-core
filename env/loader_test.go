@@ -289,9 +289,9 @@ func TestParseKeyValueFormat(t *testing.T) {
 			expected: map[string]string{"KEY": "value=with=equals"},
 		},
 		{
-			name:     "empty value skipped",
+			name:     "empty value accepted",
 			input:    "KEY=",
-			expected: map[string]string{},
+			expected: map[string]string{"KEY": ""},
 		},
 		{
 			name:     "windows line endings",

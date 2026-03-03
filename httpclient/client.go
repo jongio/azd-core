@@ -145,7 +145,7 @@ func (c *Client) Execute(ctx context.Context, opts RequestOptions) (*Response, e
 
 	// Log request details in verbose mode
 	if opts.Verbose {
-		fmt.Fprintf(os.Stderr, "> %s %s\n", opts.Method, opts.URL)
+		fmt.Fprintf(os.Stderr, "> %s %s\n", opts.Method, RedactURL(opts.URL))
 		for key, values := range req.Header {
 			for _, value := range values {
 				// Redact sensitive headers
@@ -171,7 +171,7 @@ func (c *Client) Execute(ctx context.Context, opts RequestOptions) (*Response, e
 	bodyReader := io.Reader(opts.Body)
 
 	// If body is provided and we might retry, read it into memory for retries
-	if opts.Body != nil && maxRetries > 0 && opts.Retry > 0 {
+	if opts.Body != nil && maxRetries > 0 {
 		const maxBodySizeForRetry = 10 * 1024 * 1024
 		limitedReader := io.LimitReader(opts.Body, maxBodySizeForRetry+1)
 		var err error
@@ -183,6 +183,17 @@ func (c *Client) Execute(ctx context.Context, opts RequestOptions) (*Response, e
 				if _, seekErr := seeker.Seek(0, io.SeekStart); seekErr == nil {
 					bodyReader = opts.Body
 				}
+			}
+		}
+		// Update the initial request body to use the buffered reader
+		// since the original body has been consumed by ReadAll above.
+		if br, ok := bodyReader.(*bytes.Reader); ok {
+			_, _ = br.Seek(0, io.SeekStart)
+			req.Body = io.NopCloser(br)
+			req.ContentLength = int64(len(bodyBytes))
+			req.GetBody = func() (io.ReadCloser, error) {
+				_, _ = br.Seek(0, io.SeekStart)
+				return io.NopCloser(br), nil
 			}
 		}
 	}
@@ -371,20 +382,18 @@ func DetectContentType(body []byte, contentType string) bool {
 	return false
 }
 
-// parseLinkHeader parses the Link header and extracts the next URL
+// reLinkNext matches Link header with rel=next (case-insensitive on rel part only).
+var reLinkNext = regexp.MustCompile(`(?i)<([^>]+)>;\s*rel=["']?next["']?`)
+
+// parseLinkHeader parses the Link header and extracts the next URL.
+// The regex is compiled once at package level for performance and matches
+// the rel= attribute case-insensitively without lowercasing the URL.
 func parseLinkHeader(linkHeader string) (string, bool) {
 	if linkHeader == "" {
 		return "", false
 	}
 
-	re := regexp.MustCompile(`<([^>]+)>;\s*rel=["']?next["']?`)
-	matches := re.FindStringSubmatch(linkHeader)
-	if len(matches) > 1 {
-		return matches[1], true
-	}
-
-	reNext := regexp.MustCompile(`<([^>]+)>;\s*rel=["']?next["']?`)
-	matches = reNext.FindStringSubmatch(strings.ToLower(linkHeader))
+	matches := reLinkNext.FindStringSubmatch(linkHeader)
 	if len(matches) > 1 {
 		return matches[1], true
 	}
@@ -414,12 +423,28 @@ func extractNextLinkFromBody(body []byte) (string, bool) {
 	return "", false
 }
 
-// handlePagination handles pagination by following next links
+// handlePagination handles pagination by following next links.
+// It enforces same-origin checks to prevent SSRF via server-controlled nextLink URLs.
 func handlePagination(ctx context.Context, client *http.Client, opts RequestOptions, firstResponse *Response) ([]byte, error) {
 	var allResults []interface{}
 	var currentBody = firstResponse.Body
 	var nextURL string
 	var hasMore = true
+
+	// Parse original URL to enforce same-origin on pagination links
+	originalURL, err := url.Parse(opts.URL)
+	if err != nil {
+		return currentBody, nil
+	}
+
+	// Default max response size for pagination reads (same as Execute default)
+	maxResponseSize := opts.MaxResponseSize
+	if maxResponseSize <= 0 {
+		maxResponseSize = 100 * 1024 * 1024 // Default 100MB limit
+	}
+
+	// Determine the token provider: prefer client-level, fall back to opts
+	tokenProvider := opts.TokenProvider
 
 	var firstData map[string]interface{}
 	if err := json.Unmarshal(currentBody, &firstData); err != nil {
@@ -456,13 +481,21 @@ func handlePagination(ctx context.Context, client *http.Client, opts RequestOpti
 		if err != nil {
 			break
 		}
-		resolvedURL := baseURL.ResolveReference(nextURLParsed).String()
+		resolvedURL := baseURL.ResolveReference(nextURLParsed)
 
-		if opts.Verbose {
-			fmt.Fprintf(os.Stderr, "> Following pagination link: %s\n", resolvedURL)
+		// SECURITY: Enforce same-origin to prevent SSRF via server-controlled nextLink.
+		// An attacker could inject a cross-origin URL to exfiltrate the bearer token.
+		if resolvedURL.Scheme != originalURL.Scheme || resolvedURL.Host != originalURL.Host {
+			break
 		}
 
-		req, err := http.NewRequestWithContext(ctx, opts.Method, resolvedURL, nil)
+		resolvedURLStr := resolvedURL.String()
+
+		if opts.Verbose {
+			fmt.Fprintf(os.Stderr, "> Following pagination link: %s\n", RedactURL(resolvedURLStr))
+		}
+
+		req, err := http.NewRequestWithContext(ctx, opts.Method, resolvedURLStr, nil)
 		if err != nil {
 			break
 		}
@@ -471,8 +504,8 @@ func handlePagination(ctx context.Context, client *http.Client, opts RequestOpti
 			req.Header.Set(key, value)
 		}
 
-		if !opts.SkipAuth && opts.Scope != "" && opts.TokenProvider != nil {
-			token, err := opts.TokenProvider.GetToken(ctx, opts.Scope)
+		if !opts.SkipAuth && opts.Scope != "" && tokenProvider != nil {
+			token, err := tokenProvider.GetToken(ctx, opts.Scope)
 			if err != nil {
 				break
 			}
@@ -488,7 +521,7 @@ func handlePagination(ctx context.Context, client *http.Client, opts RequestOpti
 			break
 		}
 
-		limitedReader := io.LimitReader(resp.Body, opts.MaxResponseSize)
+		limitedReader := io.LimitReader(resp.Body, maxResponseSize)
 		body, err := io.ReadAll(limitedReader)
 		_ = resp.Body.Close()
 

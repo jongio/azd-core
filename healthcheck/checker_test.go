@@ -964,3 +964,392 @@ func TestProcessCheck_WithSuggestion(t *testing.T) {
 		t.Error("Expected non-empty suggestion for failed process check")
 	}
 }
+
+func TestNewHealthCheckerFromConfig(t *testing.T) {
+	config := MonitorConfig{
+		Timeout:                5 * time.Second,
+		DefaultEndpoint:        "/healthz",
+		EnableCircuitBreaker:   true,
+		CircuitBreakerFailures: 3,
+		CircuitBreakerTimeout:  10 * time.Second,
+		RateLimit:              5,
+		EnableMetrics:          false,
+		StartupGracePeriod:     20 * time.Second,
+	}
+
+	checker := NewHealthChecker(config)
+	if checker == nil {
+		t.Fatal("NewHealthChecker() returned nil")
+	}
+
+	if checker.timeout != 5*time.Second {
+		t.Errorf("timeout = %v, want %v", checker.timeout, 5*time.Second)
+	}
+	if checker.defaultEndpoint != "/healthz" {
+		t.Errorf("defaultEndpoint = %q, want %q", checker.defaultEndpoint, "/healthz")
+	}
+	if !checker.enableBreaker {
+		t.Error("enableBreaker should be true")
+	}
+	if checker.breakerFailures != 3 {
+		t.Errorf("breakerFailures = %d, want 3", checker.breakerFailures)
+	}
+	if checker.rateLimit != 5 {
+		t.Errorf("rateLimit = %d, want 5", checker.rateLimit)
+	}
+	if checker.startupGracePeriod != 20*time.Second {
+		t.Errorf("startupGracePeriod = %v, want %v", checker.startupGracePeriod, 20*time.Second)
+	}
+	if checker.httpClient == nil {
+		t.Error("httpClient should not be nil")
+	}
+}
+
+func TestNewHealthCheckerDefaultGracePeriod(t *testing.T) {
+	config := MonitorConfig{
+		Timeout:         5 * time.Second,
+		DefaultEndpoint: "/health",
+	}
+
+	checker := NewHealthChecker(config)
+	if checker.startupGracePeriod != startupGracePeriod {
+		t.Errorf("startupGracePeriod = %v, want default %v", checker.startupGracePeriod, startupGracePeriod)
+	}
+}
+
+func TestPerformProcessHealthCheck_RunningPID(t *testing.T) {
+	checker := NewHealthChecker(MonitorConfig{
+		Timeout:         5 * time.Second,
+		DefaultEndpoint: "/health",
+	})
+
+	// Use current process PID (guaranteed running)
+	svc := ServiceInfo{
+		Name:      "test-proc",
+		Type:      ServiceTypeProcess,
+		Mode:      ServiceModeWatch,
+		PID:       1, // PID 1 is always running on all platforms
+		StartTime: time.Now().Add(-1 * time.Minute),
+	}
+
+	result := checker.performProcessHealthCheck(context.Background(), svc, false)
+	if result.ServiceName != "test-proc" {
+		t.Errorf("ServiceName = %q, want %q", result.ServiceName, "test-proc")
+	}
+	if result.CheckType != HealthCheckTypeProcess {
+		t.Errorf("CheckType = %q, want %q", result.CheckType, HealthCheckTypeProcess)
+	}
+}
+
+func TestPerformProcessHealthCheck_NoPID(t *testing.T) {
+	checker := NewHealthChecker(MonitorConfig{
+		Timeout:         5 * time.Second,
+		DefaultEndpoint: "/health",
+	})
+
+	svc := ServiceInfo{
+		Name:      "test-nopid",
+		Type:      ServiceTypeProcess,
+		Mode:      ServiceModeWatch,
+		StartTime: time.Now().Add(-1 * time.Minute),
+	}
+
+	result := checker.performProcessHealthCheck(context.Background(), svc, false)
+	if result.Status != HealthStatusUnknown {
+		t.Errorf("Status = %q, want %q", result.Status, HealthStatusUnknown)
+	}
+	if result.Error != "no process ID available for health check" {
+		t.Errorf("Error = %q, want %q", result.Error, "no process ID available for health check")
+	}
+}
+
+func TestPerformProcessHealthCheck_NoPIDInGrace(t *testing.T) {
+	checker := NewHealthChecker(MonitorConfig{
+		Timeout:         5 * time.Second,
+		DefaultEndpoint: "/health",
+	})
+
+	svc := ServiceInfo{
+		Name:      "test-nopid-grace",
+		Type:      ServiceTypeProcess,
+		Mode:      ServiceModeWatch,
+		StartTime: time.Now(),
+	}
+
+	result := checker.performProcessHealthCheck(context.Background(), svc, true)
+	if result.Status != HealthStatusStarting {
+		t.Errorf("Status = %q, want %q", result.Status, HealthStatusStarting)
+	}
+}
+
+func TestPerformBuildTaskHealthCheck_ExitCodeZero(t *testing.T) {
+	checker := NewHealthChecker(MonitorConfig{
+		Timeout:         5 * time.Second,
+		DefaultEndpoint: "/health",
+	})
+
+	exitCode := 0
+	svc := ServiceInfo{
+		Name:      "test-build",
+		Type:      ServiceTypeProcess,
+		Mode:      ServiceModeBuild,
+		PID:       99999, // not running
+		ExitCode:  &exitCode,
+		StartTime: time.Now().Add(-1 * time.Minute),
+		EndTime:   time.Now(),
+	}
+
+	result := HealthCheckResult{
+		ServiceName: svc.Name,
+		Timestamp:   time.Now(),
+		CheckType:   HealthCheckTypeProcess,
+		ServiceMode: svc.Mode,
+	}
+
+	result = checker.performBuildTaskHealthCheck(svc, false, result)
+	if result.Status != HealthStatusHealthy {
+		t.Errorf("Status = %q, want %q", result.Status, HealthStatusHealthy)
+	}
+	if result.Details["state"] != "built" {
+		t.Errorf("Details[state] = %v, want %q", result.Details["state"], "built")
+	}
+}
+
+func TestPerformBuildTaskHealthCheck_ExitCodeNonZero(t *testing.T) {
+	checker := NewHealthChecker(MonitorConfig{
+		Timeout:         5 * time.Second,
+		DefaultEndpoint: "/health",
+	})
+
+	exitCode := 1
+	svc := ServiceInfo{
+		Name:      "test-build-fail",
+		Type:      ServiceTypeProcess,
+		Mode:      ServiceModeBuild,
+		PID:       99999,
+		ExitCode:  &exitCode,
+		StartTime: time.Now().Add(-1 * time.Minute),
+	}
+
+	result := HealthCheckResult{
+		ServiceName: svc.Name,
+		Timestamp:   time.Now(),
+		CheckType:   HealthCheckTypeProcess,
+		ServiceMode: svc.Mode,
+	}
+
+	result = checker.performBuildTaskHealthCheck(svc, false, result)
+	if result.Status != HealthStatusUnhealthy {
+		t.Errorf("Status = %q, want %q", result.Status, HealthStatusUnhealthy)
+	}
+	if result.Details["state"] != "failed" {
+		t.Errorf("Details[state] = %v, want %q", result.Details["state"], "failed")
+	}
+}
+
+func TestPerformBuildTaskHealthCheck_TaskCompleted(t *testing.T) {
+	checker := NewHealthChecker(MonitorConfig{
+		Timeout:         5 * time.Second,
+		DefaultEndpoint: "/health",
+	})
+
+	exitCode := 0
+	svc := ServiceInfo{
+		Name:      "test-task",
+		Type:      ServiceTypeProcess,
+		Mode:      ServiceModeTask,
+		PID:       99999,
+		ExitCode:  &exitCode,
+		StartTime: time.Now().Add(-1 * time.Minute),
+	}
+
+	result := HealthCheckResult{
+		ServiceName: svc.Name,
+		Timestamp:   time.Now(),
+		CheckType:   HealthCheckTypeProcess,
+		ServiceMode: svc.Mode,
+	}
+
+	result = checker.performBuildTaskHealthCheck(svc, false, result)
+	if result.Status != HealthStatusHealthy {
+		t.Errorf("Status = %q, want %q", result.Status, HealthStatusHealthy)
+	}
+	if result.Details["state"] != "completed" {
+		t.Errorf("Details[state] = %v, want %q", result.Details["state"], "completed")
+	}
+}
+
+func TestPerformBuildTaskHealthCheck_NoPIDNoExitInGrace(t *testing.T) {
+	checker := NewHealthChecker(MonitorConfig{
+		Timeout:         5 * time.Second,
+		DefaultEndpoint: "/health",
+	})
+
+	svc := ServiceInfo{
+		Name:      "test-build-grace",
+		Type:      ServiceTypeProcess,
+		Mode:      ServiceModeBuild,
+		StartTime: time.Now(),
+	}
+
+	result := HealthCheckResult{
+		ServiceName: svc.Name,
+		Timestamp:   time.Now(),
+		CheckType:   HealthCheckTypeProcess,
+		ServiceMode: svc.Mode,
+	}
+
+	result = checker.performBuildTaskHealthCheck(svc, true, result)
+	if result.Status != HealthStatusStarting {
+		t.Errorf("Status = %q, want %q", result.Status, HealthStatusStarting)
+	}
+}
+
+func TestPerformBuildTaskHealthCheck_NoPIDNoExitNoGrace(t *testing.T) {
+	checker := NewHealthChecker(MonitorConfig{
+		Timeout:         5 * time.Second,
+		DefaultEndpoint: "/health",
+	})
+
+	svc := ServiceInfo{
+		Name:      "test-build-unknown",
+		Type:      ServiceTypeProcess,
+		Mode:      ServiceModeBuild,
+		StartTime: time.Now().Add(-1 * time.Minute),
+	}
+
+	result := HealthCheckResult{
+		ServiceName: svc.Name,
+		Timestamp:   time.Now(),
+		CheckType:   HealthCheckTypeProcess,
+		ServiceMode: svc.Mode,
+	}
+
+	result = checker.performBuildTaskHealthCheck(svc, false, result)
+	if result.Status != HealthStatusUnknown {
+		t.Errorf("Status = %q, want %q", result.Status, HealthStatusUnknown)
+	}
+}
+
+func TestPerformBuildTaskHealthCheck_PIDNotRunningNoExit(t *testing.T) {
+	checker := NewHealthChecker(MonitorConfig{
+		Timeout:         5 * time.Second,
+		DefaultEndpoint: "/health",
+	})
+
+	svc := ServiceInfo{
+		Name:      "test-build-noexit",
+		Type:      ServiceTypeProcess,
+		Mode:      ServiceModeBuild,
+		PID:       99999, // not running
+		StartTime: time.Now().Add(-1 * time.Minute),
+	}
+
+	result := HealthCheckResult{
+		ServiceName: svc.Name,
+		Timestamp:   time.Now(),
+		CheckType:   HealthCheckTypeProcess,
+		ServiceMode: svc.Mode,
+	}
+
+	result = checker.performBuildTaskHealthCheck(svc, false, result)
+	if result.Status != HealthStatusHealthy {
+		t.Errorf("Status = %q, want %q", result.Status, HealthStatusHealthy)
+	}
+	if result.Details["state"] != "built" {
+		t.Errorf("Details[state] = %v, want %q", result.Details["state"], "built")
+	}
+}
+
+func TestPerformBuildTaskHealthCheck_TaskNotRunningNoExit(t *testing.T) {
+	checker := NewHealthChecker(MonitorConfig{
+		Timeout:         5 * time.Second,
+		DefaultEndpoint: "/health",
+	})
+
+	svc := ServiceInfo{
+		Name:      "test-task-noexit",
+		Type:      ServiceTypeProcess,
+		Mode:      ServiceModeTask,
+		PID:       99999,
+		StartTime: time.Now().Add(-1 * time.Minute),
+	}
+
+	result := HealthCheckResult{
+		ServiceName: svc.Name,
+		Timestamp:   time.Now(),
+		CheckType:   HealthCheckTypeProcess,
+		ServiceMode: svc.Mode,
+	}
+
+	result = checker.performBuildTaskHealthCheck(svc, false, result)
+	if result.Status != HealthStatusHealthy {
+		t.Errorf("Status = %q, want %q", result.Status, HealthStatusHealthy)
+	}
+	if result.Details["state"] != "completed" {
+		t.Errorf("Details[state] = %v, want %q", result.Details["state"], "completed")
+	}
+}
+
+func TestCheckService_StoppedServiceDirect(t *testing.T) {
+	checker := NewHealthChecker(MonitorConfig{
+		Timeout:         5 * time.Second,
+		DefaultEndpoint: "/health",
+	})
+
+	svc := ServiceInfo{
+		Name:           "test-stopped",
+		RegistryStatus: "stopped",
+	}
+
+	result := checker.CheckService(context.Background(), svc)
+	if result.Status != HealthStatusUnknown {
+		t.Errorf("Status = %q, want %q", result.Status, HealthStatusUnknown)
+	}
+	if result.ServiceName != "test-stopped" {
+		t.Errorf("ServiceName = %q, want %q", result.ServiceName, "test-stopped")
+	}
+}
+
+func TestCheckService_ProcessNoPort(t *testing.T) {
+	checker := NewHealthChecker(MonitorConfig{
+		Timeout:         5 * time.Second,
+		DefaultEndpoint: "/health",
+	})
+
+	svc := ServiceInfo{
+		Name:           "test-process",
+		Type:           ServiceTypeProcess,
+		Mode:           ServiceModeWatch,
+		RegistryStatus: "running",
+		StartTime:      time.Now().Add(-1 * time.Minute),
+	}
+
+	result := checker.CheckService(context.Background(), svc)
+	if result.ServiceName != "test-process" {
+		t.Errorf("ServiceName = %q, want %q", result.ServiceName, "test-process")
+	}
+}
+
+func TestCheckService_WithCircuitBreaker(t *testing.T) {
+	checker := NewHealthChecker(MonitorConfig{
+		Timeout:                5 * time.Second,
+		DefaultEndpoint:        "/health",
+		EnableCircuitBreaker:   true,
+		CircuitBreakerFailures: 3,
+		CircuitBreakerTimeout:  10 * time.Second,
+	})
+
+	svc := ServiceInfo{
+		Name:           "test-cb",
+		Type:           ServiceTypeProcess,
+		Mode:           ServiceModeWatch,
+		RegistryStatus: "running",
+		StartTime:      time.Now().Add(-1 * time.Minute),
+	}
+
+	result := checker.CheckService(context.Background(), svc)
+	if result.ServiceName != "test-cb" {
+		t.Errorf("ServiceName = %q, want %q", result.ServiceName, "test-cb")
+	}
+}

@@ -389,6 +389,142 @@ func TestRegisterWithError(t *testing.T) {
 	}
 }
 
+func TestUpdateExitInfo(t *testing.T) {
+	tempDir := t.TempDir()
+	registry := GetRegistry(tempDir)
+
+	entry := &ServiceRegistryEntry{
+		Name:      "build-svc",
+		Port:      0,
+		Status:    "building",
+		Mode:      "build",
+		StartTime: time.Now(),
+	}
+	if err := registry.Register(entry); err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+
+	endTime := time.Now()
+	err := registry.UpdateExitInfo("build-svc", 0, endTime)
+	if err != nil {
+		t.Fatalf("UpdateExitInfo() error = %v, want nil", err)
+	}
+
+	svc, exists := registry.GetService("build-svc")
+	if !exists {
+		t.Fatal("GetService() service not found")
+	}
+	if svc.ExitCode == nil {
+		t.Fatal("ExitCode should not be nil")
+	}
+	if *svc.ExitCode != 0 {
+		t.Errorf("ExitCode = %d, want 0", *svc.ExitCode)
+	}
+	if svc.EndTime.IsZero() {
+		t.Error("EndTime should not be zero")
+	}
+	if svc.LastChecked.IsZero() {
+		t.Error("LastChecked should not be zero")
+	}
+}
+
+func TestUpdateExitInfo_Nonexistent(t *testing.T) {
+	tempDir := t.TempDir()
+	registry := GetRegistry(tempDir)
+
+	err := registry.UpdateExitInfo("no-such-service", 1, time.Now())
+	if err == nil {
+		t.Error("UpdateExitInfo() for nonexistent service should fail")
+	}
+}
+
+func TestUpdateExitInfo_NonZeroCode(t *testing.T) {
+	tempDir := t.TempDir()
+	registry := GetRegistry(tempDir)
+
+	entry := &ServiceRegistryEntry{
+		Name:      "fail-svc",
+		Status:    "building",
+		Mode:      "task",
+		StartTime: time.Now(),
+	}
+	if err := registry.Register(entry); err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+
+	if err := registry.UpdateExitInfo("fail-svc", 1, time.Now()); err != nil {
+		t.Fatalf("UpdateExitInfo() error = %v", err)
+	}
+
+	svc, exists := registry.GetService("fail-svc")
+	if !exists {
+		t.Fatal("GetService() service not found")
+	}
+	if svc.ExitCode == nil || *svc.ExitCode != 1 {
+		t.Errorf("ExitCode = %v, want 1", svc.ExitCode)
+	}
+}
+
+func TestGetService_ExitCodeDeepCopy(t *testing.T) {
+	tempDir := t.TempDir()
+	registry := GetRegistry(tempDir)
+
+	entry := &ServiceRegistryEntry{
+		Name:      "deep-copy-svc",
+		Status:    "completed",
+		Mode:      "build",
+		StartTime: time.Now(),
+	}
+	if err := registry.Register(entry); err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+	if err := registry.UpdateExitInfo("deep-copy-svc", 0, time.Now()); err != nil {
+		t.Fatalf("UpdateExitInfo() error = %v", err)
+	}
+
+	copy1, _ := registry.GetService("deep-copy-svc")
+	*copy1.ExitCode = 99
+
+	copy2, _ := registry.GetService("deep-copy-svc")
+	if *copy2.ExitCode != 0 {
+		t.Errorf("ExitCode deep copy failed: got %d, want 0", *copy2.ExitCode)
+	}
+}
+
+func TestListAll_ExitCodeDeepCopy(t *testing.T) {
+	tempDir := t.TempDir()
+	registry := GetRegistry(tempDir)
+
+	entry := &ServiceRegistryEntry{
+		Name:      "list-dc-svc",
+		Status:    "completed",
+		Mode:      "task",
+		StartTime: time.Now(),
+	}
+	if err := registry.Register(entry); err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+	if err := registry.UpdateExitInfo("list-dc-svc", 42, time.Now()); err != nil {
+		t.Fatalf("UpdateExitInfo() error = %v", err)
+	}
+
+	list1 := registry.ListAll()
+	for _, s := range list1 {
+		if s.Name == "list-dc-svc" && s.ExitCode != nil {
+			*s.ExitCode = 100
+		}
+	}
+
+	list2 := registry.ListAll()
+	for _, s := range list2 {
+		if s.Name == "list-dc-svc" {
+			if s.ExitCode == nil || *s.ExitCode != 42 {
+				t.Errorf("ListAll ExitCode deep copy failed: got %v, want 42", s.ExitCode)
+			}
+		}
+	}
+}
+
 func TestConcurrentAccess(t *testing.T) {
 	tempDir := t.TempDir()
 	registry := GetRegistry(tempDir)

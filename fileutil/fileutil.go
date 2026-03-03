@@ -229,8 +229,18 @@ func FilesExistAll(dir string, filenames ...string) bool {
 
 // ContainsTextInFile checks if file contains text at the specified path.
 // Convenience function combining filepath.Join and ContainsText.
+// The filename must be a relative path; absolute paths are rejected to
+// prevent directory-escape attacks.
 func ContainsTextInFile(dir string, filename string, text string) bool {
-	return ContainsText(filepath.Join(dir, filename), text)
+	if filepath.IsAbs(filename) {
+		return false
+	}
+	joined := filepath.Join(dir, filename)
+	// Validate that the resolved path stays within dir
+	if _, err := security.ValidatePathWithinBases(joined, dir); err != nil {
+		return false
+	}
+	return ContainsText(joined, text)
 }
 
 // HasAnyFileWithExts checks if any file with any of the given extensions exists.

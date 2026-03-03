@@ -146,8 +146,13 @@ func (r *ServiceRegistry) GetService(serviceName string) (*ServiceRegistryEntry,
 	}
 
 	// Return a copy to prevent data races when caller modifies the entry
-	copy := *entry
-	return &copy, true
+	entryCopy := *entry
+	// Deep copy pointer fields to avoid aliasing internal state
+	if entry.ExitCode != nil {
+		ec := *entry.ExitCode
+		entryCopy.ExitCode = &ec
+	}
+	return &entryCopy, true
 }
 
 // ListAll returns all registered services.
@@ -158,9 +163,13 @@ func (r *ServiceRegistry) ListAll() []*ServiceRegistryEntry {
 
 	result := make([]*ServiceRegistryEntry, 0, len(r.services))
 	for _, entry := range r.services {
-		// Return copies to prevent data races
-		copy := *entry
-		result = append(result, &copy)
+		// Return copies to prevent data races, deep-copying pointer fields
+		entryCopy := *entry
+		if entry.ExitCode != nil {
+			ec := *entry.ExitCode
+			entryCopy.ExitCode = &ec
+		}
+		result = append(result, &entryCopy)
 	}
 	return result
 }

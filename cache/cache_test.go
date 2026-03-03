@@ -298,6 +298,63 @@ func TestConcurrentGetSet(t *testing.T) {
 	}
 }
 
+func TestGetInvalidJSON(t *testing.T) {
+	dir := t.TempDir()
+	m := NewManager(Options{Dir: dir, TTL: time.Hour})
+
+	// Write a file with invalid JSON content
+	keyPath := m.keyPath("bad-json")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
+	if err := os.WriteFile(keyPath, []byte("not valid json!!!"), 0644); err != nil {
+		t.Fatalf("failed to write bad json: %v", err)
+	}
+
+	var result string
+	ok, err := m.Get("bad-json", &result)
+	if ok {
+		t.Error("Get() returned true for invalid JSON, want false")
+	}
+	if err == nil {
+		t.Error("Get() expected error for invalid JSON")
+	}
+
+	stats := m.GetStats()
+	if stats.Errors != 1 {
+		t.Errorf("Errors = %d, want 1", stats.Errors)
+	}
+}
+
+func TestGetInvalidDataField(t *testing.T) {
+	dir := t.TempDir()
+	m := NewManager(Options{Dir: dir, TTL: time.Hour})
+
+	// Write a valid envelope but with data that can't unmarshal to the target type
+	keyPath := m.keyPath("bad-data")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
+	envelope := `{"_cache":{"cachedAt":"` + time.Now().Format(time.RFC3339) + `","version":""},"data":"not-an-object"}`
+	if err := os.WriteFile(keyPath, []byte(envelope), 0644); err != nil {
+		t.Fatalf("failed to write bad data: %v", err)
+	}
+
+	var result map[string]int
+	ok, err := m.Get("bad-data", &result)
+	if ok {
+		t.Error("Get() returned true for bad data field, want false")
+	}
+	if err == nil {
+		t.Error("Get() expected error for unmarshal failure")
+	}
+
+	stats := m.GetStats()
+	if stats.Errors < 1 {
+		t.Errorf("Errors = %d, want >= 1", stats.Errors)
+	}
+}
+
 func TestSanitizeKey(t *testing.T) {
 	tests := []struct {
 		input string

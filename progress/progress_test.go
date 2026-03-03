@@ -1,6 +1,7 @@
 package progress
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -912,4 +913,226 @@ func TestProgressStatusTransitions(t *testing.T) {
 	if bar3.status != TaskStatusFailed {
 		t.Errorf("status after Fail() = %q, want %q", bar3.status, TaskStatusFailed)
 	}
+}
+
+// TestBuildCompactLine tests compact line rendering for narrow terminals
+func TestBuildCompactLine(t *testing.T) {
+	mp := &MultiProgress{termWidth: 50}
+
+	tests := []struct {
+		name        string
+		status      TaskStatus
+		progressPct float64
+		elapsed     float64
+	}{
+		{"pending", TaskStatusPending, 0, 0},
+		{"running", TaskStatusRunning, 50.0, 5.0},
+		{"success", TaskStatusSuccess, 100.0, 3.5},
+		{"failed", TaskStatusFailed, 45.0, 2.0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bar := &ProgressSpinner{
+				description: "Test task",
+				status:      tt.status,
+				startTime:   time.Now().Add(-5 * time.Second),
+			}
+
+			line := mp.buildCompactLine(bar, tt.progressPct, tt.elapsed)
+			if line == "" {
+				t.Error("buildCompactLine() returned empty string")
+			}
+		})
+	}
+}
+
+// TestBuildCompactLine_VeryNarrow tests compact line with very narrow terminal
+func TestBuildCompactLine_VeryNarrow(t *testing.T) {
+	mp := &MultiProgress{termWidth: 20}
+	bar := &ProgressSpinner{
+		description: "A very long description that should be truncated",
+		status:      TaskStatusRunning,
+		startTime:   time.Now(),
+	}
+
+	line := mp.buildCompactLine(bar, 50.0, 1.0)
+	if line == "" {
+		t.Error("buildCompactLine() returned empty string for narrow terminal")
+	}
+}
+
+// TestBuildProgressLine_CompactMode tests that buildProgressLine uses compact mode for narrow terminals
+func TestBuildProgressLine_CompactMode(t *testing.T) {
+	mp := &MultiProgress{termWidth: 40} // Below minTermWidthForBar
+	bar := &ProgressSpinner{
+		description: "Test",
+		status:      TaskStatusRunning,
+		startTime:   time.Now(),
+	}
+
+	line := mp.buildProgressLine(bar, 50.0, 2.0)
+	if line == "" {
+		t.Error("buildProgressLine() returned empty string")
+	}
+}
+
+// TestBuildProgressLine_FullMode tests that buildProgressLine uses full mode for wide terminals
+func TestBuildProgressLine_FullMode(t *testing.T) {
+	mp := &MultiProgress{termWidth: 120}
+	bar := &ProgressSpinner{
+		description: "Installing",
+		status:      TaskStatusRunning,
+		startTime:   time.Now(),
+	}
+
+	line := mp.buildProgressLine(bar, 50.0, 2.0)
+	if line == "" {
+		t.Error("buildProgressLine() returned empty string")
+	}
+	// Full mode should contain the bar brackets
+	if !strings.Contains(line, "[") || !strings.Contains(line, "]") {
+		t.Errorf("full mode line should contain brackets: %q", line)
+	}
+}
+
+// TestPrintStatus tests the PrintStatus function output
+func TestPrintStatus(t *testing.T) {
+	// PrintStatus writes to stdout; just verify it doesn't panic
+	// Redirect stdout is complex; verify function runs
+	PrintStatus("test task", true, nil)
+	PrintStatus("failed task", false, fmt.Errorf("some error"))
+}
+
+// TestPrintSummary tests the PrintSummary function
+func TestPrintSummary(t *testing.T) {
+	// Verify it doesn't panic for various inputs
+	PrintSummary(3, 3, nil)
+	PrintSummary(3, 1, []string{"task-a", "task-b"})
+	PrintSummary(0, 0, nil)
+}
+
+// TestEnsureInitialLines tests the EnsureInitialLines function
+func TestEnsureInitialLines(t *testing.T) {
+	// Verify it doesn't panic
+	EnsureInitialLines(0)
+	EnsureInitialLines(3)
+}
+
+// TestClearLine tests the ClearLine function
+func TestClearLine(t *testing.T) {
+	// Verify it doesn't panic
+	ClearLine()
+}
+
+// TestFormatStatusLines tests formatting multiple status lines
+func TestFormatStatusLines(t *testing.T) {
+	tests := []struct {
+		name  string
+		lines []StatusLine
+	}{
+		{
+			name:  "empty",
+			lines: []StatusLine{},
+		},
+		{
+			name: "single success",
+			lines: []StatusLine{
+				{Description: "Build project", Success: true},
+			},
+		},
+		{
+			name: "single failure",
+			lines: []StatusLine{
+				{Description: "Build project", Success: false, Error: "compile error"},
+			},
+		},
+		{
+			name: "mixed results",
+			lines: []StatusLine{
+				{Description: "Build A", Success: true},
+				{Description: "Build B", Success: false, Error: "failed"},
+				{Description: "Build C", Success: true},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := FormatStatusLines(tt.lines)
+
+			if len(tt.lines) == 0 {
+				if result != "" {
+					t.Errorf("FormatStatusLines() for empty = %q, want empty", result)
+				}
+				return
+			}
+
+			// Check that each description appears in output
+			for _, line := range tt.lines {
+				if !strings.Contains(result, line.Description) {
+					t.Errorf("FormatStatusLines() missing description %q in %q", line.Description, result)
+				}
+			}
+
+			// Multi-line output should contain newlines between lines
+			if len(tt.lines) > 1 {
+				lineCount := strings.Count(result, "\n")
+				if lineCount != len(tt.lines)-1 {
+					t.Errorf("FormatStatusLines() has %d newlines, want %d", lineCount, len(tt.lines)-1)
+				}
+			}
+		})
+	}
+}
+
+// TestFormatErrorLine_Truncation tests error line formatting with long messages
+func TestFormatErrorLine_Truncation(t *testing.T) {
+	mp := &MultiProgress{termWidth: 30}
+
+	longMsg := strings.Repeat("X", 100)
+	line := mp.formatErrorLine(longMsg)
+	if line == "" {
+		t.Error("formatErrorLine() returned empty string for long message")
+	}
+}
+
+// TestAssembleProgressLine tests progress line assembly
+func TestAssembleProgressLine(t *testing.T) {
+	mp := &MultiProgress{termWidth: 100}
+
+	// Pending status
+	line := mp.assembleProgressLine("○", cliout.Dim, "Task", "─────", 0, "", TaskStatusPending)
+	if !strings.Contains(line, "Task") {
+		t.Errorf("assembleProgressLine(pending) should contain description, got: %q", line)
+	}
+
+	// Running status
+	line = mp.assembleProgressLine("⠋", cliout.Cyan, "Task", "━━▶──", 50, "2.5s", TaskStatusRunning)
+	if !strings.Contains(line, "50%") {
+		t.Errorf("assembleProgressLine(running) should contain percentage, got: %q", line)
+	}
+	if !strings.Contains(line, "2.5s") {
+		t.Errorf("assembleProgressLine(running) should contain time, got: %q", line)
+	}
+}
+
+// TestMoveCursorUp tests cursor movement functions
+func TestMoveCursorUp(t *testing.T) {
+	// Just verify these don't panic
+	MoveCursorUp(1)
+	MoveCursorDown(1)
+}
+
+// TestClearLines tests clearing multiple lines
+func TestClearLines(t *testing.T) {
+	// Just verify these don't panic
+	ClearLines(1)
+	ClearLines(3)
+}
+
+// TestOverwriteLines tests overwriting lines
+func TestOverwriteLines(t *testing.T) {
+	// Just verify it doesn't panic
+	OverwriteLines(1, "new content")
 }

@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -73,6 +76,213 @@ func TestGetToken_ContextCancellation(t *testing.T) {
 	// Mock doesn't respect context, but real implementation would
 	_, _ = provider.GetToken(ctx, "https://management.azure.com/.default")
 	// This test demonstrates the interface, actual context handling in real provider
+}
+
+// mockCredential is a test double for tokenCredential.
+type mockCredential struct {
+	token string
+	err   error
+}
+
+func (m *mockCredential) GetToken(ctx context.Context, options policy.TokenRequestOptions) (azcore.AccessToken, error) {
+	if m.err != nil {
+		return azcore.AccessToken{}, m.err
+	}
+	return azcore.AccessToken{
+		Token:     m.token,
+		ExpiresOn: time.Now().Add(time.Hour),
+	}, nil
+}
+
+func TestGetDefaultProvider_RetryOnError(t *testing.T) {
+	// Save originals
+	origFactory := credentialFactory
+	origProvider := defaultProvider
+	t.Cleanup(func() {
+		credentialFactory = origFactory
+		defaultProvider = origProvider
+	})
+
+	// Reset cached provider
+	defaultProvider = nil
+
+	calls := 0
+	credentialFactory = func() (tokenCredential, error) {
+		calls++
+		if calls == 1 {
+			return nil, fmt.Errorf("transient credential error")
+		}
+		return &mockCredential{token: "retry-token"}, nil
+	}
+
+	// First call should fail
+	_, err := getDefaultProvider()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "transient credential error")
+
+	// Second call should succeed (retry works because error is not cached)
+	provider, err := getDefaultProvider()
+	require.NoError(t, err)
+	require.NotNil(t, provider)
+
+	// Third call should return cached provider (no more factory calls)
+	provider2, err := getDefaultProvider()
+	require.NoError(t, err)
+	assert.Equal(t, provider, provider2)
+	assert.Equal(t, 2, calls, "factory should only be called twice")
+}
+
+func TestGetDefaultProvider_CachesOnSuccess(t *testing.T) {
+	origFactory := credentialFactory
+	origProvider := defaultProvider
+	t.Cleanup(func() {
+		credentialFactory = origFactory
+		defaultProvider = origProvider
+	})
+
+	defaultProvider = nil
+
+	calls := 0
+	credentialFactory = func() (tokenCredential, error) {
+		calls++
+		return &mockCredential{token: "cached-token"}, nil
+	}
+
+	p1, err := getDefaultProvider()
+	require.NoError(t, err)
+	p2, err := getDefaultProvider()
+	require.NoError(t, err)
+	assert.Equal(t, p1, p2)
+	assert.Equal(t, 1, calls)
+}
+
+func TestGetAzureToken_WithMockedProvider(t *testing.T) {
+	origFactory := credentialFactory
+	origProvider := defaultProvider
+	t.Cleanup(func() {
+		credentialFactory = origFactory
+		defaultProvider = origProvider
+	})
+
+	defaultProvider = nil
+
+	credentialFactory = func() (tokenCredential, error) {
+		return &mockCredential{token: "mock-azure-token"}, nil
+	}
+
+	token, err := GetAzureToken(context.Background(), "https://management.azure.com/.default")
+	require.NoError(t, err)
+	assert.Equal(t, "mock-azure-token", token)
+}
+
+func TestGetAzureToken_FactoryError(t *testing.T) {
+	origFactory := credentialFactory
+	origProvider := defaultProvider
+	t.Cleanup(func() {
+		credentialFactory = origFactory
+		defaultProvider = origProvider
+	})
+
+	defaultProvider = nil
+
+	credentialFactory = func() (tokenCredential, error) {
+		return nil, fmt.Errorf("no credentials")
+	}
+
+	_, err := GetAzureToken(context.Background(), "https://management.azure.com/.default")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no credentials")
+}
+
+func TestGetAzureToken_NilContext(t *testing.T) {
+	origFactory := credentialFactory
+	origProvider := defaultProvider
+	t.Cleanup(func() {
+		credentialFactory = origFactory
+		defaultProvider = origProvider
+	})
+
+	defaultProvider = nil
+
+	credentialFactory = func() (tokenCredential, error) {
+		return &mockCredential{token: "nil-ctx-token"}, nil
+	}
+
+	//nolint:staticcheck // deliberately passing nil context to test the nil-guard
+	token, err := GetAzureToken(nil, "https://management.azure.com/.default")
+	require.NoError(t, err)
+	assert.Equal(t, "nil-ctx-token", token)
+}
+
+func TestClassifyAuthError(t *testing.T) {
+	tests := []struct {
+		name     string
+		errMsg   string
+		contains string
+	}{
+		{"insufficient", "insufficient privileges", "insufficient permissions"},
+		{"unauthorized", "Unauthorized access", "insufficient permissions"},
+		{"forbidden", "Forbidden by policy", "insufficient permissions"},
+		{"permission", "permission denied", "insufficient permissions"},
+		{"credential unavailable", "credential unavailable", "not logged in"},
+		{"login required", "please login first", "not logged in"},
+		{"no accounts", "no accounts found", "not logged in"},
+		{"auth required", "authentication required", "not logged in"},
+		{"configure", "configure your credentials", "not logged in"},
+		{"generic error", "something went wrong", "authentication failed for scope"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := classifyAuthError("test-scope", fmt.Errorf("%s", tt.errMsg))
+			assert.Contains(t, err.Error(), tt.contains)
+		})
+	}
+}
+
+func TestAzureTokenProvider_GetToken_NilContext(t *testing.T) {
+	origFactory := credentialFactory
+	origProvider := defaultProvider
+	t.Cleanup(func() {
+		credentialFactory = origFactory
+		defaultProvider = origProvider
+	})
+
+	defaultProvider = nil
+
+	credentialFactory = func() (tokenCredential, error) {
+		return &mockCredential{token: "ctx-test"}, nil
+	}
+
+	provider, err := NewAzureTokenProvider()
+	require.NoError(t, err)
+
+	//nolint:staticcheck // deliberately passing nil context
+	token, err := provider.GetToken(nil, "https://management.azure.com/.default")
+	require.NoError(t, err)
+	assert.Equal(t, "ctx-test", token)
+}
+
+func TestAzureTokenProvider_GetToken_CredentialError(t *testing.T) {
+	origFactory := credentialFactory
+	origProvider := defaultProvider
+	t.Cleanup(func() {
+		credentialFactory = origFactory
+		defaultProvider = origProvider
+	})
+
+	defaultProvider = nil
+
+	credentialFactory = func() (tokenCredential, error) {
+		return &mockCredential{err: fmt.Errorf("unauthorized access")}, nil
+	}
+
+	provider, err := NewAzureTokenProvider()
+	require.NoError(t, err)
+
+	_, err = provider.GetToken(context.Background(), "some-scope")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "insufficient permissions")
 }
 
 func TestAzureTokenProvider_NewProvider(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"io"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -291,5 +292,83 @@ func TestGetDefaultShell(t *testing.T) {
 	shell := GetDefaultShell()
 	if shell == "" {
 		t.Error("GetDefaultShell() returned empty string")
+	}
+}
+
+func TestStartCommandWithOutputMonitoring(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var lines []string
+	var mu sync.Mutex
+	handler := func(line string) {
+		mu.Lock()
+		lines = append(lines, line)
+		mu.Unlock()
+	}
+
+	var name string
+	var args []string
+	if runtime.GOOS == "windows" {
+		name = "cmd.exe"
+		args = []string{"/c", "echo hello && echo world"}
+	} else {
+		name = "sh"
+		args = []string{"-c", "echo hello && echo world"}
+	}
+
+	cmd, err := StartCommandWithOutputMonitoring(ctx, name, args, "", handler)
+	if err != nil {
+		t.Fatalf("StartCommandWithOutputMonitoring() error = %v", err)
+	}
+
+	if cmd == nil {
+		t.Fatal("StartCommandWithOutputMonitoring() returned nil cmd")
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		t.Fatalf("cmd.Wait() error = %v", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	if len(lines) < 2 {
+		t.Errorf("expected at least 2 lines, got %d: %v", len(lines), lines)
+	}
+
+	foundHello := false
+	foundWorld := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "hello" {
+			foundHello = true
+		}
+		if trimmed == "world" {
+			foundWorld = true
+		}
+	}
+
+	if !foundHello {
+		t.Errorf("expected 'hello' in output lines: %v", lines)
+	}
+	if !foundWorld {
+		t.Errorf("expected 'world' in output lines: %v", lines)
+	}
+}
+
+func TestStartCommandWithOutputMonitoringInvalidCommand(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	handler := func(line string) {}
+
+	cmd, err := StartCommandWithOutputMonitoring(ctx, "nonexistent-command-xyz-123", []string{}, "", handler)
+	if err == nil {
+		t.Error("StartCommandWithOutputMonitoring() with invalid command should fail")
+	}
+	if cmd != nil {
+		t.Error("StartCommandWithOutputMonitoring() should return nil cmd on error")
 	}
 }
