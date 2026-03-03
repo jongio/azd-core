@@ -1,3 +1,7 @@
+## [0.5.5] - 2026-03-03
+
+- fix: replace DefaultAzureCredential with resilient credential chain (#28) (22fcaea)
+
 ## [0.5.3] - 2026-02-28
 
 - chore: deprecate azdextutil helpers in favor of azdext SDK helpers (#22) (02cc93a)
