@@ -16,12 +16,10 @@ import (
 // This preserves all comments, formatting, and other content in the file.
 // The port is added as a single-element ports array: ports: ["8080"]
 func UpdateServicePort(azureYamlPath, serviceName string, port int) error {
-	// Validate path
 	if err := security.ValidatePath(azureYamlPath); err != nil {
 		return fmt.Errorf("invalid path: %w", err)
 	}
 
-	// Read existing azure.yaml
 	// #nosec G304 -- Path validated by security.ValidatePath
 	data, err := os.ReadFile(azureYamlPath)
 	if err != nil {
@@ -46,13 +44,11 @@ func UpdateServicePort(azureYamlPath, serviceName string, port int) error {
 		return fmt.Errorf("service '%s' not found in azure.yaml", serviceName)
 	}
 
-	// Update the ports field using text-based manipulation
 	updatedContent, err := updateServicePortsInText(content, serviceName, port)
 	if err != nil {
 		return err
 	}
 
-	// Write back to file
 	if err := os.WriteFile(azureYamlPath, []byte(updatedContent), 0600); err != nil {
 		return fmt.Errorf("failed to write azure.yaml: %w", err)
 	}
@@ -64,37 +60,31 @@ func UpdateServicePort(azureYamlPath, serviceName string, port int) error {
 func updateServicePortsInText(content, serviceName string, port int) (string, error) {
 	lines := strings.Split(content, "\n")
 
-	// Find the services section
 	servicesInfo, err := findSection(lines, "services")
 	if err != nil {
 		return "", fmt.Errorf("services section not found")
 	}
 
-	// Find the specific service
 	serviceInfo, err := FindServiceInSection(lines, servicesInfo, serviceName)
 	if err != nil {
 		return "", err
 	}
 
-	// Check if ports field already exists
 	portsLineIdx, portsIndent := findPortsLine(lines, serviceInfo)
 
-	// Create ports array with single port
 	portsLine := fmt.Sprintf("%sports:", portsIndent)
 	portValueLine := fmt.Sprintf("%s  - \"%d\"", portsIndent, port)
 
 	if portsLineIdx >= 0 {
-		// Check if ports is inline format: ports: ["3000"] or ports: ["3000", "8080"]
+		// Inline array format (ports: ["3000"]) — replace entire line
 		currentPortsLine := lines[portsLineIdx]
 		if strings.Contains(currentPortsLine, "[") {
-			// Inline array format - replace entire line
 			lineIndent := getIndentation(currentPortsLine)
 			lines[portsLineIdx] = fmt.Sprintf("%sports: [\"%d\"]", lineIndent, port)
 			return strings.Join(lines, "\n"), nil
 		}
 
-		// Update existing multi-line ports array - replace first port value
-		// Find the first array item after ports:
+		// Multi-line ports array — replace first port value
 		for i := portsLineIdx + 1; i < len(lines); i++ {
 			line := lines[i]
 			trimmed := strings.TrimSpace(line)
@@ -123,10 +113,9 @@ func updateServicePortsInText(content, serviceName string, port int) (string, er
 		result = append(result, lines[portsLineIdx+1:]...)
 		lines = result
 	} else {
-		// Insert new ports field after service name
+		// No existing ports field — insert after service name
 		insertIdx := serviceInfo.lineIdx + 1
 
-		// Insert the ports lines
 		result := make([]string, 0, len(lines)+2)
 		result = append(result, lines[:insertIdx]...)
 		result = append(result, portsLine)
@@ -149,7 +138,7 @@ type serviceInfo struct {
 func FindServiceInSection(lines []string, servicesInfo *sectionInfo, serviceName string) (*serviceInfo, error) {
 	searchKey := serviceName + ":"
 
-	// Detect the actual service-level indentation by finding the first service
+	// Detect actual service-level indentation from the first service entry
 	var serviceIndent string
 	for i := servicesInfo.lineIdx + 1; i < len(lines); i++ {
 		line := lines[i]
@@ -162,19 +151,18 @@ func FindServiceInSection(lines []string, servicesInfo *sectionInfo, serviceName
 
 		lineIndent := getIndentation(line)
 
-		// Check indentation - if less than or equal to services indent, we've left the services section
+		// Check indentation — if at or before services indent, we've left the section
 		if len(lineIndent) <= len(servicesInfo.indent) {
 			break
 		}
 
-		// First non-empty, non-comment line at greater indentation is a service
 		if len(lineIndent) > len(servicesInfo.indent) {
 			serviceIndent = lineIndent
 			break
 		}
 	}
 
-	// If we couldn't detect service indent, use default
+	// If we couldn't detect service indent, fall back to default
 	if serviceIndent == "" {
 		serviceIndent = servicesInfo.indent + "  "
 	}
@@ -184,18 +172,15 @@ func FindServiceInSection(lines []string, servicesInfo *sectionInfo, serviceName
 		line := lines[i]
 		trimmed := strings.TrimSpace(line)
 
-		// Skip empty lines and comments
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
 
-		// Check indentation - if less than or equal to services indent, we've left the services section
 		lineIndent := getIndentation(line)
 		if len(lineIndent) <= len(servicesInfo.indent) {
 			break
 		}
 
-		// Check if this is our service
 		if len(lineIndent) == len(serviceIndent) && (trimmed == searchKey || strings.HasPrefix(trimmed, searchKey+" ")) {
 			// Calculate property indent (same delta as service indent from services indent)
 			indentDelta := len(serviceIndent) - len(servicesInfo.indent)
