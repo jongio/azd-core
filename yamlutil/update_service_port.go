@@ -90,12 +90,10 @@ func updateServicePortsInText(content, serviceName string, port int) (string, er
 			trimmed := strings.TrimSpace(line)
 			lineIndent := getIndentation(line)
 
-			// Skip empty lines and comments
 			if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 				continue
 			}
 
-			// If we've left the ports array, break
 			if len(lineIndent) <= len(portsIndent) {
 				break
 			}
@@ -144,7 +142,6 @@ func FindServiceInSection(lines []string, servicesInfo *sectionInfo, serviceName
 		line := lines[i]
 		trimmed := strings.TrimSpace(line)
 
-		// Skip empty lines and comments
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
@@ -204,19 +201,16 @@ func findPortsLine(lines []string, serviceInfo *serviceInfo) (int, string) {
 		line := lines[i]
 		trimmed := strings.TrimSpace(line)
 
-		// Skip empty lines and comments
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
 
 		lineIndent := getIndentation(line)
 
-		// If we've left the service properties (less indented), stop
 		if len(lineIndent) < len(serviceInfo.indent) {
 			break
 		}
 
-		// If we're at the same level as service properties
 		if len(lineIndent) == len(serviceInfo.indent) {
 			// Check if this is the ports line
 			if strings.HasPrefix(trimmed, "ports:") {

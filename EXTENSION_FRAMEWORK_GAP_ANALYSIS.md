@@ -953,7 +953,7 @@ func handlePostProvision(ctx context.Context, args *azdext.ServiceEventArgs) err
 
 ---
 
-### 5.2 MCP Tools - Best-in-Class ✅ (with gaps)
+### 5.2 MCP Tools ✅ (with gaps)
 
 **File:** `azd-app/cli/src/cmd/app/commands/mcp.go` (519 lines)
 

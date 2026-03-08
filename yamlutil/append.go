@@ -186,7 +186,6 @@ func findLastArrayLine(lines []string, section *sectionInfo) (int, string) {
 		line := lines[i]
 		trimmed := strings.TrimSpace(line)
 
-		// Skip empty lines and comments
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
@@ -242,7 +241,6 @@ func scanArrayItem(lines []string, startIdx int, arrayIndent string) int {
 		innerLine := lines[j]
 		innerTrimmed := strings.TrimSpace(innerLine)
 
-		// Skip empty lines and comments
 		if innerTrimmed == "" || strings.HasPrefix(innerTrimmed, "#") {
 			continue
 		}
