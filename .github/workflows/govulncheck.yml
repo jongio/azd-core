@@ -11,10 +11,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: govulncheck-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   govulncheck:
     name: Run govulncheck
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     
     steps:
       - name: Checkout code
@@ -23,7 +28,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.26.0'
+          go-version: '1.26.1'
           cache: true
 
       - name: Install govulncheck
