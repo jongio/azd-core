@@ -1,3 +1,7 @@
+## [0.5.6] - 2026-03-12
+
+- ci: optimize GitHub Actions workflows (#30) (4e95aa0)
+
 ## [0.5.5] - 2026-03-03
 
 - fix: replace DefaultAzureCredential with resilient credential chain (#28) (22fcaea)
