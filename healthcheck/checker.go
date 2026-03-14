@@ -116,7 +116,7 @@ func (c *HealthChecker) getOrCreateCircuitBreaker(serviceName string) *gobreaker
 				return false
 			}
 			failureRatio := float64(counts.TotalFailures) / float64(counts.Requests)
-			return counts.Requests >= uint32(c.breakerFailures) && failureRatio >= 0.6
+			return counts.Requests >= uint32(c.breakerFailures) && failureRatio >= 0.6 //nolint:gosec // G115: safe conversion, breakerFailures is bounded
 		},
 		OnStateChange: func(name string, from gobreaker.State, to gobreaker.State) {
 			if metricsEnabled.Load() {

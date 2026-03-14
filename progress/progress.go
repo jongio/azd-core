@@ -17,6 +17,7 @@ import (
 // TaskStatus represents the status of a single task.
 type TaskStatus string
 
+// Task status values.
 const (
 	TaskStatusPending TaskStatus = "pending"
 	TaskStatusRunning TaskStatus = "running"

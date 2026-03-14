@@ -74,10 +74,7 @@ func updateLogsConfigInText(content, serviceName string, tables []string, query 
 	analytics := findOrCreateAnalyticsSection(&lines, logs)
 
 	// Remove old tables/query and add new ones
-	err = updateAnalyticsContent(&lines, analytics, tables, query)
-	if err != nil {
-		return "", err
-	}
+	updateAnalyticsContent(&lines, analytics, tables, query)
 
 	return strings.Join(lines, "\n"), nil
 }
@@ -177,7 +174,7 @@ func findOrCreateAnalyticsSection(lines *[]string, logs logsSection) analyticsSe
 }
 
 // updateAnalyticsContent removes old tables/query and adds new ones.
-func updateAnalyticsContent(lines *[]string, analytics analyticsSection, tables []string, query string) error {
+func updateAnalyticsContent(lines *[]string, analytics analyticsSection, tables []string, query string) {
 	startIdx := analytics.idx + 1
 	endIdx := startIdx
 
@@ -228,6 +225,4 @@ func updateAnalyticsContent(lines *[]string, analytics analyticsSection, tables 
 	result = append(result, newContent...)
 	result = append(result, (*lines)[endIdx:]...)
 	*lines = result
-
-	return nil
 }

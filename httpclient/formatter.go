@@ -13,10 +13,12 @@ import (
 // OutputFormat represents the output format type
 type OutputFormat string
 
+// Output format values.
 const (
-	FormatAuto OutputFormat = "auto"
-	FormatJSON OutputFormat = "json"
-	FormatRaw  OutputFormat = "raw"
+	FormatAuto    OutputFormat = "auto"
+	FormatJSON    OutputFormat = "json"
+	FormatRaw     OutputFormat = "raw"
+	redactedValue              = "***REDACTED***"
 )
 
 // Formatter handles response formatting and output
@@ -134,9 +136,9 @@ func RedactSensitiveHeader(key, value string) string {
 			if len(token) > 12 {
 				return "Bearer " + token[:6] + "..." + token[len(token)-6:]
 			}
-			return "Bearer ***REDACTED***"
+			return "Bearer " + redactedValue
 		}
-		return "***REDACTED***"
+		return redactedValue
 	}
 
 	sensitiveHeaders := []string{
@@ -152,7 +154,7 @@ func RedactSensitiveHeader(key, value string) string {
 			if len(value) > 12 {
 				return value[:6] + "..." + value[len(value)-6:]
 			}
-			return "***REDACTED***"
+			return redactedValue
 		}
 	}
 
@@ -160,7 +162,7 @@ func RedactSensitiveHeader(key, value string) string {
 }
 
 // sensitiveQueryKeys lists URL query parameter names that may contain secrets.
-// Values for these keys are replaced with "***REDACTED***" in verbose logging.
+// Values for these keys are replaced with redactedValue in verbose logging.
 var sensitiveQueryKeys = map[string]bool{
 	"sig":          true,
 	"token":        true,
@@ -226,10 +228,10 @@ func RedactURL(rawURL string) string {
 // RedactToken redacts sensitive parts of an authorization token
 func RedactToken(token string) string {
 	if len(token) <= 8 {
-		return "***REDACTED***"
+		return redactedValue
 	}
 	if len(token) <= 12 {
-		return "***REDACTED***"
+		return redactedValue
 	}
 	return token[:6] + "..." + token[len(token)-6:]
 }

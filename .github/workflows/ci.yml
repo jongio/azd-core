@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -28,10 +28,10 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
         with:
           go-version: ${{ matrix.go-version }}
           cache: true
@@ -40,7 +40,7 @@ jobs:
         run: go vet ./...
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v9
+        uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9
         with:
           version: v2.9.0
 
@@ -58,7 +58,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: matrix.os == 'ubuntu-latest'
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
         with:
           files: ./coverage.txt
           flags: unittests
