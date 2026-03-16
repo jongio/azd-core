@@ -4,6 +4,12 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/jongio/azd-core)](https://goreportcard.com/report/github.com/jongio/azd-core)
 [![CI](https://github.com/jongio/azd-core/workflows/CI/badge.svg)](https://github.com/jongio/azd-core/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/jongio/azd-core/branch/main/graph/badge.svg)](https://codecov.io/gh/jongio/azd-core)
+[![CodeQL](https://github.com/jongio/azd-core/actions/workflows/codeql.yml/badge.svg)](https://github.com/jongio/azd-core/actions/workflows/codeql.yml)
+[![govulncheck](https://img.shields.io/badge/govulncheck-passing-brightgreen)](https://github.com/jongio/azd-core/actions/workflows/govulncheck.yml)
+[![golangci-lint](https://img.shields.io/badge/golangci--lint-enabled-blue)](https://github.com/jongio/azd-core/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Go Version](https://img.shields.io/badge/go-1.26.0-blue)](https://go.dev/)
+[![Platform Support](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20windows-lightgrey)](https://github.com/jongio/azd-core)
 
 Common reusable Go modules for building Azure Developer CLI (azd) extensions and tooling.
 

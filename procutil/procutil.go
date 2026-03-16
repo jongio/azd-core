@@ -18,7 +18,7 @@ func IsProcessRunning(pid int) bool {
 	}
 
 	// Create a process handle
-	proc, err := process.NewProcess(int32(pid))
+	proc, err := process.NewProcess(int32(pid)) //nolint:gosec // G115: safe conversion, PIDs fit in int32
 	if err != nil {
 		// Process doesn't exist or can't be accessed
 		return false

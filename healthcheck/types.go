@@ -51,6 +51,7 @@ const endpointCacheNone = "__none__"
 // HealthStatus represents the health state of a service.
 type HealthStatus string
 
+// Health status values.
 const (
 	HealthStatusHealthy   HealthStatus = "healthy"
 	HealthStatusDegraded  HealthStatus = "degraded"
@@ -62,6 +63,7 @@ const (
 // HealthCheckType indicates the method used for health checking.
 type HealthCheckType string
 
+// Health check type values.
 const (
 	HealthCheckTypeHTTP    HealthCheckType = "http"
 	HealthCheckTypeTCP     HealthCheckType = "tcp"

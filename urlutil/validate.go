@@ -9,6 +9,8 @@ import (
 const (
 	// MaxURLLength is the RFC 2616 practical limit for URL length
 	MaxURLLength = 2048
+	schemeHTTP   = "http"
+	schemeHTTPS  = "https"
 )
 
 // Validate performs comprehensive HTTP/HTTPS URL validation using net/url.Parse.
@@ -47,7 +49,7 @@ func Validate(rawURL string) error {
 	}
 
 	// Validate protocol (http or https only)
-	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+	if parsed.Scheme != schemeHTTP && parsed.Scheme != schemeHTTPS {
 		if parsed.Scheme == "" {
 			return fmt.Errorf("url must use http:// or https://")
 		}
@@ -84,12 +86,12 @@ func ValidateHTTPSOnly(rawURL string) error {
 	parsed, _ := neturl.Parse(strings.TrimSpace(rawURL))
 
 	// Allow HTTPS
-	if parsed.Scheme == "https" {
+	if parsed.Scheme == schemeHTTPS {
 		return nil
 	}
 
 	// Allow HTTP for localhost
-	if parsed.Scheme == "http" && isLocalhost(parsed.Hostname()) {
+	if parsed.Scheme == schemeHTTP && isLocalhost(parsed.Hostname()) {
 		return nil
 	}
 
@@ -143,7 +145,7 @@ func NormalizeScheme(rawURL, defaultScheme string) string {
 	}
 
 	// If it has a valid http/https scheme, return as-is
-	if parsed.Scheme == "http" || parsed.Scheme == "https" {
+	if parsed.Scheme == schemeHTTP || parsed.Scheme == schemeHTTPS {
 		return rawURL
 	}
 

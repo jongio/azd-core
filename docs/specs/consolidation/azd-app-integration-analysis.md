@@ -433,7 +433,7 @@ c:\code\azd-app\cli\src\internal\service\detector.go        (fileExists, contain
 **Code Quality**:
 - ✅ Remove ~50 lines of duplicate temp file handling
 - ✅ Consistent atomic write pattern across codebase
-- ✅ Leverage battle-tested code (77.7% coverage, CI-hardened)
+- ✅ Reuse existing code (77.7% coverage, CI-hardened)
 
 **Reliability**:
 - ✅ Fix critical bug: config.go non-atomic writes

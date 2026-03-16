@@ -79,7 +79,7 @@ func TestResilientChain_RespectsContextCancellation(t *testing.T) {
 		Scopes: []string{"scope"},
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "credential chain cancelled")
+	assert.Contains(t, err.Error(), "credential chain canceled")
 }
 
 func TestResilientChain_ThirdCredentialSucceeds(t *testing.T) {

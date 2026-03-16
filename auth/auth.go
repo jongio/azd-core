@@ -32,10 +32,10 @@ func (c *resilientChainCredential) GetToken(
 	ctx context.Context,
 	options policy.TokenRequestOptions,
 ) (azcore.AccessToken, error) {
-	var errs []string
+	errs := make([]string, 0, len(c.creds))
 	for _, nc := range c.creds {
 		if ctx.Err() != nil {
-			return azcore.AccessToken{}, fmt.Errorf("credential chain cancelled: %w", ctx.Err())
+			return azcore.AccessToken{}, fmt.Errorf("credential chain canceled: %w", ctx.Err())
 		}
 		token, err := nc.cred.GetToken(ctx, options)
 		if err == nil {
@@ -51,7 +51,7 @@ func (c *resilientChainCredential) GetToken(
 }
 
 // newResilientCredentialChain builds a credential chain that tries every
-// credential type regardless of error kind. Order is optimised for developer
+// credential type regardless of error kind. Order is optimized for developer
 // workstations: CLI credentials first (fast), then environment/workload
 // (conditional on env-vars), then managed identity last (may be slow).
 func newResilientCredentialChain() (tokenCredential, error) {
@@ -113,10 +113,8 @@ type AzureTokenProvider struct {
 var (
 	defaultProvider   TokenProvider
 	providerMu        sync.Mutex
-	credentialFactory = func() (tokenCredential, error) {
-		return newResilientCredentialChain()
-	}
-	timeNow = time.Now
+	credentialFactory = newResilientCredentialChain
+	timeNow           = time.Now
 )
 
 // NewAzureTokenProvider creates a provider backed by a resilient credential

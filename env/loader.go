@@ -125,7 +125,6 @@ func ParseKeyValueFormat(output []byte) (map[string]string, error) {
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 
-		// Skip empty lines and comments
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}

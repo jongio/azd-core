@@ -84,7 +84,7 @@
 ### Code Quality
 - Remove ~50 lines of duplicate temp file handling
 - Consistent atomic write pattern
-- Leverage battle-tested code (77.7% coverage)
+- Reuse existing code (77.7% coverage)
 
 ### Reliability
 - **Fix critical bug**: config.go non-atomic writes

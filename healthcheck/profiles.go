@@ -144,7 +144,7 @@ func (p *HealthProfiles) GetProfile(name string) (HealthProfile, error) {
 // SaveSampleProfiles saves a sample health-profiles.yaml file.
 func SaveSampleProfiles(projectDir string) error {
 	azdDir := filepath.Join(projectDir, ".azd")
-	if err := os.MkdirAll(azdDir, 0755); err != nil {
+	if err := os.MkdirAll(azdDir, 0o750); err != nil {
 		return fmt.Errorf("failed to create .azd directory: %w", err)
 	}
 
@@ -185,7 +185,7 @@ func SaveSampleProfiles(projectDir string) error {
 `
 
 	content := header + string(data)
-	if err := os.WriteFile(profilePath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(profilePath, []byte(content), 0o600); err != nil {
 		return fmt.Errorf("failed to write profiles file: %w", err)
 	}
 

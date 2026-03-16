@@ -77,7 +77,7 @@ type Client struct {
 func NewClient(tokenProvider TokenProvider, insecure bool, timeout time.Duration) *Client {
 	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: insecure,
+			InsecureSkipVerify: insecure, //nolint:gosec // G402: InsecureSkipVerify is intentionally configurable
 		},
 		// Use proxy from environment variables (HTTP_PROXY, HTTPS_PROXY, NO_PROXY)
 		Proxy: http.ProxyFromEnvironment,
@@ -168,7 +168,7 @@ func (c *Client) Execute(ctx context.Context, opts RequestOptions) (*Response, e
 
 	var lastErr error
 	var bodyBytes []byte
-	bodyReader := io.Reader(opts.Body)
+	bodyReader := opts.Body
 
 	// If body is provided and we might retry, read it into memory for retries
 	if opts.Body != nil && maxRetries > 0 {
@@ -201,10 +201,10 @@ func (c *Client) Execute(ctx context.Context, opts RequestOptions) (*Response, e
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 {
 			// Exponential backoff: 1s, 2s, 4s, etc.
-			backoff := time.Duration(1<<uint(attempt-1)) * time.Second
+			backoff := time.Duration(1<<uint(attempt-1)) * time.Second //nolint:gosec // G115: safe conversion, attempt count is small
 			select {
 			case <-ctx.Done():
-				return nil, fmt.Errorf("request cancelled: %w", ctx.Err())
+				return nil, fmt.Errorf("request canceled: %w", ctx.Err())
 			case <-time.After(backoff):
 			}
 
@@ -434,6 +434,7 @@ func handlePagination(ctx context.Context, client *http.Client, opts RequestOpti
 	// Parse original URL to enforce same-origin on pagination links
 	originalURL, err := url.Parse(opts.URL)
 	if err != nil {
+		//nolint:nilerr // intentionally returning body despite read error
 		return currentBody, nil
 	}
 
@@ -448,6 +449,7 @@ func handlePagination(ctx context.Context, client *http.Client, opts RequestOpti
 
 	var firstData map[string]interface{}
 	if err := json.Unmarshal(currentBody, &firstData); err != nil {
+		//nolint:nilerr // intentionally returning body despite read error
 		return currentBody, nil
 	}
 
