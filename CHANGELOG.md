@@ -1,3 +1,8 @@
+## [0.5.7] - 2026-03-16
+
+- chore(deps): bump golang.org/x/time from 0.14.0 to 0.15.0 (#33) (f984c86)
+- feat: dispatch-parity quality improvements (#34) (0880335)
+
 ## [0.5.6] - 2026-03-12
 
 - ci: optimize GitHub Actions workflows (#30) (4e95aa0)
