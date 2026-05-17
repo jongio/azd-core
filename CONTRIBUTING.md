@@ -3,7 +3,7 @@
 Thanks for your interest in contributing! This project aims to provide reusable helpers extracted from Azure Developer CLI (azd). We welcome issues and pull requests.
 
 ## Prerequisites
-- Go 1.25+ installed and on your `PATH`.
+- Go 1.26+ installed and on your `PATH`.
 - Git (and a GitHub account).
 
 ## Setup
