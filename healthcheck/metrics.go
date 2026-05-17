@@ -122,6 +122,8 @@ func getErrorType(errMsg string) string {
 		return "connection_refused"
 	case containsAny(errMsg, "circuit breaker", "circuit open", "too many failures"):
 		return "circuit_breaker"
+	case containsAny(errMsg, "panic"):
+		return "panic"
 	case containsAny(errMsg, "context canceled", "canceled"):
 		return "canceled"
 	case containsAny(errMsg, "500", "503", "502", "504"):

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"os/exec"
@@ -194,11 +195,24 @@ func (c *HealthChecker) CheckService(ctx context.Context, svc ServiceInfo) Healt
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
+					stackTrace := captureStackTrace()
+					panicValue := fmt.Sprint(r)
+
+					slog.Error("panic during health check",
+						"service", serviceName,
+						"panic", panicValue,
+						"stack", stackTrace,
+					)
+
 					result = HealthCheckResult{
-						ServiceName: serviceName,
-						Timestamp:   time.Now(),
-						Status:      HealthStatusUnknown,
-						Error:       fmt.Sprintf("internal error: panic during health check: %v", r),
+						ServiceName:  serviceName,
+						Timestamp:    time.Now(),
+						Status:       HealthStatusUnknown,
+						Error:        fmt.Sprintf("panic recovered during health check: %v", r),
+						ErrorDetails: stackTrace,
+						Details: map[string]interface{}{
+							"panic": panicValue,
+						},
 					}
 				}
 			}()
@@ -255,6 +269,12 @@ func (c *HealthChecker) CheckService(ctx context.Context, svc ServiceInfo) Healt
 	result.ServiceMode = svc.Mode
 
 	return result
+}
+
+func captureStackTrace() string {
+	buf := make([]byte, 64*1024)
+	n := runtime.Stack(buf, false)
+	return string(buf[:n])
 }
 
 // performServiceCheck executes the actual health check logic without circuit breaker.
