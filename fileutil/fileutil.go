@@ -5,7 +5,9 @@ package fileutil
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,7 +27,7 @@ const (
 // AtomicWriteJSON writes data as JSON to a file atomically.
 // It writes to a temporary file first, then renames it to the target path.
 // This ensures the file is never left in a partial/corrupt state.
-func AtomicWriteJSON(path string, data interface{}) error {
+func AtomicWriteJSON(path string, data any) error {
 	jsonData, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
@@ -152,10 +154,10 @@ func AtomicWriteFile(path string, data []byte, perm os.FileMode) error {
 
 // ReadJSON reads JSON from a file into the target interface.
 // Returns nil error if file doesn't exist (target unchanged).
-func ReadJSON(path string, target interface{}) error {
+func ReadJSON(path string, target any) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			return nil // File doesn't exist, not an error
 		}
 		return fmt.Errorf("failed to read file: %w", err)
@@ -279,7 +281,7 @@ type CacheMetadata struct {
 //	fileutil.SaveCacheJSON(path, entry)
 type CacheEntry struct {
 	Metadata CacheMetadata `json:"_cache"`
-	Data     interface{}   `json:"data"`
+	Data     any           `json:"data"`
 }
 
 // IsCacheValid checks if a cache entry is still valid according to the options.
@@ -319,10 +321,10 @@ func (m CacheMetadata) IsCacheValid(opts CacheOptions) bool {
 //	if !valid {
 //	    // Rebuild cache
 //	}
-func LoadCacheJSON(path string, target interface{}, opts CacheOptions) (valid bool, err error) {
+func LoadCacheJSON(path string, target any, opts CacheOptions) (valid bool, err error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			return false, nil // Cache doesn't exist, not an error
 		}
 		return false, fmt.Errorf("failed to read cache file: %w", err)
@@ -352,10 +354,10 @@ func LoadCacheJSON(path string, target interface{}, opts CacheOptions) (valid bo
 // Example:
 //
 //	err := fileutil.SaveCacheJSON(path, myData, "1.0.0")
-func SaveCacheJSON(path string, data interface{}, version string) error {
+func SaveCacheJSON(path string, data any, version string) error {
 	entry := struct {
 		Cache CacheMetadata `json:"_cache"`
-		Data  interface{}   `json:"data"`
+		Data  any           `json:"data"`
 	}{
 		Cache: CacheMetadata{
 			CachedAt: time.Now(),
@@ -370,7 +372,7 @@ func SaveCacheJSON(path string, data interface{}, version string) error {
 // ClearCache removes a cache file if it exists.
 // Returns nil if the file doesn't exist.
 func ClearCache(path string) error {
-	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("failed to clear cache: %w", err)
 	}
 	return nil

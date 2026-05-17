@@ -728,7 +728,7 @@ func TestTable(t *testing.T) {
 // Test JSON Output
 
 func TestPrintJSON(t *testing.T) {
-	data := map[string]interface{}{
+	data := map[string]any{
 		"status": "success",
 		"count":  42,
 	}
@@ -740,7 +740,7 @@ func TestPrintJSON(t *testing.T) {
 	})
 
 	// Should be valid JSON
-	var decoded map[string]interface{}
+	var decoded map[string]any
 	if err := json.Unmarshal([]byte(output), &decoded); err != nil {
 		t.Errorf("Output is not valid JSON: %v", err)
 	}
@@ -783,7 +783,7 @@ func TestPrintDefault(t *testing.T) {
 }
 
 func TestPrint(t *testing.T) {
-	data := map[string]interface{}{"status": "success"}
+	data := map[string]any{"status": "success"}
 
 	// Test default format
 	globalFormat = FormatDefault
@@ -819,7 +819,7 @@ func TestPrint(t *testing.T) {
 	}
 
 	// Should output JSON
-	var decoded map[string]interface{}
+	var decoded map[string]any
 	if err := json.Unmarshal([]byte(output), &decoded); err != nil {
 		t.Errorf("Output is not valid JSON: %v", err)
 	}

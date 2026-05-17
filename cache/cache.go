@@ -8,8 +8,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -62,7 +64,7 @@ func NewManager(opts Options) *Manager {
 
 // Get loads a cached value by key. Returns true if cache is valid.
 // target must be a pointer to the type to unmarshal into.
-func (m *Manager) Get(key string, target interface{}) (bool, error) {
+func (m *Manager) Get(key string, target any) (bool, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -70,7 +72,7 @@ func (m *Manager) Get(key string, target interface{}) (bool, error) {
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			m.recordMiss()
 			return false, nil
 		}
@@ -106,7 +108,7 @@ func (m *Manager) Get(key string, target interface{}) (bool, error) {
 }
 
 // Set stores a value in the cache.
-func (m *Manager) Set(key string, data interface{}) error {
+func (m *Manager) Set(key string, data any) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -137,7 +139,7 @@ func (m *Manager) Invalidate(key string) error {
 	defer m.mu.Unlock()
 
 	path := m.keyPath(key)
-	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("failed to remove cache entry: %w", err)
 	}
 	return nil
@@ -150,7 +152,7 @@ func (m *Manager) Clear() error {
 
 	entries, err := os.ReadDir(m.dir)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			return nil
 		}
 		return fmt.Errorf("failed to read cache directory: %w", err)
@@ -164,7 +166,7 @@ func (m *Manager) Clear() error {
 			continue
 		}
 		path := filepath.Join(m.dir, entry.Name())
-		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("failed to remove cache file %s: %w", entry.Name(), err)
 		}
 	}

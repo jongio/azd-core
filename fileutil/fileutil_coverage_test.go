@@ -39,7 +39,7 @@ func TestAtomicWriteJSON_MarshalError(t *testing.T) {
 	path := filepath.Join(tmpDir, "test.json")
 
 	// Create data that can't be marshaled (function type)
-	invalidData := map[string]interface{}{
+	invalidData := map[string]any{
 		"func": func() {},
 	}
 
@@ -99,7 +99,7 @@ func TestAtomicWriteJSON_Sync(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "test.json")
 
-	data := map[string]interface{}{
+	data := map[string]any{
 		"key1": "value1",
 		"key2": 42,
 		"key3": true,
@@ -167,7 +167,7 @@ func TestReadJSON_ErrorCases(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	err := ReadJSON(invalidFile, &result)
 	if err == nil {
 		t.Error("ReadJSON() expected error for invalid JSON, got nil")
@@ -368,14 +368,14 @@ func TestAtomicWriteJSON_ComplexData(t *testing.T) {
 	path := filepath.Join(tmpDir, "complex.json")
 
 	// Create complex nested data
-	data := map[string]interface{}{
+	data := map[string]any{
 		"string": "value",
 		"number": 42,
 		"float":  3.14,
 		"bool":   true,
 		"null":   nil,
-		"array":  []interface{}{1, 2, 3},
-		"object": map[string]interface{}{
+		"array":  []any{1, 2, 3},
+		"object": map[string]any{
 			"nested": "value",
 		},
 	}
@@ -385,7 +385,7 @@ func TestAtomicWriteJSON_ComplexData(t *testing.T) {
 	}
 
 	// Verify we can read it back
-	var result map[string]interface{}
+	var result map[string]any
 	if err := ReadJSON(path, &result); err != nil {
 		t.Errorf("Failed to read complex JSON: %v", err)
 	}

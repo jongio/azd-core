@@ -3,7 +3,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"strings"
@@ -114,7 +116,7 @@ func Clean() error {
 // --- Preflight check helpers ---
 
 func preflightCheckGitIgnore() error {
-	if _, err := os.Stat(".gitignore"); os.IsNotExist(err) {
+	if _, err := os.Stat(".gitignore"); errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf(".gitignore file not found at repository root")
 	}
 	fmt.Println("   ✅ .gitignore exists")
@@ -122,7 +124,7 @@ func preflightCheckGitIgnore() error {
 }
 
 func preflightCheckGitAttributes() error {
-	if _, err := os.Stat(".gitattributes"); os.IsNotExist(err) {
+	if _, err := os.Stat(".gitattributes"); errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf(".gitattributes file not found — required for proper line ending configuration")
 	}
 	fmt.Println("   ✅ .gitattributes exists")

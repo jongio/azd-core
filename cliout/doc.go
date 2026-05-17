@@ -72,7 +72,7 @@
 // The Print function supports hybrid output where you provide both JSON data and
 // a formatter function:
 //
-//	data := map[string]interface{}{"status": "success", "count": 42}
+//	data := map[string]any{"status": "success", "count": 42}
 //	err := cliout.Print(data, func() {
 //	    cliout.Success("Processed %d items", 42)
 //	})

@@ -33,7 +33,7 @@
 // # Example Usage
 //
 //	// Write configuration as JSON atomically
-//	config := map[string]interface{}{
+//	config := map[string]any{
 //	    "version": "1.0",
 //	    "services": []string{"api", "web"},
 //	}
@@ -42,7 +42,7 @@
 //	}
 //
 //	// Read JSON with graceful handling of missing files
-//	var data map[string]interface{}
+//	var data map[string]any
 //	if err := fileutil.ReadJSON("config.json", &data); err != nil {
 //	    log.Fatal(err)
 //	}

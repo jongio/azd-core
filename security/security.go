@@ -8,6 +8,7 @@ package security
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -59,7 +60,7 @@ func ValidatePath(path string) error {
 	resolvedPath, err := filepath.EvalSymlinks(cleanPath)
 	if err != nil {
 		// If the path doesn't exist yet, that's okay - we're validating the path structure
-		if !os.IsNotExist(err) {
+		if !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("%w: cannot resolve symbolic links: %w", ErrInvalidPath, err)
 		}
 		// Path doesn't exist, use cleaned path for validation
@@ -189,7 +190,7 @@ func ValidatePathWithinBases(path string, allowedBases ...string) (string, error
 	// Resolve symlinks
 	realPath, err := filepath.EvalSymlinks(absPath)
 	if err != nil {
-		if !os.IsNotExist(err) {
+		if !errors.Is(err, fs.ErrNotExist) {
 			return "", fmt.Errorf("%w: cannot resolve symbolic links: %w", ErrInvalidPath, err)
 		}
 		// File doesn't exist yet — resolve symlinks on parent directory
@@ -215,7 +216,7 @@ func ValidatePathWithinBases(path string, allowedBases ...string) (string, error
 			// Resolve symlinks on base directories for consistent comparison
 			realBase, err := filepath.EvalSymlinks(absBase)
 			if err != nil {
-				if !os.IsNotExist(err) {
+				if !errors.Is(err, fs.ErrNotExist) {
 					continue // skip bases we can't resolve
 				}
 				realBase = absBase

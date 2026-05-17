@@ -218,7 +218,7 @@ func IsJSON() bool {
 }
 
 // PrintJSON prints data as JSON to stdout.
-func PrintJSON(data interface{}) error {
+func PrintJSON(data any) error {
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(data)
@@ -234,7 +234,7 @@ func PrintDefault(formatter func()) {
 // Print outputs data in the configured format.
 // For default format, uses the formatter function.
 // For JSON format, marshals the data object.
-func Print(data interface{}, formatter func()) error {
+func Print(data any, formatter func()) error {
 	if GetFormat() == FormatJSON {
 		return PrintJSON(data)
 	}
@@ -270,76 +270,76 @@ func Section(icon, text string) {
 }
 
 // Success prints a success message with green checkmark
-func Success(format string, args ...interface{}) {
+func Success(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	check := getIcon(SymbolCheck, ASCIICheck)
 	fmt.Printf("%s%s%s %s\n", BrightGreen, check, Reset, msg)
 }
 
 // Error prints an error message with red X
-func Error(format string, args ...interface{}) {
+func Error(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	cross := getIcon(SymbolCross, ASCIICross)
 	fmt.Printf("%s%s%s %s\n", BrightRed, cross, Reset, msg)
 }
 
 // Warning prints a warning message with yellow triangle
-func Warning(format string, args ...interface{}) {
+func Warning(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	warning := getIcon(SymbolWarning, ASCIIWarning)
 	fmt.Printf("%s%s%s  %s\n", BrightYellow, warning, Reset, msg)
 }
 
 // Info prints an info message with blue info icon
-func Info(format string, args ...interface{}) {
+func Info(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	info := getIcon(SymbolInfo, ASCIIInfo)
 	fmt.Printf("%s%s%s  %s\n", BrightBlue, info, Reset, msg)
 }
 
 // Step prints a step message with an icon
-func Step(icon, format string, args ...interface{}) {
+func Step(icon, format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	displayIcon := getIcon(icon, "[*]")
 	fmt.Printf("%s%s%s %s\n", Cyan, displayIcon, Reset, msg)
 }
 
 // Item prints an indented item
-func Item(format string, args ...interface{}) {
+func Item(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	fmt.Printf("   %s\n", msg)
 }
 
 // Bullet prints a bulleted list item
-func Bullet(format string, args ...interface{}) {
+func Bullet(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	bullet := getIcon(SymbolDot, "*")
 	fmt.Printf("  %s %s\n", bullet, msg)
 }
 
 // ItemSuccess prints an indented success item
-func ItemSuccess(format string, args ...interface{}) {
+func ItemSuccess(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	check := getIcon(SymbolCheck, ASCIICheck)
 	fmt.Printf("   %s%s%s %s\n", Green, check, Reset, msg)
 }
 
 // ItemError prints an indented error item
-func ItemError(format string, args ...interface{}) {
+func ItemError(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	cross := getIcon(SymbolCross, ASCIICross)
 	fmt.Printf("   %s%s%s %s\n", Red, cross, Reset, msg)
 }
 
 // ItemWarning prints an indented warning item
-func ItemWarning(format string, args ...interface{}) {
+func ItemWarning(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	warning := getIcon(SymbolWarning, ASCIIWarning)
 	fmt.Printf("   %s%s%s  %s\n", Yellow, warning, Reset, msg)
 }
 
 // ItemInfo prints an indented info item
-func ItemInfo(format string, args ...interface{}) {
+func ItemInfo(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	info := getIcon(SymbolInfo, ASCIIInfo)
 	fmt.Printf("   %s%s%s  %s\n", Cyan, info, Reset, msg)
@@ -370,7 +370,7 @@ func Phase(label string) {
 }
 
 // Plain prints plain text without any formatting.
-func Plain(format string, args ...interface{}) {
+func Plain(format string, args ...any) {
 	fmt.Printf(format+"\n", args...)
 }
 
@@ -401,19 +401,19 @@ func LabelColored(label, value, color string) {
 }
 
 // Highlight prints highlighted text
-func Highlight(format string, args ...interface{}) string {
+func Highlight(format string, args ...any) string {
 	msg := fmt.Sprintf(format, args...)
 	return Bold + Cyan + msg + Reset
 }
 
 // Emphasize prints emphasized text
-func Emphasize(format string, args ...interface{}) string {
+func Emphasize(format string, args ...any) string {
 	msg := fmt.Sprintf(format, args...)
 	return Bold + msg + Reset
 }
 
 // Muted prints muted/dim text
-func Muted(format string, args ...interface{}) string {
+func Muted(format string, args ...any) string {
 	msg := fmt.Sprintf(format, args...)
 	return Dim + msg + Reset
 }

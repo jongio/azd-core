@@ -92,7 +92,7 @@ func (f *Formatter) Format(resp *Response) (string, error) {
 
 // formatJSON pretty-prints JSON
 func (f *Formatter) formatJSON(data []byte) (string, error) {
-	var parsed interface{}
+	var parsed any
 	if err := json.Unmarshal(data, &parsed); err != nil {
 		return "", err
 	}
@@ -238,6 +238,6 @@ func RedactToken(token string) string {
 
 // IsJSON checks if content appears to be JSON
 func IsJSON(data []byte) bool {
-	var js interface{}
+	var js any
 	return json.Unmarshal(data, &js) == nil
 }

@@ -6,6 +6,8 @@
 package fileutil
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -40,7 +42,7 @@ func TestAtomicWriteJSON_CloseError_Windows(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "test.json")
 
-	data := map[string]interface{}{
+	data := map[string]any{
 		"test": "value",
 		"num":  42,
 	}
@@ -252,7 +254,7 @@ func TestAtomicWriteJSON_MarshalError_Coverage(t *testing.T) {
 	}
 
 	// Verify no file was created
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
+	if _, err := os.Stat(path); !errors.Is(err, fs.ErrNotExist) {
 		t.Error("File should not exist after marshal error")
 	}
 }
@@ -287,10 +289,10 @@ func TestAtomicWriteJSON_LargeJSON_Windows(t *testing.T) {
 	path := filepath.Join(tmpDir, "large.json")
 
 	// Create large JSON structure
-	largeData := make(map[string]interface{})
+	largeData := make(map[string]any)
 	for i := 0; i < 1000; i++ {
 		key := "key_" + string(rune('0'+i%10))
-		largeData[key] = map[string]interface{}{
+		largeData[key] = map[string]any{
 			"index": i,
 			"data":  "value_" + string(rune('a'+i%26)),
 		}
@@ -302,7 +304,7 @@ func TestAtomicWriteJSON_LargeJSON_Windows(t *testing.T) {
 	}
 
 	// Verify we can read it back
-	var result map[string]interface{}
+	var result map[string]any
 	if err := ReadJSON(path, &result); err != nil {
 		t.Errorf("ReadJSON() failed: %v", err)
 	}
@@ -404,7 +406,7 @@ func TestReadJSON_EmptyFileError_Windows(t *testing.T) {
 		t.Fatalf("Failed to create empty file: %v", err)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	err := ReadJSON(emptyFile, &result)
 	if err == nil {
 		t.Error("ReadJSON() should error on empty file")
@@ -420,7 +422,7 @@ func TestReadJSON_InvalidJSONError_Windows(t *testing.T) {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	err := ReadJSON(invalidFile, &result)
 	if err == nil {
 		t.Error("ReadJSON() should error on invalid JSON")
