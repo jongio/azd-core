@@ -203,7 +203,7 @@ func (c *HealthChecker) CheckService(ctx context.Context, svc ServiceInfo) Healt
 				}
 			}()
 
-			output, err := breaker.Execute(func() (interface{}, error) {
+			output, err := breaker.Execute(func() (any, error) {
 				res := c.performServiceCheck(ctx, svc)
 				if res.Status == HealthStatusUnhealthy {
 					return res, fmt.Errorf("health check failed: %s", res.Error)
@@ -301,7 +301,7 @@ func (c *HealthChecker) performServiceCheck(ctx context.Context, svc ServiceInfo
 	if svc.Port > 0 {
 		result.CheckType = HealthCheckTypeTCP
 		result.Port = svc.Port
-		result.Details = make(map[string]interface{})
+		result.Details = make(map[string]any)
 
 		portCtx, cancel := context.WithTimeout(ctx, defaultPortCheckTimeout)
 		defer cancel()
@@ -330,7 +330,7 @@ func (c *HealthChecker) performServiceCheck(ctx context.Context, svc ServiceInfo
 	if svc.PID > 0 {
 		result.CheckType = HealthCheckTypeProcess
 		result.PID = svc.PID
-		result.Details = make(map[string]interface{})
+		result.Details = make(map[string]any)
 
 		isRunning := isProcessRunning(svc.PID)
 		if isRunning {
@@ -444,7 +444,7 @@ func (c *HealthChecker) performHTTPCheck(ctx context.Context, urlStr string) *ht
 		Endpoint:     urlStr,
 		ResponseTime: responseTime,
 		StatusCode:   resp.StatusCode,
-		Details:      make(map[string]interface{}),
+		Details:      make(map[string]any),
 	}
 
 	result.Status = c.statusFromHTTPCode(resp.StatusCode)
@@ -612,7 +612,7 @@ func (c *HealthChecker) checkSingleEndpoint(ctx context.Context, port int, endpo
 		ResponseTime: responseTime,
 		StatusCode:   resp.StatusCode,
 		Status:       c.statusFromHTTPCode(resp.StatusCode),
-		Details:      make(map[string]interface{}),
+		Details:      make(map[string]any),
 	}
 
 	if resp.StatusCode >= 400 {
@@ -647,7 +647,7 @@ func (c *HealthChecker) statusFromHTTPCode(statusCode int) HealthStatus {
 
 // parseHealthResponseBody parses JSON response body for health details.
 func (c *HealthChecker) parseHealthResponseBody(body []byte, result *httpHealthCheckResult) {
-	var details map[string]interface{}
+	var details map[string]any
 	if err := json.Unmarshal(body, &details); err == nil {
 		result.Details = details
 
@@ -688,7 +688,7 @@ func (c *HealthChecker) performProcessHealthCheck(ctx context.Context, svc Servi
 	if svc.PID > 0 {
 		result.PID = svc.PID
 		if result.Details == nil {
-			result.Details = make(map[string]interface{})
+			result.Details = make(map[string]any)
 		}
 
 		isRunning := isProcessRunning(svc.PID)
@@ -729,9 +729,9 @@ func (c *HealthChecker) performBuildTaskHealthCheck(svc ServiceInfo, isInStartup
 			result.Status = HealthStatusHealthy
 		}
 		if svc.Mode == ServiceModeBuild {
-			result.Details = map[string]interface{}{"state": "building"}
+			result.Details = map[string]any{"state": "building"}
 		} else {
-			result.Details = map[string]interface{}{"state": "running"}
+			result.Details = map[string]any{"state": "running"}
 		}
 		return result
 	}
@@ -740,14 +740,14 @@ func (c *HealthChecker) performBuildTaskHealthCheck(svc ServiceInfo, isInStartup
 		if *svc.ExitCode == 0 {
 			result.Status = HealthStatusHealthy
 			if svc.Mode == ServiceModeBuild {
-				result.Details = map[string]interface{}{"state": "built", "exitCode": 0}
+				result.Details = map[string]any{"state": "built", "exitCode": 0}
 			} else {
-				result.Details = map[string]interface{}{"state": "completed", "exitCode": 0}
+				result.Details = map[string]any{"state": "completed", "exitCode": 0}
 			}
 		} else {
 			result.Status = HealthStatusUnhealthy
 			result.Error = fmt.Sprintf("process exited with code %d", *svc.ExitCode)
-			result.Details = map[string]interface{}{"state": "failed", "exitCode": *svc.ExitCode}
+			result.Details = map[string]any{"state": "failed", "exitCode": *svc.ExitCode}
 		}
 		return result
 	}
@@ -755,9 +755,9 @@ func (c *HealthChecker) performBuildTaskHealthCheck(svc ServiceInfo, isInStartup
 	if svc.PID > 0 {
 		result.Status = HealthStatusHealthy
 		if svc.Mode == ServiceModeBuild {
-			result.Details = map[string]interface{}{"state": "built", "note": "exit code not captured"}
+			result.Details = map[string]any{"state": "built", "note": "exit code not captured"}
 		} else {
-			result.Details = map[string]interface{}{"state": "completed", "note": "exit code not captured"}
+			result.Details = map[string]any{"state": "completed", "note": "exit code not captured"}
 		}
 		return result
 	}
@@ -847,7 +847,7 @@ func parseErrorDetailsFromBody(body []byte) string {
 		return ""
 	}
 
-	var jsonData map[string]interface{}
+	var jsonData map[string]any
 	if err := json.Unmarshal(body, &jsonData); err == nil {
 		for _, key := range []string{"error", "message", "detail", "details", "error_description"} {
 			if val, ok := jsonData[key]; ok {

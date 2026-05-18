@@ -20,19 +20,19 @@ func TestPagination_Integration_NextLinkInBody(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		pageCount++
 		if pageCount == 1 {
-			response := map[string]interface{}{
-				"value": []interface{}{
-					map[string]interface{}{"id": "1", "name": "item1"},
-					map[string]interface{}{"id": "2", "name": "item2"},
+			response := map[string]any{
+				"value": []any{
+					map[string]any{"id": "1", "name": "item1"},
+					map[string]any{"id": "2", "name": "item2"},
 				},
 				"nextLink": serverURL + "?page=2",
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(response)
 		} else if pageCount == 2 {
-			response := map[string]interface{}{
-				"value": []interface{}{
-					map[string]interface{}{"id": "3", "name": "item3"},
+			response := map[string]any{
+				"value": []any{
+					map[string]any{"id": "3", "name": "item3"},
 				},
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -56,11 +56,11 @@ func TestPagination_Integration_NextLinkInBody(t *testing.T) {
 	resp, err := client.Execute(context.Background(), opts)
 	require.NoError(t, err)
 
-	var data map[string]interface{}
+	var data map[string]any
 	err = json.Unmarshal(resp.Body, &data)
 	require.NoError(t, err)
 
-	valueArray, ok := data["value"].([]interface{})
+	valueArray, ok := data["value"].([]any)
 	require.True(t, ok, "Response should have 'value' array")
 
 	assert.GreaterOrEqual(t, len(valueArray), 2, "Should have at least items from first page")

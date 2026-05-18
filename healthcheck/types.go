@@ -72,23 +72,23 @@ const (
 
 // HealthCheckResult represents the result of a single health check.
 type HealthCheckResult struct {
-	ServiceName         string                 `json:"serviceName"`
-	Status              HealthStatus           `json:"status"`
-	CheckType           HealthCheckType        `json:"checkType"`
-	Endpoint            string                 `json:"endpoint,omitempty"`
-	ResponseTime        time.Duration          `json:"responseTime"`
-	StatusCode          int                    `json:"statusCode,omitempty"`
-	Error               string                 `json:"error,omitempty"`
-	ErrorDetails        string                 `json:"errorDetails,omitempty"`
-	ConsecutiveFailures int                    `json:"consecutiveFailures,omitempty"`
-	LastSuccessTime     *time.Time             `json:"lastSuccessTime,omitempty"`
-	Timestamp           time.Time              `json:"timestamp"`
-	Details             map[string]interface{} `json:"details,omitempty"`
-	Port                int                    `json:"port,omitempty"`
-	PID                 int                    `json:"pid,omitempty"`
-	Uptime              time.Duration          `json:"uptime,omitempty"`
-	ServiceType         string                 `json:"serviceType,omitempty"`
-	ServiceMode         string                 `json:"serviceMode,omitempty"`
+	ServiceName         string          `json:"serviceName"`
+	Status              HealthStatus    `json:"status"`
+	CheckType           HealthCheckType `json:"checkType"`
+	Endpoint            string          `json:"endpoint,omitempty"`
+	ResponseTime        time.Duration   `json:"responseTime"`
+	StatusCode          int             `json:"statusCode,omitempty"`
+	Error               string          `json:"error,omitempty"`
+	ErrorDetails        string          `json:"errorDetails,omitempty"`
+	ConsecutiveFailures int             `json:"consecutiveFailures,omitempty"`
+	LastSuccessTime     *time.Time      `json:"lastSuccessTime,omitempty"`
+	Timestamp           time.Time       `json:"timestamp"`
+	Details             map[string]any  `json:"details,omitempty"`
+	Port                int             `json:"port,omitempty"`
+	PID                 int             `json:"pid,omitempty"`
+	Uptime              time.Duration   `json:"uptime,omitempty"`
+	ServiceType         string          `json:"serviceType,omitempty"`
+	ServiceMode         string          `json:"serviceMode,omitempty"`
 }
 
 // HealthReport contains aggregated health check results.
@@ -160,7 +160,7 @@ type httpHealthCheckResult struct {
 	ResponseTime time.Duration
 	StatusCode   int
 	Status       HealthStatus
-	Details      map[string]interface{}
+	Details      map[string]any
 	Error        string
 }
 

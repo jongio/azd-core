@@ -5,6 +5,8 @@ package fileutil
 
 import (
 	"encoding/json"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -236,8 +238,8 @@ func TestSaveCacheJSON(t *testing.T) {
 		}
 
 		var result struct {
-			Cache CacheMetadata          `json:"_cache"`
-			Data  map[string]interface{} `json:"data"`
+			Cache CacheMetadata  `json:"_cache"`
+			Data  map[string]any `json:"data"`
 		}
 		if err := json.Unmarshal(content, &result); err != nil {
 			t.Fatalf("Failed to parse cache file: %v", err)
@@ -275,7 +277,7 @@ func TestSaveCacheJSON(t *testing.T) {
 			t.Fatalf("SaveCacheJSON() error = %v", err)
 		}
 
-		if _, err := os.Stat(path); os.IsNotExist(err) {
+		if _, err := os.Stat(path); errors.Is(err, fs.ErrNotExist) {
 			t.Error("Cache file was not created")
 		}
 	})

@@ -403,7 +403,7 @@ func parseLinkHeader(linkHeader string) (string, bool) {
 
 // extractNextLinkFromBody extracts nextLink from JSON response body (Azure API format)
 func extractNextLinkFromBody(body []byte) (string, bool) {
-	var data map[string]interface{}
+	var data map[string]any
 	if err := json.Unmarshal(body, &data); err != nil {
 		return "", false
 	}
@@ -426,7 +426,7 @@ func extractNextLinkFromBody(body []byte) (string, bool) {
 // handlePagination handles pagination by following next links.
 // It enforces same-origin checks to prevent SSRF via server-controlled nextLink URLs.
 func handlePagination(ctx context.Context, client *http.Client, opts RequestOptions, firstResponse *Response) ([]byte, error) {
-	var allResults []interface{}
+	var allResults []any
 	var currentBody = firstResponse.Body
 	var nextURL string
 	var hasMore = true
@@ -447,13 +447,13 @@ func handlePagination(ctx context.Context, client *http.Client, opts RequestOpti
 	// Determine the token provider: prefer client-level, fall back to opts
 	tokenProvider := opts.TokenProvider
 
-	var firstData map[string]interface{}
+	var firstData map[string]any
 	if err := json.Unmarshal(currentBody, &firstData); err != nil {
 		//nolint:nilerr // intentionally returning body despite read error
 		return currentBody, nil
 	}
 
-	if valueArray, ok := firstData["value"].([]interface{}); ok {
+	if valueArray, ok := firstData["value"].([]any); ok {
 		allResults = append(allResults, valueArray...)
 	} else {
 		allResults = append(allResults, firstData)
@@ -531,12 +531,12 @@ func handlePagination(ctx context.Context, client *http.Client, opts RequestOpti
 			break
 		}
 
-		var pageData map[string]interface{}
+		var pageData map[string]any
 		if err := json.Unmarshal(body, &pageData); err != nil {
 			break
 		}
 
-		if valueArray, ok := pageData["value"].([]interface{}); ok {
+		if valueArray, ok := pageData["value"].([]any); ok {
 			allResults = append(allResults, valueArray...)
 		}
 
@@ -553,7 +553,7 @@ func handlePagination(ctx context.Context, client *http.Client, opts RequestOpti
 	}
 
 	if len(allResults) > 0 {
-		combined := map[string]interface{}{
+		combined := map[string]any{
 			"value": allResults,
 		}
 

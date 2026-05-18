@@ -19,19 +19,19 @@ func TestPagination_NextLinkInBody(t *testing.T) {
 		pageCount++
 		switch pageCount {
 		case 1:
-			response := map[string]interface{}{
-				"value": []interface{}{
-					map[string]interface{}{"id": "1", "name": "item1"},
-					map[string]interface{}{"id": "2", "name": "item2"},
+			response := map[string]any{
+				"value": []any{
+					map[string]any{"id": "1", "name": "item1"},
+					map[string]any{"id": "2", "name": "item2"},
 				},
 				"nextLink": serverURL + "?page=2",
 			}
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(response)
 		case 2:
-			response := map[string]interface{}{
-				"value": []interface{}{
-					map[string]interface{}{"id": "3", "name": "item3"},
+			response := map[string]any{
+				"value": []any{
+					map[string]any{"id": "3", "name": "item3"},
 				},
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -55,11 +55,11 @@ func TestPagination_NextLinkInBody(t *testing.T) {
 	resp, err := client.Execute(context.Background(), opts)
 	require.NoError(t, err)
 
-	var data map[string]interface{}
+	var data map[string]any
 	err = json.Unmarshal(resp.Body, &data)
 	require.NoError(t, err)
 
-	valueArray, ok := data["value"].([]interface{})
+	valueArray, ok := data["value"].([]any)
 	require.True(t, ok, "Response should have 'value' array")
 
 	assert.GreaterOrEqual(t, len(valueArray), 2, "Should have at least items from first page")
@@ -78,17 +78,17 @@ func TestPagination_LinkHeader(t *testing.T) {
 		pageCount++
 		if pageCount == 1 {
 			w.Header().Set("Link", `<`+serverURL+`?page=2>; rel="next"`)
-			response := map[string]interface{}{
-				"value": []interface{}{
-					map[string]interface{}{"id": "1"},
+			response := map[string]any{
+				"value": []any{
+					map[string]any{"id": "1"},
 				},
 			}
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(response)
 		} else {
-			response := map[string]interface{}{
-				"value": []interface{}{
-					map[string]interface{}{"id": "2"},
+			response := map[string]any{
+				"value": []any{
+					map[string]any{"id": "2"},
 				},
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -112,11 +112,11 @@ func TestPagination_LinkHeader(t *testing.T) {
 	resp, err := client.Execute(context.Background(), opts)
 	require.NoError(t, err)
 
-	var data map[string]interface{}
+	var data map[string]any
 	err = json.Unmarshal(resp.Body, &data)
 	require.NoError(t, err)
 
-	valueArray, ok := data["value"].([]interface{})
+	valueArray, ok := data["value"].([]any)
 	require.True(t, ok)
 	assert.GreaterOrEqual(t, len(valueArray), 1, "Should have at least items from first page")
 	if len(valueArray) < 2 {
@@ -126,9 +126,9 @@ func TestPagination_LinkHeader(t *testing.T) {
 
 func TestPagination_NoPagination(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		response := map[string]interface{}{
-			"value": []interface{}{
-				map[string]interface{}{"id": "1"},
+		response := map[string]any{
+			"value": []any{
+				map[string]any{"id": "1"},
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -149,11 +149,11 @@ func TestPagination_NoPagination(t *testing.T) {
 	resp, err := client.Execute(context.Background(), opts)
 	require.NoError(t, err)
 
-	var data map[string]interface{}
+	var data map[string]any
 	err = json.Unmarshal(resp.Body, &data)
 	require.NoError(t, err)
 
-	valueArray, ok := data["value"].([]interface{})
+	valueArray, ok := data["value"].([]any)
 	require.True(t, ok)
 	assert.Equal(t, 1, len(valueArray), "Should have only first page items")
 }

@@ -5,6 +5,8 @@ package fileutil
 
 import (
 	"encoding/json"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -224,7 +226,7 @@ func TestAtomicWriteJSON(t *testing.T) {
 	tests := []struct {
 		name    string
 		path    string
-		data    interface{}
+		data    any
 		wantErr bool
 	}{
 		{
@@ -278,7 +280,7 @@ func TestAtomicWriteJSON(t *testing.T) {
 
 				// Verify temp file was cleaned up
 				tmpPath := tt.path + ".tmp"
-				if _, err := os.Stat(tmpPath); !os.IsNotExist(err) {
+				if _, err := os.Stat(tmpPath); !errors.Is(err, fs.ErrNotExist) {
 					t.Errorf("Temp file still exists: %s", tmpPath)
 				}
 			}
@@ -369,7 +371,7 @@ func TestAtomicWriteFile(t *testing.T) {
 
 				// Verify temp file was cleaned up
 				tmpPath := tt.path + ".tmp"
-				if _, err := os.Stat(tmpPath); !os.IsNotExist(err) {
+				if _, err := os.Stat(tmpPath); !errors.Is(err, fs.ErrNotExist) {
 					t.Errorf("Temp file still exists: %s", tmpPath)
 				}
 			}
@@ -450,7 +452,7 @@ func TestReadJSON_EmptyFile(t *testing.T) {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	err := ReadJSON(emptyFile, &result)
 	if err == nil {
 		t.Error("ReadJSON() expected error for empty file, got nil")

@@ -1,7 +1,9 @@
 package healthcheck
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"time"
@@ -38,7 +40,7 @@ func LoadHealthProfiles(projectDir string) (*HealthProfiles, error) {
 
 	data, err := os.ReadFile(profilePath)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			return getDefaultProfiles(), nil
 		}
 		return nil, fmt.Errorf("failed to read health profiles: %w", err)

@@ -1,6 +1,8 @@
 package healthcheck
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -59,7 +61,7 @@ func TestSaveSampleProfiles(t *testing.T) {
 	}
 
 	profilePath := filepath.Join(tmpDir, ".azd", "health-profiles.yaml")
-	if _, err := os.Stat(profilePath); os.IsNotExist(err) {
+	if _, err := os.Stat(profilePath); errors.Is(err, fs.ErrNotExist) {
 		t.Error("Expected profile file to be created")
 	}
 
