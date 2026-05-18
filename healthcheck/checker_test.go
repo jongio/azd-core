@@ -1,8 +1,10 @@
 package healthcheck
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -1328,6 +1330,50 @@ func TestCheckService_ProcessNoPort(t *testing.T) {
 	result := checker.CheckService(context.Background(), svc)
 	if result.ServiceName != "test-process" {
 		t.Errorf("ServiceName = %q, want %q", result.ServiceName, "test-process")
+	}
+}
+
+func TestCheckService_WithCircuitBreakerRecoversPanicWithDiagnostics(t *testing.T) {
+	var logs bytes.Buffer
+	previousLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelError})))
+	t.Cleanup(func() {
+		slog.SetDefault(previousLogger)
+	})
+
+	checker := NewHealthChecker(MonitorConfig{
+		Timeout:                time.Second,
+		DefaultEndpoint:        "/health",
+		EnableCircuitBreaker:   true,
+		CircuitBreakerFailures: 3,
+		CircuitBreakerTimeout:  time.Second,
+	})
+	checker.httpClient = nil
+
+	svc := ServiceInfo{
+		Name:           "panic-service",
+		RegistryStatus: "running",
+		HealthCheck: &HealthCheckConfig{
+			Test: []string{"http://localhost/health"},
+		},
+	}
+
+	result := checker.CheckService(context.Background(), svc)
+
+	if result.Status != HealthStatusUnknown {
+		t.Errorf("Status = %q, want %q", result.Status, HealthStatusUnknown)
+	}
+	if !strings.Contains(result.Error, "panic recovered during health check") {
+		t.Errorf("Error = %q, want panic recovery message", result.Error)
+	}
+	if result.ErrorDetails == "" || !strings.Contains(result.ErrorDetails, "performHTTPCheck") {
+		t.Errorf("ErrorDetails should include stack trace with performHTTPCheck, got %q", result.ErrorDetails)
+	}
+	if result.Details == nil || result.Details["panic"] == "" {
+		t.Errorf("Details should preserve panic value, got %#v", result.Details)
+	}
+	if got := logs.String(); !strings.Contains(got, "panic-service") || !strings.Contains(got, "stack=") {
+		t.Errorf("panic log should include service and stack, got %q", got)
 	}
 }
 

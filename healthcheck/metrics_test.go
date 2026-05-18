@@ -89,6 +89,7 @@ func TestGetErrorType(t *testing.T) {
 		{"no connection available", "connection_refused"},
 		{"circuit breaker tripped", "circuit_breaker"},
 		{"too many failures detected", "circuit_breaker"},
+		{"panic recovered during health check: boom", "panic"},
 		{"context canceled by caller", "canceled"},
 		{"got 500 from server", "server_error"},
 		{"got 503 service unavailable", "server_error"},
