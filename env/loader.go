@@ -21,7 +21,7 @@ type DefaultCommandRunner struct{}
 
 // Run executes a command and returns its output.
 func (r *DefaultCommandRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := exec.CommandContext(ctx, name, args...) // #nosec G204 -- Command name is caller-controlled, not user input
 	return cmd.Output()
 }
 

@@ -155,7 +155,7 @@ func AtomicWriteFile(path string, data []byte, perm os.FileMode) error {
 // ReadJSON reads JSON from a file into the target interface.
 // Returns nil error if file doesn't exist (target unchanged).
 func ReadJSON(path string, target any) error {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) // #nosec G304 -- Path provided by internal callers, not direct user input
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil // File doesn't exist, not an error
@@ -322,7 +322,7 @@ func (m CacheMetadata) IsCacheValid(opts CacheOptions) bool {
 //	    // Rebuild cache
 //	}
 func LoadCacheJSON(path string, target any, opts CacheOptions) (valid bool, err error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) // #nosec G304 -- Cache path constructed internally, not from user input
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return false, nil // Cache doesn't exist, not an error

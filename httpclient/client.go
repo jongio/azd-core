@@ -201,7 +201,8 @@ func (c *Client) Execute(ctx context.Context, opts RequestOptions) (*Response, e
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 {
 			// Exponential backoff: 1s, 2s, 4s, etc.
-			backoff := time.Duration(1<<uint(attempt-1)) * time.Second //nolint:gosec // G115: safe conversion, attempt count is small
+			shift := min(attempt-1, 30) // cap to prevent overflow
+backoff := time.Duration(1<<uint(shift)) * time.Second
 			select {
 			case <-ctx.Done():
 				return nil, fmt.Errorf("request canceled: %w", ctx.Err())
