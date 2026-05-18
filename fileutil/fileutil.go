@@ -330,19 +330,21 @@ func LoadCacheJSON(path string, target any, opts CacheOptions) (valid bool, err 
 		return false, fmt.Errorf("failed to read cache file: %w", err)
 	}
 
-	if err := json.Unmarshal(data, target); err != nil {
-		return false, fmt.Errorf("failed to parse cache JSON: %w", err)
-	}
-
-	// Try to extract metadata for validation
-	// We need to re-parse to get the metadata
+	// Validate metadata first (lightweight partial unmarshal) to avoid
+	// deserializing the full target when the cache is expired.
 	var metaWrapper struct {
 		Cache CacheMetadata `json:"_cache"`
 	}
-	if err := json.Unmarshal(data, &metaWrapper); err == nil {
-		if !metaWrapper.Cache.IsCacheValid(opts) {
-			return false, nil // Cache is invalid (expired or version mismatch)
-		}
+	if err := json.Unmarshal(data, &metaWrapper); err != nil {
+		return false, fmt.Errorf("failed to parse cache JSON: %w", err)
+	}
+	if !metaWrapper.Cache.IsCacheValid(opts) {
+		return false, nil // Cache is invalid (expired or version mismatch)
+	}
+
+	// Cache is valid - deserialize the full target.
+	if err := json.Unmarshal(data, target); err != nil {
+		return false, fmt.Errorf("failed to parse cache JSON: %w", err)
 	}
 
 	return true, nil
