@@ -156,9 +156,6 @@ func TestLaunch(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Launch() error = %v, wantErr %v", err, tt.wantErr)
 			}
-
-			// Give async launch a moment to start
-			time.Sleep(50 * time.Millisecond)
 		})
 	}
 }

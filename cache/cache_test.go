@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -83,8 +84,16 @@ func TestGetExpiredEntry(t *testing.T) {
 		t.Fatalf("Set() error = %v", err)
 	}
 
-	// Wait for TTL to expire
-	time.Sleep(10 * time.Millisecond)
+	// Poll until TTL expires instead of sleeping a fixed duration
+	deadline := time.Now().Add(100 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		var probe string
+		ok, _ := m.Get("expire-me", &probe)
+		if !ok {
+			break
+		}
+		runtime.Gosched()
+	}
 
 	var result string
 	ok, err := m.Get("expire-me", &result)

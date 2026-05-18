@@ -37,18 +37,32 @@ go get github.com/jongio/azd-core
 Or add specific packages to your `go.mod`:
 
 ```bash
-go get github.com/jongio/azd-core/urlutil
-go get github.com/jongio/azd-core/testutil
-go get github.com/jongio/azd-core/cliout
-go get github.com/jongio/azd-core/env
-go get github.com/jongio/azd-core/keyvault
-go get github.com/jongio/azd-core/fileutil
-go get github.com/jongio/azd-core/pathutil
+go get github.com/jongio/azd-core/auth
+go get github.com/jongio/azd-core/azdextutil
 go get github.com/jongio/azd-core/browser
-go get github.com/jongio/azd-core/security
-go get github.com/jongio/azd-core/procutil
-go get github.com/jongio/azd-core/shellutil
+go get github.com/jongio/azd-core/cache
+go get github.com/jongio/azd-core/cliout
+go get github.com/jongio/azd-core/cmdutil
 go get github.com/jongio/azd-core/copilotskills
+go get github.com/jongio/azd-core/editor
+go get github.com/jongio/azd-core/env
+go get github.com/jongio/azd-core/fileutil
+go get github.com/jongio/azd-core/healthcheck
+go get github.com/jongio/azd-core/httpclient
+go get github.com/jongio/azd-core/keyvault
+go get github.com/jongio/azd-core/logutil
+go get github.com/jongio/azd-core/notify
+go get github.com/jongio/azd-core/pathutil
+go get github.com/jongio/azd-core/procutil
+go get github.com/jongio/azd-core/progress
+go get github.com/jongio/azd-core/projecttype
+go get github.com/jongio/azd-core/registry
+go get github.com/jongio/azd-core/security
+go get github.com/jongio/azd-core/shellutil
+go get github.com/jongio/azd-core/testutil
+go get github.com/jongio/azd-core/urlutil
+go get github.com/jongio/azd-core/version
+go get github.com/jongio/azd-core/yamlutil
 ```
 
 ## Documentation

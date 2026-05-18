@@ -2,6 +2,7 @@ package progress
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -133,8 +134,6 @@ func TestProgressSpinnerComplete(t *testing.T) {
 	mp := NewMultiProgress()
 	bar := mp.AddBar("test", "Testing")
 	bar.Start()
-
-	time.Sleep(10 * time.Millisecond)
 
 	beforeComplete := time.Now()
 	bar.Complete()
@@ -872,7 +871,7 @@ func TestProgressConcurrency(t *testing.T) {
 	// Render should be able to acquire RLock while status updates happen
 	for i := 0; i < 50; i++ {
 		mp.render()
-		time.Sleep(1 * time.Millisecond)
+		runtime.Gosched()
 	}
 
 	<-renderDone

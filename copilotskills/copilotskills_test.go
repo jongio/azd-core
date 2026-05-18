@@ -63,8 +63,10 @@ func TestInstall_SameVersion(t *testing.T) {
 	}
 	modTime := info.ModTime()
 
-	// Wait a moment so any rewrite would produce a different mod time
-	time.Sleep(50 * time.Millisecond)
+	// Set mod time back so any rewrite would produce a different timestamp
+	past := modTime.Add(-1 * time.Second)
+	_ = os.Chtimes(filepath.Join(destDir, "SKILL.md"), past, past)
+	modTime = past
 
 	// Second install with same version — should skip
 	if err := installTo(destDir, "test-skill", "1.0.0", testSkillFS, "testdata/skills/test-skill"); err != nil {
@@ -96,8 +98,10 @@ func TestInstall_DifferentVersion(t *testing.T) {
 	}
 	modTime := info.ModTime()
 
-	// Wait so rewrite produces a different mod time
-	time.Sleep(50 * time.Millisecond)
+	// Set mod time back so rewrite produces a different timestamp
+	past2 := modTime.Add(-1 * time.Second)
+	_ = os.Chtimes(filepath.Join(destDir, "SKILL.md"), past2, past2)
+	modTime = past2
 
 	// Second install with different version — should overwrite
 	if err := installTo(destDir, "test-skill", "2.0.0", testSkillFS, "testdata/skills/test-skill"); err != nil {

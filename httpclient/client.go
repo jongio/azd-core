@@ -18,6 +18,27 @@ import (
 	"time"
 )
 
+
+const (
+// DefaultMaxRedirects is the maximum number of HTTP redirects to follow.
+DefaultMaxRedirects = 10
+
+// DefaultMaxRetries is the default number of retry attempts for failed requests.
+DefaultMaxRetries = 3
+
+// DefaultMaxResponseSize is the maximum response body size in bytes (100 MB).
+DefaultMaxResponseSize = 100 * 1024 * 1024
+
+// MaxBodySizeForRetry is the maximum request body size that will be buffered
+// in memory for retry attempts (10 MB).
+MaxBodySizeForRetry = 10 * 1024 * 1024
+
+// DefaultMaxPaginationPages is the maximum number of pages to follow during pagination.
+DefaultMaxPaginationPages = 1000
+
+// BinaryDetectionBytes is the number of leading bytes inspected when detecting binary content.
+BinaryDetectionBytes = 512
+)
 // Version is the version string used in the User-Agent header.
 // It can be overridden at build time or by the caller.
 var Version = "0.0.0-dev"
@@ -107,7 +128,7 @@ func (c *Client) Execute(ctx context.Context, opts RequestOptions) (*Response, e
 	// Configure redirect handling
 	maxRedirects := opts.MaxRedirects
 	if maxRedirects == 0 {
-		maxRedirects = 10 // Default max redirects
+		maxRedirects = DefaultMaxRedirects
 	}
 
 	originalClient := c.httpClient
@@ -171,7 +192,7 @@ func (c *Client) Execute(ctx context.Context, opts RequestOptions) (*Response, e
 		maxRetries = 0
 	}
 	if maxRetries == 0 {
-		maxRetries = 3 // Default retries
+		maxRetries = DefaultMaxRetries
 	}
 
 	var lastErr error
@@ -180,7 +201,7 @@ func (c *Client) Execute(ctx context.Context, opts RequestOptions) (*Response, e
 
 	// If body is provided and we might retry, read it into memory for retries
 	if opts.Body != nil && maxRetries > 0 {
-		const maxBodySizeForRetry = 10 * 1024 * 1024
+		const maxBodySizeForRetry = MaxBodySizeForRetry
 		limitedReader := io.LimitReader(opts.Body, maxBodySizeForRetry+1)
 		var err error
 		bodyBytes, err = io.ReadAll(limitedReader)
@@ -271,7 +292,7 @@ backoff := time.Duration(1<<uint(shift)) * time.Second
 	// Read response body with size limit
 	maxSize := opts.MaxResponseSize
 	if maxSize <= 0 {
-		maxSize = 100 * 1024 * 1024 // Default 100MB limit
+		maxSize = DefaultMaxResponseSize
 	}
 
 	limitedReader := io.LimitReader(resp.Body, maxSize)
@@ -408,7 +429,7 @@ func DetectContentType(body []byte, contentType string) bool {
 	}
 
 	if len(body) > 0 {
-		checkLen := 512
+		checkLen := BinaryDetectionBytes
 		if len(body) < checkLen {
 			checkLen = len(body)
 		}
@@ -495,7 +516,7 @@ func handlePagination(ctx context.Context, client *http.Client, opts RequestOpti
 	// Default max response size for pagination reads (same as Execute default)
 	maxResponseSize := opts.MaxResponseSize
 	if maxResponseSize <= 0 {
-		maxResponseSize = 100 * 1024 * 1024 // Default 100MB limit
+		maxResponseSize = DefaultMaxResponseSize
 	}
 
 	// Aggregate size limit across all pages

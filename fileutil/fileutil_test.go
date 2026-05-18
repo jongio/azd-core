@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
-	"time"
 )
 
 func TestFileExists(t *testing.T) {
@@ -535,9 +534,6 @@ func TestAtomicWrite_Concurrency(t *testing.T) {
 		<-done
 	}
 
-	// Give a brief moment for any final filesystem operations to settle
-	// (especially important on Windows where file operations can be delayed)
-	time.Sleep(100 * time.Millisecond)
 
 	// Verify file exists and is not corrupted
 	data, err := os.ReadFile(path)
