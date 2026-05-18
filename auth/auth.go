@@ -4,6 +4,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -60,23 +61,33 @@ func newResilientCredentialChain() (tokenCredential, error) {
 	// Developer CLI credentials first — fast and most relevant for azd users.
 	if cred, err := azidentity.NewAzureDeveloperCLICredential(nil); err == nil {
 		creds = append(creds, namedCredential{"AzureDeveloperCLICredential", cred})
+	} else {
+		slog.Warn("credential initialization failed", "credential", "AzureDeveloperCLICredential", "error", err)
 	}
 	if cred, err := azidentity.NewAzureCLICredential(nil); err == nil {
 		creds = append(creds, namedCredential{"AzureCLICredential", cred})
+	} else {
+		slog.Warn("credential initialization failed", "credential", "AzureCLICredential", "error", err)
 	}
 
 	// Environment and workload credentials — only available when env-vars are set.
 	if cred, err := azidentity.NewEnvironmentCredential(nil); err == nil {
 		creds = append(creds, namedCredential{"EnvironmentCredential", cred})
+	} else {
+		slog.Warn("credential initialization failed", "credential", "EnvironmentCredential", "error", err)
 	}
 	if cred, err := azidentity.NewWorkloadIdentityCredential(nil); err == nil {
 		creds = append(creds, namedCredential{"WorkloadIdentityCredential", cred})
+	} else {
+		slog.Warn("credential initialization failed", "credential", "WorkloadIdentityCredential", "error", err)
 	}
 
 	// Managed identity last — may timeout on non-Azure hosts and causes
 	// hard errors on Azure Arc machines (the root cause of issue #12).
 	if cred, err := azidentity.NewManagedIdentityCredential(nil); err == nil {
 		creds = append(creds, namedCredential{"ManagedIdentityCredential", cred})
+	} else {
+		slog.Warn("credential initialization failed", "credential", "ManagedIdentityCredential", "error", err)
 	}
 
 	if len(creds) == 0 {
