@@ -50,6 +50,8 @@ func captureOutput(t *testing.T, fn func()) string {
 // Test Format Management
 
 func TestSetFormatDefault(t *testing.T) {
+	oldFmt := globalFormat
+	t.Cleanup(func() { globalFormat = oldFmt })
 	// Reset to default before test
 	globalFormat = FormatDefault
 
@@ -64,6 +66,8 @@ func TestSetFormatDefault(t *testing.T) {
 }
 
 func TestSetFormatJSON(t *testing.T) {
+	oldFmt := globalFormat
+	t.Cleanup(func() { globalFormat = oldFmt })
 	// Reset to default before test
 	globalFormat = FormatDefault
 
@@ -81,6 +85,8 @@ func TestSetFormatJSON(t *testing.T) {
 }
 
 func TestSetFormatEmpty(t *testing.T) {
+	oldFmt := globalFormat
+	t.Cleanup(func() { globalFormat = oldFmt })
 	// Reset to JSON
 	globalFormat = FormatJSON
 
@@ -110,6 +116,8 @@ func TestSetFormatInvalid(t *testing.T) {
 }
 
 func TestGetFormat(t *testing.T) {
+	oldFmt := globalFormat
+	t.Cleanup(func() { globalFormat = oldFmt })
 	// Test default format
 	globalFormat = FormatDefault
 	if GetFormat() != FormatDefault {
@@ -127,6 +135,8 @@ func TestGetFormat(t *testing.T) {
 }
 
 func TestIsJSON(t *testing.T) {
+	oldFmt := globalFormat
+	t.Cleanup(func() { globalFormat = oldFmt })
 	// Test default format
 	globalFormat = FormatDefault
 	if IsJSON() {
@@ -146,6 +156,8 @@ func TestIsJSON(t *testing.T) {
 // Test Orchestration Mode
 
 func TestSetOrchestrated(t *testing.T) {
+	oldOrch := orchestratedMode
+	t.Cleanup(func() { orchestratedMode = oldOrch })
 	// Reset
 	orchestratedMode = false
 
@@ -161,6 +173,8 @@ func TestSetOrchestrated(t *testing.T) {
 }
 
 func TestIsOrchestrated(t *testing.T) {
+	oldOrch := orchestratedMode
+	t.Cleanup(func() { orchestratedMode = oldOrch })
 	// Test false
 	orchestratedMode = false
 	if IsOrchestrated() {
@@ -341,6 +355,8 @@ func TestHeader(t *testing.T) {
 }
 
 func TestCommandHeader(t *testing.T) {
+	oldFmt := globalFormat
+	t.Cleanup(func() { globalFormat = oldFmt })
 	// Reset format and orchestration
 	globalFormat = FormatDefault
 	orchestratedMode = false
