@@ -36,26 +36,62 @@ type TokenProvider interface {
 	GetToken(ctx context.Context, scope string) (string, error)
 }
 
-// RequestOptions contains options for HTTP requests
+// RequestOptions contains options for HTTP requests.
+// Fields are grouped by concern for clarity.
 type RequestOptions struct {
-	Method          string
-	URL             string
-	Body            io.Reader
-	Headers         map[string]string
-	Scope           string
-	SkipAuth        bool
-	Verbose         bool
-	Timeout         time.Duration
-	Insecure        bool
+	// Core request fields
+	Method  string
+	URL     string
+	Body    io.Reader
+	Headers map[string]string
+	Verbose bool
+	Timeout time.Duration
+
+	// Authentication
+	Scope         string
+	SkipAuth      bool
+	TokenProvider TokenProvider
+
+	// Retry behavior
+	Retry int
+
+	// Redirect handling
 	FollowRedirects bool
 	MaxRedirects    int
+	Insecure        bool
+
+	// Output control
 	OutputFile      string
 	Format          string
-	TokenProvider   TokenProvider
 	Binary          bool
-	Retry           int
 	MaxResponseSize int64
-	Paginate        bool
+
+	// Pagination
+	Paginate bool
+}
+
+// effectiveMaxRedirects returns the configured max redirects or the default (10).
+func (o *RequestOptions) effectiveMaxRedirects() int {
+	if o.MaxRedirects > 0 {
+		return o.MaxRedirects
+	}
+	return 10
+}
+
+// effectiveMaxRetries returns the configured retry count or the default (3).
+func (o *RequestOptions) effectiveMaxRetries() int {
+	if o.Retry > 0 {
+		return o.Retry
+	}
+	return 3
+}
+
+// effectiveMaxResponseSize returns the configured max response size or the default (100MB).
+func (o *RequestOptions) effectiveMaxResponseSize() int64 {
+	if o.MaxResponseSize > 0 {
+		return o.MaxResponseSize
+	}
+	return 100 * 1024 * 1024
 }
 
 // Response contains HTTP response data
@@ -96,197 +132,28 @@ func NewClient(tokenProvider TokenProvider, insecure bool, timeout time.Duration
 func (c *Client) Execute(ctx context.Context, opts RequestOptions) (*Response, error) {
 	startTime := time.Now()
 
-	// Configure redirect handling
-	maxRedirects := opts.MaxRedirects
-	if maxRedirects == 0 {
-		maxRedirects = 10 // Default max redirects
-	}
+	client := c.buildRedirectClient(&opts)
 
-	originalClient := c.httpClient
-	client := &http.Client{
-		Transport: originalClient.Transport,
-		Timeout:   originalClient.Timeout,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if !opts.FollowRedirects {
-				return http.ErrUseLastResponse
-			}
-			// via contains all previous requests including the original, so len(via) is the redirect count
-			if len(via) >= maxRedirects {
-				return fmt.Errorf("stopped after %d redirects", maxRedirects)
-			}
-			return nil
-		},
-	}
-
-	// Create request
-	req, err := http.NewRequestWithContext(ctx, opts.Method, opts.URL, opts.Body)
+	req, err := c.buildRequest(ctx, &opts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, err
 	}
 
-	// Add custom headers
-	for key, value := range opts.Headers {
-		req.Header.Set(key, value)
-	}
-
-	// Add authentication if needed
-	if !opts.SkipAuth && opts.Scope != "" && c.tokenProvider != nil {
-		token, err := c.tokenProvider.GetToken(ctx, opts.Scope)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get authentication token: %w", err)
-		}
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
-
-	// Add default headers if not present
-	if req.Header.Get("User-Agent") == "" {
-		req.Header.Set("User-Agent", defaultUserAgent())
-	}
-
-	// Log request details in verbose mode
 	if opts.Verbose {
-		fmt.Fprintf(os.Stderr, "> %s %s\n", opts.Method, RedactURL(opts.URL))
-		for key, values := range req.Header {
-			for _, value := range values {
-				// Redact sensitive headers
-				redactedValue := RedactSensitiveHeader(key, value)
-				fmt.Fprintf(os.Stderr, "> %s: %s\n", key, redactedValue)
-			}
-		}
-		fmt.Fprintf(os.Stderr, "> \n")
+		logVerboseRequest(req, opts.Method, opts.URL)
 	}
 
-	// Execute request with retry logic
-	var resp *http.Response
-	maxRetries := opts.Retry
-	if maxRetries < 0 {
-		maxRetries = 0
-	}
-	if maxRetries == 0 {
-		maxRetries = 3 // Default retries
-	}
-
-	var lastErr error
-	var bodyBytes []byte
-	bodyReader := opts.Body
-
-	// If body is provided and we might retry, read it into memory for retries
-	if opts.Body != nil && maxRetries > 0 {
-		const maxBodySizeForRetry = 10 * 1024 * 1024
-		limitedReader := io.LimitReader(opts.Body, maxBodySizeForRetry+1)
-		var err error
-		bodyBytes, err = io.ReadAll(limitedReader)
-		if err == nil && int64(len(bodyBytes)) <= maxBodySizeForRetry {
-			bodyReader = bytes.NewReader(bodyBytes)
-		} else {
-			if seeker, ok := opts.Body.(io.Seeker); ok {
-				if _, seekErr := seeker.Seek(0, io.SeekStart); seekErr == nil {
-					bodyReader = opts.Body
-				}
-			}
-		}
-		// Update the initial request body to use the buffered reader
-		// since the original body has been consumed by ReadAll above.
-		if br, ok := bodyReader.(*bytes.Reader); ok {
-			_, _ = br.Seek(0, io.SeekStart)
-			req.Body = io.NopCloser(br)
-			req.ContentLength = int64(len(bodyBytes))
-			req.GetBody = func() (io.ReadCloser, error) {
-				_, _ = br.Seek(0, io.SeekStart)
-				return io.NopCloser(br), nil
-			}
-		}
-	}
-
-	for attempt := 0; attempt <= maxRetries; attempt++ {
-		if attempt > 0 {
-			// Exponential backoff: 1s, 2s, 4s, etc.
-			backoff := time.Duration(1<<uint(attempt-1)) * time.Second //nolint:gosec // G115: safe conversion, attempt count is small
-			select {
-			case <-ctx.Done():
-				return nil, fmt.Errorf("request canceled: %w", ctx.Err())
-			case <-time.After(backoff):
-			}
-
-			// Recreate request for retry
-			if bodyReader != nil {
-				if br, ok := bodyReader.(*bytes.Reader); ok {
-					_, _ = br.Seek(0, io.SeekStart)
-					req.Body = io.NopCloser(br)
-					req.GetBody = func() (io.ReadCloser, error) {
-						_, _ = br.Seek(0, io.SeekStart)
-						return io.NopCloser(br), nil
-					}
-				} else if seekerReader, ok := bodyReader.(interface {
-					io.Reader
-					io.Seeker
-				}); ok {
-					_, _ = seekerReader.Seek(0, io.SeekStart)
-					req.Body = io.NopCloser(seekerReader)
-					req.GetBody = func() (io.ReadCloser, error) {
-						_, _ = seekerReader.Seek(0, io.SeekStart)
-						return io.NopCloser(seekerReader), nil
-					}
-				} else {
-					req.Body = io.NopCloser(bodyReader)
-				}
-			}
-		}
-
-		resp, lastErr = client.Do(req)
-		if lastErr == nil {
-			// Check if response status is retryable (5xx errors)
-			if resp.StatusCode >= 500 && resp.StatusCode < 600 && attempt < maxRetries {
-				_ = resp.Body.Close()
-				continue
-			}
-			break // Success or non-retryable error
-		}
-
-		// Check if error is retryable
-		if !isRetryableError(lastErr) {
-			return nil, fmt.Errorf("request failed: %w", lastErr)
-		}
-
-		// If this was the last attempt, return the error
-		if attempt == maxRetries {
-			return nil, fmt.Errorf("request failed after %d retries: %w", maxRetries, lastErr)
-		}
-	}
-
-	if resp == nil {
-		return nil, fmt.Errorf("request failed: %w", lastErr)
+	resp, err := c.executeWithRetry(ctx, client, req, &opts)
+	if err != nil {
+		return nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	// Read response body with size limit
-	maxSize := opts.MaxResponseSize
-	if maxSize <= 0 {
-		maxSize = 100 * 1024 * 1024 // Default 100MB limit
-	}
-
-	limitedReader := io.LimitReader(resp.Body, maxSize)
-	responseBody, err := io.ReadAll(limitedReader)
+	response, err := c.buildResponse(resp, &opts, time.Since(startTime))
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
+		return nil, err
 	}
 
-	// Check if we hit the size limit
-	if int64(len(responseBody)) >= maxSize {
-		return nil, fmt.Errorf("response body exceeds maximum size of %d bytes", maxSize)
-	}
-
-	duration := time.Since(startTime)
-
-	response := &Response{
-		StatusCode: resp.StatusCode,
-		Status:     resp.Status,
-		Headers:    resp.Header,
-		Body:       responseBody,
-		Duration:   duration,
-	}
-
-	// Handle pagination if enabled
 	if opts.Paginate && resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		paginatedBody, err := handlePagination(ctx, client, opts, response)
 		if err != nil {
@@ -301,6 +168,182 @@ func (c *Client) Execute(ctx context.Context, opts RequestOptions) (*Response, e
 	}
 
 	return response, nil
+}
+
+// buildRedirectClient creates an HTTP client with the configured redirect policy.
+func (c *Client) buildRedirectClient(opts *RequestOptions) *http.Client {
+	maxRedirects := opts.effectiveMaxRedirects()
+	return &http.Client{
+		Transport: c.httpClient.Transport,
+		Timeout:   c.httpClient.Timeout,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if !opts.FollowRedirects {
+				return http.ErrUseLastResponse
+			}
+			if len(via) >= maxRedirects {
+				return fmt.Errorf("stopped after %d redirects", maxRedirects)
+			}
+			return nil
+		},
+	}
+}
+
+// buildRequest creates the HTTP request with headers and authentication.
+func (c *Client) buildRequest(ctx context.Context, opts *RequestOptions) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, opts.Method, opts.URL, opts.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	for key, value := range opts.Headers {
+		req.Header.Set(key, value)
+	}
+
+	if !opts.SkipAuth && opts.Scope != "" && c.tokenProvider != nil {
+		token, err := c.tokenProvider.GetToken(ctx, opts.Scope)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get authentication token: %w", err)
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	if req.Header.Get("User-Agent") == "" {
+		req.Header.Set("User-Agent", defaultUserAgent())
+	}
+
+	return req, nil
+}
+
+// logVerboseRequest logs request details to stderr in verbose mode.
+func logVerboseRequest(req *http.Request, method, rawURL string) {
+	fmt.Fprintf(os.Stderr, "> %s %s\n", method, RedactURL(rawURL))
+	for key, values := range req.Header {
+		for _, value := range values {
+			fmt.Fprintf(os.Stderr, "> %s: %s\n", key, RedactSensitiveHeader(key, value))
+		}
+	}
+	fmt.Fprintf(os.Stderr, "> \n")
+}
+
+// executeWithRetry runs the request with exponential backoff retry logic.
+func (c *Client) executeWithRetry(ctx context.Context, client *http.Client, req *http.Request, opts *RequestOptions) (*http.Response, error) {
+	maxRetries := opts.effectiveMaxRetries()
+
+	// Buffer body for retry support
+	var bodyBytes []byte
+	bodyReader := opts.Body
+	if opts.Body != nil && maxRetries > 0 {
+		bodyReader, bodyBytes = bufferBodyForRetry(opts.Body)
+		if br, ok := bodyReader.(*bytes.Reader); ok {
+			_, _ = br.Seek(0, io.SeekStart)
+			req.Body = io.NopCloser(br)
+			req.ContentLength = int64(len(bodyBytes))
+			req.GetBody = func() (io.ReadCloser, error) {
+				_, _ = br.Seek(0, io.SeekStart)
+				return io.NopCloser(br), nil
+			}
+		}
+	}
+
+	var lastErr error
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if attempt > 0 {
+			backoff := time.Duration(1<<uint(attempt-1)) * time.Second //nolint:gosec // G115: safe, attempt is small
+			select {
+			case <-ctx.Done():
+				return nil, fmt.Errorf("request canceled: %w", ctx.Err())
+			case <-time.After(backoff):
+			}
+			resetRequestBody(req, bodyReader, bodyBytes)
+		}
+
+		resp, err := client.Do(req)
+		if err == nil {
+			if resp.StatusCode >= 500 && resp.StatusCode < 600 && attempt < maxRetries {
+				_ = resp.Body.Close()
+				continue
+			}
+			return resp, nil
+		}
+
+		lastErr = err
+		if !isRetryableError(err) {
+			return nil, fmt.Errorf("request failed: %w", err)
+		}
+
+		if attempt == maxRetries {
+			return nil, fmt.Errorf("request failed after %d retries: %w", maxRetries, err)
+		}
+	}
+
+	return nil, fmt.Errorf("request failed: %w", lastErr)
+}
+
+// bufferBodyForRetry reads the request body into memory for retry support.
+// Returns a seekable reader and the buffered bytes (nil if body is too large).
+func bufferBodyForRetry(body io.Reader) (io.Reader, []byte) {
+	const maxBodySizeForRetry = 10 * 1024 * 1024
+	limitedReader := io.LimitReader(body, maxBodySizeForRetry+1)
+	bodyBytes, err := io.ReadAll(limitedReader)
+	if err == nil && int64(len(bodyBytes)) <= maxBodySizeForRetry {
+		return bytes.NewReader(bodyBytes), bodyBytes
+	}
+	if seeker, ok := body.(io.Seeker); ok {
+		if _, seekErr := seeker.Seek(0, io.SeekStart); seekErr == nil {
+			return body, nil
+		}
+	}
+	return body, nil
+}
+
+// resetRequestBody resets the request body for a retry attempt.
+func resetRequestBody(req *http.Request, bodyReader io.Reader, bodyBytes []byte) {
+	if bodyReader == nil {
+		return
+	}
+	if br, ok := bodyReader.(*bytes.Reader); ok {
+		_, _ = br.Seek(0, io.SeekStart)
+		req.Body = io.NopCloser(br)
+		req.GetBody = func() (io.ReadCloser, error) {
+			_, _ = br.Seek(0, io.SeekStart)
+			return io.NopCloser(br), nil
+		}
+	} else if seekerReader, ok := bodyReader.(interface {
+		io.Reader
+		io.Seeker
+	}); ok {
+		_, _ = seekerReader.Seek(0, io.SeekStart)
+		req.Body = io.NopCloser(seekerReader)
+		req.GetBody = func() (io.ReadCloser, error) {
+			_, _ = seekerReader.Seek(0, io.SeekStart)
+			return io.NopCloser(seekerReader), nil
+		}
+	} else {
+		req.Body = io.NopCloser(bodyReader)
+	}
+	_ = bodyBytes // suppress unused warning in non-bytes path
+}
+
+// buildResponse reads the response body and constructs the Response object.
+func (c *Client) buildResponse(resp *http.Response, opts *RequestOptions, duration time.Duration) (*Response, error) {
+	maxSize := opts.effectiveMaxResponseSize()
+	limitedReader := io.LimitReader(resp.Body, maxSize)
+	responseBody, err := io.ReadAll(limitedReader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if int64(len(responseBody)) >= maxSize {
+		return nil, fmt.Errorf("response body exceeds maximum size of %d bytes", maxSize)
+	}
+
+	return &Response{
+		StatusCode: resp.StatusCode,
+		Status:     resp.Status,
+		Headers:    resp.Header,
+		Body:       responseBody,
+		Duration:   duration,
+	}, nil
 }
 
 // ShouldSkipAuth determines if authentication should be skipped

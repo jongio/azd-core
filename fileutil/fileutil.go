@@ -33,76 +33,26 @@ func AtomicWriteJSON(path string, data any) error {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
-	// Create a unique temp file in the same directory to avoid cross-filesystem
-	// rename issues and concurrent writers clobbering the same temp filename.
-	dir := filepath.Dir(path)
-	tmpFile, err := os.CreateTemp(dir, filepath.Base(path)+".tmp.*")
-	if err != nil {
-		return fmt.Errorf("failed to create temp file: %w", err)
-	}
-	tmpPath := tmpFile.Name()
-	// Ensure file is closed on all paths
-	defer func() { _ = tmpFile.Close() }()
-
-	if _, err := tmpFile.Write(jsonData); err != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("failed to write temp file: %w", err)
-	}
-
-	// Ensure data hits disk before we close/rename. This reduces races
-	// where the file might not be fully flushed on platforms with delayed
-	// write semantics (observed flakiness on some CI macOS runners).
-	if err := tmpFile.Sync(); err != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("failed to sync temp file: %w", err)
-	}
-
-	if err := tmpFile.Close(); err != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("failed to close temp file: %w", err)
-	}
-
-	// Set correct permissions on the temp file before rename so the final file
-	// has expected permissions once moved into place.
-	if err := os.Chmod(tmpPath, FilePermission); err != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("failed to set file permissions: %w", err)
-	}
-
-	// Rename temp file to final file (atomic operation on most filesystems).
-	// Perform a few retries with exponential backoff to mitigate transient rename races.
-	var renameErr error
-	for attempt := 0; attempt < 5; attempt++ {
-		renameErr = os.Rename(tmpPath, path)
-		if renameErr == nil {
-			break
-		}
-		if attempt < 4 { // Don't sleep on last attempt
-			delay := time.Duration(20*(attempt+1)) * time.Millisecond // 20ms, 40ms, 60ms, 80ms
-			time.Sleep(delay)
-		}
-	}
-	if renameErr != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("failed to rename temp file: %w", renameErr)
-	}
-
-	return nil
+	return atomicWrite(path, jsonData, FilePermission)
 }
 
 // AtomicWriteFile writes raw bytes to a file atomically.
 // It writes to a temporary file first, then renames it to the target path.
 // This ensures the file is never left in a partial/corrupt state.
 func AtomicWriteFile(path string, data []byte, perm os.FileMode) error {
-	// Create a unique temp file in the same directory to avoid concurrent
-	// writers using the same temp filename and causing rename failures.
+	return atomicWrite(path, data, perm)
+}
+
+// atomicWrite is the shared implementation for atomic file writes.
+// It writes data to a temp file in the same directory, syncs, sets permissions,
+// then renames to the target path with retry logic for transient failures.
+func atomicWrite(path string, data []byte, perm os.FileMode) error {
 	dir := filepath.Dir(path)
 	tmpFile, err := os.CreateTemp(dir, filepath.Base(path)+".tmp.*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
 	tmpPath := tmpFile.Name()
-	// Ensure file is closed on all paths
 	defer func() { _ = tmpFile.Close() }()
 
 	if _, err := tmpFile.Write(data); err != nil {
@@ -120,36 +70,33 @@ func AtomicWriteFile(path string, data []byte, perm os.FileMode) error {
 		return fmt.Errorf("failed to close temp file: %w", err)
 	}
 
-	// Ensure temp has requested permissions before rename
 	if err := os.Chmod(tmpPath, perm); err != nil {
 		_ = os.Remove(tmpPath)
 		return fmt.Errorf("failed to set file permissions: %w", err)
 	}
 
-	// Rename temp file to final file (atomic operation on most filesystems).
-	// Perform a few retries with exponential backoff to mitigate transient rename races.
-	var renameErr2 error
-	for attempt := 0; attempt < 5; attempt++ {
-		renameErr2 = os.Rename(tmpPath, path)
-		if renameErr2 == nil {
-			break
-		}
-		if attempt < 4 { // Don't sleep on last attempt
-			delay := time.Duration(20*(attempt+1)) * time.Millisecond // 20ms, 40ms, 60ms, 80ms
-			time.Sleep(delay)
-		}
-	}
-	if renameErr2 != nil {
+	if err := renameWithRetry(tmpPath, path); err != nil {
 		_ = os.Remove(tmpPath)
-		return fmt.Errorf("failed to rename temp file: %w", renameErr2)
-	}
-
-	// Ensure final permissions are set
-	if err := os.Chmod(path, perm); err != nil {
-		return fmt.Errorf("failed to set file permissions: %w", err)
+		return fmt.Errorf("failed to rename temp file: %w", err)
 	}
 
 	return nil
+}
+
+// renameWithRetry attempts os.Rename with exponential backoff to handle
+// transient filesystem lock contention (common on Windows CI).
+func renameWithRetry(src, dst string) error {
+	var err error
+	for attempt := 0; attempt < 5; attempt++ {
+		err = os.Rename(src, dst)
+		if err == nil {
+			return nil
+		}
+		if attempt < 4 {
+			time.Sleep(time.Duration(20*(attempt+1)) * time.Millisecond)
+		}
+	}
+	return err
 }
 
 // ReadJSON reads JSON from a file into the target interface.
