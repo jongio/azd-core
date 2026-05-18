@@ -103,6 +103,18 @@ type Client struct {
 }
 
 // NewClient creates a new HTTP client
+// redirectContextKeyType is used to pass per-request redirect configuration
+// through request context, allowing a single http.Client to handle different
+// redirect policies without per-call allocation.
+type redirectContextKeyType struct{}
+
+var redirectContextKey = redirectContextKeyType{}
+
+type redirectConfig struct {
+	followRedirects bool
+	maxRedirects    int
+}
+
 func NewClient(tokenProvider TokenProvider, insecure bool, timeout time.Duration) *Client {
 	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{
@@ -116,6 +128,16 @@ func NewClient(tokenProvider TokenProvider, insecure bool, timeout time.Duration
 		httpClient: &http.Client{
 			Transport: transport,
 			Timeout:   timeout,
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				cfg, _ := req.Context().Value(redirectContextKey).(redirectConfig)
+				if !cfg.followRedirects {
+					return http.ErrUseLastResponse
+				}
+				if cfg.maxRedirects > 0 && len(via) >= cfg.maxRedirects {
+					return fmt.Errorf("stopped after %d redirects", cfg.maxRedirects)
+				}
+				return nil
+			},
 		},
 		tokenProvider: tokenProvider,
 	}
@@ -125,33 +147,24 @@ func NewClient(tokenProvider TokenProvider, insecure bool, timeout time.Duration
 func (c *Client) Execute(ctx context.Context, opts RequestOptions) (*Response, error) {
 	startTime := time.Now()
 
-	// Configure redirect handling
+	// Store per-request redirect config in context instead of allocating a new http.Client.
 	maxRedirects := opts.MaxRedirects
 	if maxRedirects == 0 {
 		maxRedirects = DefaultMaxRedirects
 	}
-
-	originalClient := c.httpClient
-	client := &http.Client{
-		Transport: originalClient.Transport,
-		Timeout:   originalClient.Timeout,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if !opts.FollowRedirects {
-				return http.ErrUseLastResponse
-			}
-			// via contains all previous requests including the original, so len(via) is the redirect count
-			if len(via) >= maxRedirects {
-				return fmt.Errorf("stopped after %d redirects", maxRedirects)
-			}
-			return nil
-		},
-	}
+	client := c.httpClient
 
 	// Create request
 	req, err := http.NewRequestWithContext(ctx, opts.Method, opts.URL, opts.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
+
+	// Inject per-request redirect policy via context.
+	req = req.WithContext(context.WithValue(req.Context(), redirectContextKey, redirectConfig{
+		followRedirects: opts.FollowRedirects,
+		maxRedirects:    maxRedirects,
+	}))
 
 	// Add custom headers
 	for key, value := range opts.Headers {
@@ -460,13 +473,9 @@ func parseLinkHeader(linkHeader string) (string, bool) {
 	return "", false
 }
 
-// extractNextLinkFromBody extracts nextLink from JSON response body (Azure API format)
-func extractNextLinkFromBody(body []byte) (string, bool) {
-	var data map[string]any
-	if err := json.Unmarshal(body, &data); err != nil {
-		return "", false
-	}
-
+// extractNextLinkFromParsed extracts nextLink from an already-parsed JSON map,
+// avoiding redundant deserialization when the caller has already unmarshaled the body.
+func extractNextLinkFromParsed(data map[string]any) (string, bool) {
 	if nextLink, ok := data["nextLink"].(string); ok && nextLink != "" {
 		return nextLink, true
 	}
@@ -496,6 +505,15 @@ var ErrPaginationSizeLimitExceeded = fmt.Errorf("pagination aggregate size limit
 // ErrPaginationPageLimitExceeded is returned when the number of pages fetched
 // exceeds the maximum page count.
 var ErrPaginationPageLimitExceeded = fmt.Errorf("pagination page count limit exceeded")
+
+// extractNextLinkFromBody extracts nextLink from JSON response body (Azure API format)
+func extractNextLinkFromBody(body []byte) (string, bool) {
+var data map[string]any
+if err := json.Unmarshal(body, &data); err != nil {
+return "", false
+}
+return extractNextLinkFromParsed(data)
+}
 
 // handlePagination handles pagination by following next links.
 // It enforces same-origin checks to prevent SSRF via server-controlled nextLink URLs.
@@ -550,7 +568,7 @@ func handlePagination(ctx context.Context, client *http.Client, opts RequestOpti
 		allResults = append(allResults, firstData)
 	}
 
-	if next, ok := extractNextLinkFromBody(currentBody); ok {
+	if next, ok := extractNextLinkFromParsed(firstData); ok {
 		nextURL = next
 		hasMore = true
 	} else if linkHeader := firstResponse.Headers.Get("Link"); linkHeader != "" {
@@ -637,7 +655,7 @@ func handlePagination(ctx context.Context, client *http.Client, opts RequestOpti
 		}
 
 		nextURL = ""
-		if next, ok := extractNextLinkFromBody(body); ok {
+		if next, ok := extractNextLinkFromParsed(pageData); ok {
 			nextURL = next
 		} else if linkHeader := resp.Header.Get("Link"); linkHeader != "" {
 			if next, ok := parseLinkHeader(linkHeader); ok {

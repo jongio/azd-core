@@ -77,6 +77,7 @@ type MultiProgress struct {
 	mu            sync.RWMutex
 	stopChan      chan struct{}
 	stopped       bool
+	started       bool
 	lastLineCount int
 	termWidth     int
 }
@@ -147,14 +148,26 @@ func (mp *MultiProgress) GetBar(id string) *ProgressSpinner {
 }
 
 // Start starts the multi-progress display (renders all bars periodically).
+// It is safe to call multiple times; redundant calls are no-ops unless Stop()
+// was called in between (in which case a new render loop is started).
 func (mp *MultiProgress) Start() {
-	// Hide cursor during progress display
-	fmt.Print("\033[?25l")
-
-	// Set initial line count based on number of bars
 	mp.mu.Lock()
+	if mp.started && !mp.stopped {
+		// Already running - avoid leaking another goroutine.
+		mp.mu.Unlock()
+		return
+	}
+	if mp.stopped {
+		// Restarting after a stop - create a fresh channel.
+		mp.stopChan = make(chan struct{})
+		mp.stopped = false
+	}
+	mp.started = true
 	mp.lastLineCount = len(mp.bars)
 	mp.mu.Unlock()
+
+	// Hide cursor during progress display
+	fmt.Print("\033[?25l")
 
 	go func() {
 		ticker := time.NewTicker(refreshInterval)
