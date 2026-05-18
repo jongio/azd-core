@@ -435,7 +435,7 @@ func (c *HealthChecker) tryCustomHealthCheck(ctx context.Context, config *Health
 // performHTTPCheck performs a direct HTTP health check to a specific URL.
 func (c *HealthChecker) performHTTPCheck(ctx context.Context, urlStr string) *httpHealthCheckResult {
 	startTime := time.Now()
-	req, err := http.NewRequestWithContext(ctx, "GET", urlStr, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlStr, nil)
 	if err != nil {
 		return &httpHealthCheckResult{
 			Endpoint: urlStr,
@@ -497,7 +497,7 @@ func (c *HealthChecker) performCommandCheck(ctx context.Context, args []string, 
 		ResponseTime: 0,
 	}
 
-	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...) // #nosec G204 -- Args from Docker HEALTHCHECK config, not user input
 	err := cmd.Run()
 	result.ResponseTime = time.Since(startTime)
 
@@ -521,9 +521,9 @@ func (c *HealthChecker) performShellCheck(ctx context.Context, command string, s
 
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		cmd = exec.CommandContext(ctx, "cmd", "/C", command)
+		cmd = exec.CommandContext(ctx, "cmd", "/C", command) // #nosec G204 -- Command from Docker HEALTHCHECK CMD-SHELL config
 	} else {
-		cmd = exec.CommandContext(ctx, "sh", "-c", command)
+		cmd = exec.CommandContext(ctx, "sh", "-c", command) // #nosec G204 -- Command from Docker HEALTHCHECK CMD-SHELL config
 	}
 
 	err := cmd.Run()
@@ -607,7 +607,7 @@ func (c *HealthChecker) checkSingleEndpoint(ctx context.Context, port int, endpo
 	url := fmt.Sprintf("http://localhost:%d%s", port, endpoint)
 
 	startTime := time.Now()
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil
 	}

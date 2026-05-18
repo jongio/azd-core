@@ -19,6 +19,7 @@ const (
 	FormatJSON    OutputFormat = "json"
 	FormatRaw     OutputFormat = "raw"
 	redactedValue              = "***REDACTED***"
+	bearerPrefix               = "Bearer "
 )
 
 // Formatter handles response formatting and output
@@ -131,12 +132,12 @@ func RedactSensitiveHeader(key, value string) string {
 
 	if keyLower == "authorization" {
 		if strings.HasPrefix(strings.ToLower(value), "bearer ") {
-			token := strings.TrimPrefix(value, "Bearer ")
+			token := strings.TrimPrefix(value, bearerPrefix)
 			token = strings.TrimPrefix(token, "bearer ")
 			if len(token) > 12 {
-				return "Bearer " + token[:6] + "..." + token[len(token)-6:]
+				return bearerPrefix + token[:6] + "..." + token[len(token)-6:]
 			}
-			return "Bearer " + redactedValue
+			return bearerPrefix + redactedValue
 		}
 		return redactedValue
 	}
