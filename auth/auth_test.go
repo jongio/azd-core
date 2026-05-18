@@ -194,14 +194,14 @@ func (m *mockCredential) GetToken(ctx context.Context, options policy.TokenReque
 func TestGetDefaultProvider_RetryOnError(t *testing.T) {
 	// Save originals
 	origFactory := credentialFactory
-	origProvider := defaultProvider
+	origProvider := defaultProvider.Load()
 	t.Cleanup(func() {
 		credentialFactory = origFactory
-		defaultProvider = origProvider
+		defaultProvider.Store(origProvider)
 	})
 
 	// Reset cached provider
-	defaultProvider = nil
+	defaultProvider.Store(nil)
 
 	calls := 0
 	credentialFactory = func() (tokenCredential, error) {
@@ -231,13 +231,13 @@ func TestGetDefaultProvider_RetryOnError(t *testing.T) {
 
 func TestGetDefaultProvider_CachesOnSuccess(t *testing.T) {
 	origFactory := credentialFactory
-	origProvider := defaultProvider
+	origProvider := defaultProvider.Load()
 	t.Cleanup(func() {
 		credentialFactory = origFactory
-		defaultProvider = origProvider
+		defaultProvider.Store(origProvider)
 	})
 
-	defaultProvider = nil
+	defaultProvider.Store(nil)
 
 	calls := 0
 	credentialFactory = func() (tokenCredential, error) {
@@ -255,13 +255,13 @@ func TestGetDefaultProvider_CachesOnSuccess(t *testing.T) {
 
 func TestGetAzureToken_WithMockedProvider(t *testing.T) {
 	origFactory := credentialFactory
-	origProvider := defaultProvider
+	origProvider := defaultProvider.Load()
 	t.Cleanup(func() {
 		credentialFactory = origFactory
-		defaultProvider = origProvider
+		defaultProvider.Store(origProvider)
 	})
 
-	defaultProvider = nil
+	defaultProvider.Store(nil)
 
 	credentialFactory = func() (tokenCredential, error) {
 		return &mockCredential{token: "mock-azure-token"}, nil
@@ -274,13 +274,13 @@ func TestGetAzureToken_WithMockedProvider(t *testing.T) {
 
 func TestGetAzureToken_FactoryError(t *testing.T) {
 	origFactory := credentialFactory
-	origProvider := defaultProvider
+	origProvider := defaultProvider.Load()
 	t.Cleanup(func() {
 		credentialFactory = origFactory
-		defaultProvider = origProvider
+		defaultProvider.Store(origProvider)
 	})
 
-	defaultProvider = nil
+	defaultProvider.Store(nil)
 
 	credentialFactory = func() (tokenCredential, error) {
 		return nil, fmt.Errorf("no credentials")
@@ -293,13 +293,13 @@ func TestGetAzureToken_FactoryError(t *testing.T) {
 
 func TestGetAzureToken_NilContext(t *testing.T) {
 	origFactory := credentialFactory
-	origProvider := defaultProvider
+	origProvider := defaultProvider.Load()
 	t.Cleanup(func() {
 		credentialFactory = origFactory
-		defaultProvider = origProvider
+		defaultProvider.Store(origProvider)
 	})
 
-	defaultProvider = nil
+	defaultProvider.Store(nil)
 
 	credentialFactory = func() (tokenCredential, error) {
 		return &mockCredential{token: "nil-ctx-token"}, nil
@@ -339,13 +339,13 @@ func TestClassifyAuthError(t *testing.T) {
 
 func TestAzureTokenProvider_GetToken_NilContext(t *testing.T) {
 	origFactory := credentialFactory
-	origProvider := defaultProvider
+	origProvider := defaultProvider.Load()
 	t.Cleanup(func() {
 		credentialFactory = origFactory
-		defaultProvider = origProvider
+		defaultProvider.Store(origProvider)
 	})
 
-	defaultProvider = nil
+	defaultProvider.Store(nil)
 
 	credentialFactory = func() (tokenCredential, error) {
 		return &mockCredential{token: "ctx-test"}, nil
@@ -362,13 +362,13 @@ func TestAzureTokenProvider_GetToken_NilContext(t *testing.T) {
 
 func TestAzureTokenProvider_GetToken_CredentialError(t *testing.T) {
 	origFactory := credentialFactory
-	origProvider := defaultProvider
+	origProvider := defaultProvider.Load()
 	t.Cleanup(func() {
 		credentialFactory = origFactory
-		defaultProvider = origProvider
+		defaultProvider.Store(origProvider)
 	})
 
-	defaultProvider = nil
+	defaultProvider.Store(nil)
 
 	credentialFactory = func() (tokenCredential, error) {
 		return &mockCredential{err: fmt.Errorf("unauthorized access")}, nil

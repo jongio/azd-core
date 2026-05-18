@@ -6,8 +6,10 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -56,6 +58,12 @@ type RequestOptions struct {
 	Retry           int
 	MaxResponseSize int64
 	Paginate        bool
+	// MaxPaginationSize is the maximum aggregate size in bytes for all paginated
+	// responses combined. Defaults to 1GB if unset or zero.
+	MaxPaginationSize int64
+	// MaxPages is the maximum number of pages to fetch during pagination.
+	// Defaults to 1000 if unset or zero.
+	MaxPages int
 }
 
 // Response contains HTTP response data
@@ -326,32 +334,61 @@ func ShouldSkipAuth(url string, headers map[string]string, skipAuth bool) bool {
 	return false
 }
 
-// isRetryableError determines if an error is retryable
+// isRetryableError determines if an error is retryable using typed error checks.
 func isRetryableError(err error) bool {
-	if err == nil {
-		return false
-	}
+if err == nil {
+return false
+}
 
-	errStr := strings.ToLower(err.Error())
+// Context cancellation/deadline exceeded.
+if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+return true
+}
 
-	retryablePatterns := []string{
-		"timeout",
-		"connection refused",
-		"connection reset",
-		"no such host",
-		"network is unreachable",
-		"temporary failure",
-		"i/o timeout",
-		"context deadline exceeded",
-	}
+// Network-level errors: timeouts and temporary failures.
+var netErr net.Error
+if errors.As(err, &netErr) {
+return netErr.Timeout()
+}
 
-	for _, pattern := range retryablePatterns {
-		if strings.Contains(errStr, pattern) {
-			return true
-		}
-	}
+// DNS resolution failures.
+var dnsErr *net.DNSError
+if errors.As(err, &dnsErr) {
+return true
+}
 
-	return false
+// Connection-level errors (connection refused, reset, etc.).
+var opErr *net.OpError
+if errors.As(err, &opErr) {
+return true
+}
+
+// url.Error wraps net errors from the HTTP client.
+var urlErr *url.Error
+if errors.As(err, &urlErr) {
+return urlErr.Timeout() || isRetryableError(urlErr.Err)
+}
+
+// Fall back to string matching for errors without typed wrappers.
+errStr := strings.ToLower(err.Error())
+retryablePatterns := []string{
+"timeout",
+"connection refused",
+"connection reset",
+"no such host",
+"network is unreachable",
+"temporary failure",
+"i/o timeout",
+"context deadline exceeded",
+}
+
+for _, pattern := range retryablePatterns {
+if strings.Contains(errStr, pattern) {
+return true
+}
+}
+
+return false
 }
 
 // DetectContentType attempts to determine if content is binary
@@ -424,8 +461,24 @@ func extractNextLinkFromBody(body []byte) (string, bool) {
 	return "", false
 }
 
+// DefaultMaxPaginationSize is the default aggregate size limit for all paginated
+// responses (1GB). This prevents unbounded memory growth when APIs return many pages.
+const DefaultMaxPaginationSize int64 = 1 * 1024 * 1024 * 1024
+
+// DefaultMaxPages is the default maximum number of pages to fetch during pagination.
+const DefaultMaxPages = 1000
+
+// ErrPaginationSizeLimitExceeded is returned when paginated responses exceed the
+// aggregate size limit.
+var ErrPaginationSizeLimitExceeded = fmt.Errorf("pagination aggregate size limit exceeded")
+
+// ErrPaginationPageLimitExceeded is returned when the number of pages fetched
+// exceeds the maximum page count.
+var ErrPaginationPageLimitExceeded = fmt.Errorf("pagination page count limit exceeded")
+
 // handlePagination handles pagination by following next links.
 // It enforces same-origin checks to prevent SSRF via server-controlled nextLink URLs.
+// It also enforces aggregate size and page count limits to prevent unbounded memory growth.
 func handlePagination(ctx context.Context, client *http.Client, opts RequestOptions, firstResponse *Response) ([]byte, error) {
 	var allResults []any
 	var currentBody = firstResponse.Body
@@ -444,6 +497,22 @@ func handlePagination(ctx context.Context, client *http.Client, opts RequestOpti
 	if maxResponseSize <= 0 {
 		maxResponseSize = 100 * 1024 * 1024 // Default 100MB limit
 	}
+
+	// Aggregate size limit across all pages
+	maxPaginationSize := opts.MaxPaginationSize
+	if maxPaginationSize <= 0 {
+		maxPaginationSize = DefaultMaxPaginationSize
+	}
+
+	// Max page count limit
+	maxPages := opts.MaxPages
+	if maxPages <= 0 {
+		maxPages = DefaultMaxPages
+	}
+
+	// Track aggregate size starting with the first response
+	var aggregateSize int64
+	aggregateSize += int64(len(currentBody))
 
 	// Determine the token provider: prefer client-level, fall back to opts
 	tokenProvider := opts.TokenProvider
@@ -470,7 +539,6 @@ func handlePagination(ctx context.Context, client *http.Client, opts RequestOpti
 		}
 	}
 
-	maxPages := 1000
 	pageCount := 0
 
 	for hasMore && nextURL != "" && pageCount < maxPages {
@@ -532,6 +600,12 @@ func handlePagination(ctx context.Context, client *http.Client, opts RequestOpti
 			break
 		}
 
+		// Enforce aggregate size limit
+		aggregateSize += int64(len(body))
+		if aggregateSize > maxPaginationSize {
+			return nil, ErrPaginationSizeLimitExceeded
+		}
+
 		var pageData map[string]any
 		if err := json.Unmarshal(body, &pageData); err != nil {
 			break
@@ -551,6 +625,11 @@ func handlePagination(ctx context.Context, client *http.Client, opts RequestOpti
 		}
 
 		hasMore = (nextURL != "")
+	}
+
+	// Return error if page limit was reached and there are still more pages
+	if hasMore && nextURL != "" && pageCount >= maxPages {
+		return nil, ErrPaginationPageLimitExceeded
 	}
 
 	if len(allResults) > 0 {
