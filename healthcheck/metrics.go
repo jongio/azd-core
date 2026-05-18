@@ -1,119 +1,45 @@
 package healthcheck
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/jongio/azd-core/healthcheck/metrics"
 	"github.com/sony/gobreaker"
 )
 
-var (
-	healthCheckDuration = promauto.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Name:    "azd_health_check_duration_seconds",
-			Help:    "Duration of health checks in seconds",
-			Buckets: []float64{.001, .005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10},
-		},
-		[]string{"service", "status", "check_type"},
-	)
-
-	healthCheckTotal = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "azd_health_check_total",
-			Help: "Total number of health checks performed",
-		},
-		[]string{"service", "status", "check_type"},
-	)
-
-	healthCheckErrors = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "azd_health_check_errors_total",
-			Help: "Total number of health check errors",
-		},
-		[]string{"service", "error_type"},
-	)
-
-	serviceUptime = promauto.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "azd_service_uptime_seconds",
-			Help: "Service uptime in seconds since last health check detected it running",
-		},
-		[]string{"service"},
-	)
-
-	circuitBreakerState = promauto.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "azd_circuit_breaker_state",
-			Help: "Circuit breaker state (0=closed, 1=half-open, 2=open)",
-		},
-		[]string{"service"},
-	)
-
-	healthCheckResponseCode = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "azd_health_check_http_status_total",
-			Help: "HTTP status codes from health checks",
-		},
-		[]string{"service", "status_code"},
-	)
-)
-
 // recordHealthCheck records metrics for a health check result.
+// It delegates to the metrics sub-package for actual Prometheus instrumentation.
 func recordHealthCheck(result HealthCheckResult) {
-	labels := prometheus.Labels{
-		"service":    result.ServiceName,
-		"status":     string(result.Status),
-		"check_type": string(result.CheckType),
-	}
-
-	healthCheckDuration.With(labels).Observe(result.ResponseTime.Seconds())
-	healthCheckTotal.With(labels).Inc()
-
-	if result.Error != "" {
-		errorType := getErrorType(result.Error)
-		healthCheckErrors.With(prometheus.Labels{
-			"service":    result.ServiceName,
-			"error_type": errorType,
-		}).Inc()
-	}
-
-	if result.StatusCode > 0 {
-		healthCheckResponseCode.With(prometheus.Labels{
-			"service":     result.ServiceName,
-			"status_code": http.StatusText(result.StatusCode),
-		}).Inc()
-	}
-
-	if result.Status == HealthStatusHealthy && result.Uptime > 0 {
-		serviceUptime.With(prometheus.Labels{
-			"service": result.ServiceName,
-		}).Set(result.Uptime.Seconds())
-	}
+	metrics.RecordHealthCheck(metrics.HealthCheckResult{
+		ServiceName:  result.ServiceName,
+		Status:       string(result.Status),
+		CheckType:    string(result.CheckType),
+		ResponseTime: result.ResponseTime,
+		Error:        result.Error,
+		StatusCode:   result.StatusCode,
+		Uptime:       result.Uptime,
+		IsHealthy:    result.Status == HealthStatusHealthy,
+	})
 }
 
 // recordCircuitBreakerState records the circuit breaker state.
 func recordCircuitBreakerState(serviceName string, state gobreaker.State) {
-	var stateValue float64
-	switch state {
-	case gobreaker.StateClosed:
-		stateValue = 0
-	case gobreaker.StateHalfOpen:
-		stateValue = 1
-	case gobreaker.StateOpen:
-		stateValue = 2
-	}
+	metrics.RecordCircuitBreakerState(serviceName, state)
+}
 
-	circuitBreakerState.With(prometheus.Labels{
-		"service": serviceName,
-	}).Set(stateValue)
+// ServeMetrics starts a Prometheus metrics HTTP server.
+func ServeMetrics(port int) error {
+	return metrics.ServeMetrics(port)
+}
+
+// CreateMetricsServer creates a configured HTTP server for Prometheus metrics.
+func CreateMetricsServer(port int) *http.Server {
+	return metrics.CreateMetricsServer(port)
 }
 
 // getErrorType categorizes error messages for better metrics.
+// Kept for backward compatibility with tests.
 func getErrorType(errMsg string) string {
 	switch {
 	case containsAny(errMsg, "timeout", "deadline", "timed out"):
@@ -151,29 +77,6 @@ func containsAny(s string, substrs ...string) bool {
 	return false
 }
 
-// ServeMetrics starts a Prometheus metrics HTTP server.
-func ServeMetrics(port int) error {
-	server := CreateMetricsServer(port)
-	return server.ListenAndServe()
-}
+// Ensure backward compatibility - kept as re-exports only for callers
+// that used CreateMetricsServer or ServeMetrics directly.
 
-// CreateMetricsServer creates a configured HTTP server for Prometheus metrics.
-func CreateMetricsServer(port int) *http.Server {
-	mux := http.NewServeMux()
-	mux.Handle("/metrics", promhttp.Handler())
-
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("OK"))
-	})
-
-	addr := fmt.Sprintf(":%d", port)
-
-	return &http.Server{
-		Addr:         addr,
-		Handler:      mux,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-}

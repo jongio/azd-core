@@ -18,7 +18,8 @@
 //		"API_KEY": "@Microsoft.KeyVault(VaultName=myvault;SecretName=api-key)",
 //	}
 //
-//	resolved, warnings, err := env.ResolveMap(ctx, envMap, resolver, keyvault.ResolveEnvironmentOptions{})
+//	adapter := keyvault.NewEnvResolverAdapter(resolver)
+//	resolved, warnings, err := env.ResolveMap(ctx, envMap, adapter, env.ResolveOptions{})
 //	if err != nil {
 //		// handle error
 //	}
@@ -36,8 +37,9 @@
 //		// handle error
 //	}
 //
+//	adapter := keyvault.NewEnvResolverAdapter(resolver)
 //	envSlice := os.Environ() // or []string{"KEY=value", ...}
-//	resolved, warnings, err := env.ResolveSlice(ctx, envSlice, resolver, keyvault.ResolveEnvironmentOptions{})
+//	resolved, warnings, err := env.ResolveSlice(ctx, envSlice, adapter, env.ResolveOptions{})
 //	if err != nil {
 //		// handle error
 //	}
@@ -48,8 +50,8 @@
 // By default, resolution continues even if individual references fail (warnings are collected).
 // Use StopOnError to fail fast:
 //
-//	opts := keyvault.ResolveEnvironmentOptions{StopOnError: true}
-//	resolved, warnings, err := env.ResolveMap(ctx, envMap, resolver, opts)
+//	opts := env.ResolveOptions{StopOnError: true}
+//	resolved, warnings, err := env.ResolveMap(ctx, envMap, adapter, opts)
 //	if err != nil {
 //		// Resolution failed, warnings contains details
 //	}
@@ -66,20 +68,36 @@
 // The package also provides utility functions for working with environment variables:
 //   - MapToSlice: Convert map[string]string to []string (KEY=VALUE format)
 //   - SliceToMap: Convert []string to map[string]string (skips malformed entries)
-//   - HasKeyVaultReferences: Check if any Key Vault references exist
+//   - HasSecretReferences: Check if any secret references exist
 package env
 
 import (
 	"context"
 	"fmt"
 	"strings"
-
-	"github.com/jongio/azd-core/keyvault"
 )
 
-// Resolver abstracts key vault environment resolution to ease testing.
+// ResolveOptions configures environment resolution behavior.
+type ResolveOptions struct {
+	StopOnError bool
+}
+
+// ResolutionWarning captures non-fatal resolution failures.
+type ResolutionWarning struct {
+	Key string
+	Err error
+}
+
+// SecretReferenceChecker determines whether a value is a secret reference
+// that needs resolution.
+type SecretReferenceChecker interface {
+	IsSecretReference(value string) bool
+}
+
+// Resolver abstracts secret environment resolution to ease testing and
+// break the dependency on specific secret store packages.
 type Resolver interface {
-	ResolveEnvironmentVariables(ctx context.Context, env []string, opts keyvault.ResolveEnvironmentOptions) ([]string, []keyvault.KeyVaultResolutionWarning, error)
+	ResolveEnvironmentVariables(ctx context.Context, env []string, opts ResolveOptions) ([]string, []ResolutionWarning, error)
 }
 
 // MapToSlice converts an env map into KEY=VALUE entries.
@@ -104,22 +122,24 @@ func SliceToMap(envSlice []string) map[string]string {
 	return result
 }
 
-// HasKeyVaultReferences quickly checks for any key vault formatted values.
-func HasKeyVaultReferences(envVars []string) bool {
+// HasSecretReferences quickly checks for any secret-formatted values using the
+// provided checker. This avoids the env package needing to know about specific
+// secret reference formats.
+func HasSecretReferences(envVars []string, checker SecretReferenceChecker) bool {
 	for _, envVar := range envVars {
 		parts := strings.SplitN(envVar, "=", 2)
 		if len(parts) != 2 {
 			continue
 		}
-		if keyvault.IsKeyVaultReference(parts[1]) {
+		if checker.IsSecretReference(parts[1]) {
 			return true
 		}
 	}
 	return false
 }
 
-// Resolve applies a key vault resolver to the provided env map if needed.
-func Resolve(ctx context.Context, env map[string]string, resolver Resolver, opts keyvault.ResolveEnvironmentOptions) (map[string]string, []keyvault.KeyVaultResolutionWarning, error) {
+// Resolve applies a secret resolver to the provided env map if needed.
+func Resolve(ctx context.Context, env map[string]string, resolver Resolver, opts ResolveOptions) (map[string]string, []ResolutionWarning, error) {
 	if env == nil {
 		env = map[string]string{}
 	}
@@ -129,9 +149,6 @@ func Resolve(ctx context.Context, env map[string]string, resolver Resolver, opts
 	}
 
 	envSlice := MapToSlice(env)
-	if !HasKeyVaultReferences(envSlice) {
-		return copyEnv(env), nil, nil
-	}
 
 	resolvedSlice, warnings, err := resolver.ResolveEnvironmentVariables(ctx, envSlice, opts)
 	if err != nil {
@@ -141,74 +158,24 @@ func Resolve(ctx context.Context, env map[string]string, resolver Resolver, opts
 	return SliceToMap(resolvedSlice), warnings, nil
 }
 
-// ResolveMap applies the Key Vault resolver to an environment map.
-// It converts the map to a slice, resolves any Key Vault references,
+// ResolveMap applies the secret resolver to an environment map.
+// It converts the map to a slice, resolves any secret references,
 // and returns a new map with the resolved values.
-// If resolver is nil or no Key Vault references are found, the original
-// map is returned (as a copy).
-//
-// This is the primary helper for consumers like azd-app and azd-exec that
-// work with environment maps (e.g., from os.Environ() converted to a map).
-//
-// Example usage:
-//
-//	resolver, err := keyvault.NewKeyVaultResolver()
-//	if err != nil {
-//		// handle error
-//	}
-//	envMap := map[string]string{
-//		"DATABASE_URL": "postgres://localhost/db",
-//		"API_KEY": "@Microsoft.KeyVault(VaultName=myvault;SecretName=api-key)",
-//	}
-//	resolved, warnings, err := env.ResolveMap(ctx, envMap, resolver, keyvault.ResolveEnvironmentOptions{})
-//	if err != nil {
-//		// handle error
-//	}
-//	for _, w := range warnings {
-//		// log warning: w.Key, w.Err
-//	}
-//	// resolved["API_KEY"] now contains the actual secret value
-func ResolveMap(ctx context.Context, envMap map[string]string, resolver Resolver, opts keyvault.ResolveEnvironmentOptions) (map[string]string, []keyvault.KeyVaultResolutionWarning, error) {
+// If resolver is nil, the original map is returned (as a copy).
+func ResolveMap(ctx context.Context, envMap map[string]string, resolver Resolver, opts ResolveOptions) (map[string]string, []ResolutionWarning, error) {
 	return Resolve(ctx, envMap, resolver, opts)
 }
 
-// ResolveSlice applies the Key Vault resolver to an environment slice.
-// It takes KEY=VALUE entries, resolves any Key Vault references,
+// ResolveSlice applies the secret resolver to an environment slice.
+// It takes KEY=VALUE entries, resolves any secret references,
 // and returns a new slice with the resolved values.
-// If resolver is nil or no Key Vault references are found, the original
-// slice is returned (as a copy).
-//
-// This is useful for consumers that work directly with environment slices
-// (e.g., from os.Environ() or for passing to exec.Cmd.Env).
-//
-// Example usage:
-//
-//	resolver, err := keyvault.NewKeyVaultResolver()
-//	if err != nil {
-//		// handle error
-//	}
-//	envSlice := []string{
-//		"DATABASE_URL=postgres://localhost/db",
-//		"API_KEY=@Microsoft.KeyVault(VaultName=myvault;SecretName=api-key)",
-//	}
-//	resolved, warnings, err := env.ResolveSlice(ctx, envSlice, resolver, keyvault.ResolveEnvironmentOptions{})
-//	if err != nil {
-//		// handle error
-//	}
-//	for _, w := range warnings {
-//		// log warning: w.Key, w.Err
-//	}
-//	// resolved can now be used with cmd.Env = resolved
-func ResolveSlice(ctx context.Context, envSlice []string, resolver Resolver, opts keyvault.ResolveEnvironmentOptions) ([]string, []keyvault.KeyVaultResolutionWarning, error) {
+// If resolver is nil, the original slice is returned (as a copy).
+func ResolveSlice(ctx context.Context, envSlice []string, resolver Resolver, opts ResolveOptions) ([]string, []ResolutionWarning, error) {
 	if envSlice == nil {
 		return []string{}, nil, nil
 	}
 
 	if resolver == nil {
-		return copySlice(envSlice), nil, nil
-	}
-
-	if !HasKeyVaultReferences(envSlice) {
 		return copySlice(envSlice), nil, nil
 	}
 
