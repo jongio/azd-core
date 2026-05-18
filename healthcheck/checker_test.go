@@ -11,25 +11,18 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/sony/gobreaker"
-	"golang.org/x/time/rate"
 )
 
 func TestNewHealthChecker(t *testing.T) {
-	checker := &HealthChecker{
-		timeout:            5 * time.Second,
-		defaultEndpoint:    "/health",
-		httpClient:         &http.Client{Timeout: 5 * time.Second},
-		breakers:           make(map[string]*gobreaker.CircuitBreaker),
-		rateLimiters:       make(map[string]*rate.Limiter),
-		endpointCache:      make(map[string]string),
-		enableBreaker:      true,
-		breakerFailures:    5,
-		breakerTimeout:     30 * time.Second,
-		rateLimit:          10,
-		startupGracePeriod: 30 * time.Second,
-	}
+	checker := NewHealthChecker(MonitorConfig{
+		Timeout:                5 * time.Second,
+		DefaultEndpoint:        "/health",
+		EnableCircuitBreaker:   true,
+		CircuitBreakerFailures: 5,
+		CircuitBreakerTimeout:  30 * time.Second,
+		RateLimit:              10,
+		StartupGracePeriod:     30 * time.Second,
+	})
 
 	if checker.timeout != 5*time.Second {
 		t.Errorf("Timeout = %v, want %v", checker.timeout, 5*time.Second)
@@ -40,70 +33,56 @@ func TestNewHealthChecker(t *testing.T) {
 }
 
 func TestGetOrCreateCircuitBreaker(t *testing.T) {
-	checker := &HealthChecker{
-		breakers:        make(map[string]*gobreaker.CircuitBreaker),
-		enableBreaker:   true,
-		breakerFailures: 3,
-		breakerTimeout:  10 * time.Second,
-	}
+	mgr := NewCircuitBreakerManager(true, 3, 10*time.Second)
 
-	breaker1 := checker.getOrCreateCircuitBreaker("service1")
+	breaker1 := mgr.GetOrCreate("service1")
 	if breaker1 == nil {
 		t.Fatal("Expected non-nil circuit breaker")
 	}
 
-	breaker2 := checker.getOrCreateCircuitBreaker("service1")
+	breaker2 := mgr.GetOrCreate("service1")
 	if breaker1 != breaker2 {
 		t.Error("Expected same circuit breaker instance")
 	}
 
-	breaker3 := checker.getOrCreateCircuitBreaker("service2")
+	breaker3 := mgr.GetOrCreate("service2")
 	if breaker1 == breaker3 {
 		t.Error("Expected different circuit breaker for different service")
 	}
 }
 
 func TestGetOrCreateCircuitBreaker_Disabled(t *testing.T) {
-	checker := &HealthChecker{
-		breakers:      make(map[string]*gobreaker.CircuitBreaker),
-		enableBreaker: false,
-	}
+	mgr := NewCircuitBreakerManager(false, 3, 10*time.Second)
 
-	breaker := checker.getOrCreateCircuitBreaker("service1")
+	breaker := mgr.GetOrCreate("service1")
 	if breaker != nil {
 		t.Error("Expected nil circuit breaker when disabled")
 	}
 }
 
 func TestGetOrCreateRateLimiter(t *testing.T) {
-	checker := &HealthChecker{
-		rateLimiters: make(map[string]*rate.Limiter),
-		rateLimit:    5,
-	}
+	mgr := NewRateLimiterManager(5)
 
-	limiter1 := checker.getOrCreateRateLimiter("service1")
+	limiter1 := mgr.GetOrCreate("service1")
 	if limiter1 == nil {
 		t.Fatal("Expected non-nil rate limiter")
 	}
 
-	limiter2 := checker.getOrCreateRateLimiter("service1")
+	limiter2 := mgr.GetOrCreate("service1")
 	if limiter1 != limiter2 {
 		t.Error("Expected same rate limiter instance")
 	}
 
-	limiter3 := checker.getOrCreateRateLimiter("service2")
+	limiter3 := mgr.GetOrCreate("service2")
 	if limiter1 == limiter3 {
 		t.Error("Expected different rate limiter for different service")
 	}
 }
 
 func TestGetOrCreateRateLimiter_Disabled(t *testing.T) {
-	checker := &HealthChecker{
-		rateLimiters: make(map[string]*rate.Limiter),
-		rateLimit:    0,
-	}
+	mgr := NewRateLimiterManager(0)
 
-	limiter := checker.getOrCreateRateLimiter("service1")
+	limiter := mgr.GetOrCreate("service1")
 	if limiter != nil {
 		t.Error("Expected nil rate limiter when disabled (rateLimit <= 0)")
 	}
@@ -505,14 +484,10 @@ func TestBuildResultFromHTTPCheck(t *testing.T) {
 }
 
 func TestChecker_StoppedService(t *testing.T) {
-	checker := &HealthChecker{
-		httpClient:    &http.Client{Timeout: 5 * time.Second},
-		breakers:      make(map[string]*gobreaker.CircuitBreaker),
-		rateLimiters:  make(map[string]*rate.Limiter),
-		endpointCache: make(map[string]string),
-		enableBreaker: false,
-		rateLimit:     0,
-	}
+	checker := NewHealthChecker(MonitorConfig{
+		Timeout:   5 * time.Second,
+		RateLimit: 0,
+	})
 
 	svc := ServiceInfo{
 		Name:           "stopped-service",
@@ -529,14 +504,10 @@ func TestChecker_StoppedService(t *testing.T) {
 }
 
 func TestChecker_RateLimitExceeded(t *testing.T) {
-	checker := &HealthChecker{
-		httpClient:    &http.Client{Timeout: 5 * time.Second},
-		breakers:      make(map[string]*gobreaker.CircuitBreaker),
-		rateLimiters:  make(map[string]*rate.Limiter),
-		endpointCache: make(map[string]string),
-		enableBreaker: false,
-		rateLimit:     1,
-	}
+	checker := NewHealthChecker(MonitorConfig{
+		Timeout:   5 * time.Second,
+		RateLimit: 1,
+	})
 
 	svc := ServiceInfo{
 		Name: "rate-limited-service",
@@ -880,7 +851,7 @@ func TestHTTPCheck_StatusCodeSuggestions(t *testing.T) {
 						return http.ErrUseLastResponse
 					},
 				},
-				endpointCache: make(map[string]string),
+				endpointCache: NewEndpointCache(),
 			}
 
 			result := checker.tryHTTPHealthCheck(context.Background(), port)
@@ -909,7 +880,7 @@ func TestTCPCheck_WithSuggestion(t *testing.T) {
 		timeout:            5 * time.Second,
 		defaultEndpoint:    "/health",
 		httpClient:         &http.Client{Timeout: 5 * time.Second},
-		endpointCache:      make(map[string]string),
+		endpointCache:      NewEndpointCache(),
 		startupGracePeriod: 0,
 	}
 
@@ -990,14 +961,11 @@ func TestNewHealthCheckerFromConfig(t *testing.T) {
 	if checker.defaultEndpoint != "/healthz" {
 		t.Errorf("defaultEndpoint = %q, want %q", checker.defaultEndpoint, "/healthz")
 	}
-	if !checker.enableBreaker {
-		t.Error("enableBreaker should be true")
+	if checker.circuitBreakers == nil {
+		t.Error("circuitBreakers should not be nil")
 	}
-	if checker.breakerFailures != 3 {
-		t.Errorf("breakerFailures = %d, want 3", checker.breakerFailures)
-	}
-	if checker.rateLimit != 5 {
-		t.Errorf("rateLimit = %d, want 5", checker.rateLimit)
+	if checker.rateLimiters == nil {
+		t.Error("rateLimiters should not be nil")
 	}
 	if checker.startupGracePeriod != 20*time.Second {
 		t.Errorf("startupGracePeriod = %v, want %v", checker.startupGracePeriod, 20*time.Second)

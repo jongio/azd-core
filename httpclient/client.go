@@ -147,17 +147,53 @@ func NewClient(tokenProvider TokenProvider, insecure bool, timeout time.Duration
 func (c *Client) Execute(ctx context.Context, opts RequestOptions) (*Response, error) {
 	startTime := time.Now()
 
-	// Store per-request redirect config in context instead of allocating a new http.Client.
+	// Build the HTTP request
+	req, client, err := c.buildRequest(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	// Execute with retry logic
+	resp, err := c.executeWithRetry(ctx, req, client, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// Read and process the response
+	response, err := c.readResponse(resp, opts, startTime)
+	if err != nil {
+		return nil, err
+	}
+
+	// Handle pagination if enabled
+	if opts.Paginate && resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		paginatedBody, err := handlePagination(ctx, client, opts, response)
+		if err != nil {
+			if opts.Verbose {
+				fmt.Fprintf(os.Stderr, "Warning: Pagination failed: %v\n", err)
+			}
+			return response, nil
+		}
+		if paginatedBody != nil {
+			response.Body = paginatedBody
+		}
+	}
+
+	return response, nil
+}
+
+// buildRequest constructs the HTTP request with auth, headers, and redirect config.
+func (c *Client) buildRequest(ctx context.Context, opts RequestOptions) (*http.Request, *http.Client, error) {
 	maxRedirects := opts.MaxRedirects
 	if maxRedirects == 0 {
 		maxRedirects = DefaultMaxRedirects
 	}
 	client := c.httpClient
 
-	// Create request
 	req, err := http.NewRequestWithContext(ctx, opts.Method, opts.URL, opts.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	// Inject per-request redirect policy via context.
@@ -175,7 +211,7 @@ func (c *Client) Execute(ctx context.Context, opts RequestOptions) (*Response, e
 	if !opts.SkipAuth && opts.Scope != "" && c.tokenProvider != nil {
 		token, err := c.tokenProvider.GetToken(ctx, opts.Scope)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get authentication token: %w", err)
+			return nil, nil, fmt.Errorf("failed to get authentication token: %w", err)
 		}
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
@@ -190,7 +226,6 @@ func (c *Client) Execute(ctx context.Context, opts RequestOptions) (*Response, e
 		fmt.Fprintf(os.Stderr, "> %s %s\n", opts.Method, RedactURL(opts.URL))
 		for key, values := range req.Header {
 			for _, value := range values {
-				// Redact sensitive headers
 				redactedValue := RedactSensitiveHeader(key, value)
 				fmt.Fprintf(os.Stderr, "> %s: %s\n", key, redactedValue)
 			}
@@ -198,8 +233,11 @@ func (c *Client) Execute(ctx context.Context, opts RequestOptions) (*Response, e
 		fmt.Fprintf(os.Stderr, "> \n")
 	}
 
-	// Execute request with retry logic
-	var resp *http.Response
+	return req, client, nil
+}
+
+// executeWithRetry executes the HTTP request with exponential backoff retry logic.
+func (c *Client) executeWithRetry(ctx context.Context, req *http.Request, client *http.Client, opts RequestOptions) (*http.Response, error) {
 	maxRetries := opts.Retry
 	if maxRetries < 0 {
 		maxRetries = 0
@@ -228,7 +266,6 @@ func (c *Client) Execute(ctx context.Context, opts RequestOptions) (*Response, e
 			}
 		}
 		// Update the initial request body to use the buffered reader
-		// since the original body has been consumed by ReadAll above.
 		if br, ok := bodyReader.(*bytes.Reader); ok {
 			_, _ = br.Seek(0, io.SeekStart)
 			req.Body = io.NopCloser(br)
@@ -251,7 +288,7 @@ backoff := time.Duration(1<<uint(shift)) * time.Second
 			case <-time.After(backoff):
 			}
 
-			// Recreate request for retry
+			// Reset body for retry
 			if bodyReader != nil {
 				if br, ok := bodyReader.(*bytes.Reader); ok {
 					_, _ = br.Seek(0, io.SeekStart)
@@ -276,6 +313,7 @@ backoff := time.Duration(1<<uint(shift)) * time.Second
 			}
 		}
 
+		var resp *http.Response
 		resp, lastErr = client.Do(req)
 		if lastErr == nil {
 			// Check if response status is retryable (5xx errors)
@@ -283,7 +321,7 @@ backoff := time.Duration(1<<uint(shift)) * time.Second
 				_ = resp.Body.Close()
 				continue
 			}
-			break // Success or non-retryable error
+			return resp, nil
 		}
 
 		// Check if error is retryable
@@ -297,12 +335,11 @@ backoff := time.Duration(1<<uint(shift)) * time.Second
 		}
 	}
 
-	if resp == nil {
-		return nil, fmt.Errorf("request failed: %w", lastErr)
-	}
-	defer func() { _ = resp.Body.Close() }()
+	return nil, fmt.Errorf("request failed: %w", lastErr)
+}
 
-	// Read response body with size limit
+// readResponse reads the HTTP response body with size limits and constructs a Response.
+func (c *Client) readResponse(resp *http.Response, opts RequestOptions, startTime time.Time) (*Response, error) {
 	maxSize := opts.MaxResponseSize
 	if maxSize <= 0 {
 		maxSize = DefaultMaxResponseSize
@@ -319,31 +356,13 @@ backoff := time.Duration(1<<uint(shift)) * time.Second
 		return nil, fmt.Errorf("response body exceeds maximum size of %d bytes", maxSize)
 	}
 
-	duration := time.Since(startTime)
-
-	response := &Response{
+	return &Response{
 		StatusCode: resp.StatusCode,
 		Status:     resp.Status,
 		Headers:    resp.Header,
 		Body:       responseBody,
-		Duration:   duration,
-	}
-
-	// Handle pagination if enabled
-	if opts.Paginate && resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		paginatedBody, err := handlePagination(ctx, client, opts, response)
-		if err != nil {
-			if opts.Verbose {
-				fmt.Fprintf(os.Stderr, "Warning: Pagination failed: %v\n", err)
-			}
-			return response, nil
-		}
-		if paginatedBody != nil {
-			response.Body = paginatedBody
-		}
-	}
-
-	return response, nil
+		Duration:   time.Since(startTime),
+	}, nil
 }
 
 // ShouldSkipAuth determines if authentication should be skipped
