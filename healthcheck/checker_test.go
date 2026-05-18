@@ -12,8 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sony/gobreaker"
-	"golang.org/x/time/rate"
 )
 
 func TestNewHealthChecker(t *testing.T) {
@@ -21,16 +19,11 @@ func TestNewHealthChecker(t *testing.T) {
 		timeout:            5 * time.Second,
 		defaultEndpoint:    "/health",
 		httpClient:         &http.Client{Timeout: 5 * time.Second},
-		breakers:           make(map[string]*gobreaker.CircuitBreaker),
-		rateLimiters:       make(map[string]*rate.Limiter),
-		endpointCache:      make(map[string]string),
-		enableBreaker:      true,
-		breakerFailures:    5,
-		breakerTimeout:     30 * time.Second,
-		rateLimit:          10,
+		breakers:           newCircuitBreakerManager(true, 5, 30*time.Second),
+		rateLimiters:       newRateLimiterManager(10),
+		endpointCache:      newEndpointCache(),
 		startupGracePeriod: 30 * time.Second,
 	}
-
 	if checker.timeout != 5*time.Second {
 		t.Errorf("Timeout = %v, want %v", checker.timeout, 5*time.Second)
 	}
@@ -40,77 +33,33 @@ func TestNewHealthChecker(t *testing.T) {
 }
 
 func TestGetOrCreateCircuitBreaker(t *testing.T) {
-	checker := &HealthChecker{
-		breakers:        make(map[string]*gobreaker.CircuitBreaker),
-		enableBreaker:   true,
-		breakerFailures: 3,
-		breakerTimeout:  10 * time.Second,
-	}
-
-	breaker1 := checker.getOrCreateCircuitBreaker("service1")
-	if breaker1 == nil {
-		t.Fatal("Expected non-nil circuit breaker")
-	}
-
-	breaker2 := checker.getOrCreateCircuitBreaker("service1")
-	if breaker1 != breaker2 {
-		t.Error("Expected same circuit breaker instance")
-	}
-
-	breaker3 := checker.getOrCreateCircuitBreaker("service2")
-	if breaker1 == breaker3 {
-		t.Error("Expected different circuit breaker for different service")
-	}
+	mgr := newCircuitBreakerManager(true, 3, 10*time.Second)
+	b1 := mgr.GetOrCreate("s1")
+	if b1 == nil { t.Fatal("Expected non-nil") }
+	if mgr.GetOrCreate("s1") != b1 { t.Error("Expected same") }
+	if mgr.GetOrCreate("s2") == b1 { t.Error("Expected different") }
 }
 
 func TestGetOrCreateCircuitBreaker_Disabled(t *testing.T) {
-	checker := &HealthChecker{
-		breakers:      make(map[string]*gobreaker.CircuitBreaker),
-		enableBreaker: false,
-	}
-
-	breaker := checker.getOrCreateCircuitBreaker("service1")
-	if breaker != nil {
-		t.Error("Expected nil circuit breaker when disabled")
-	}
+	mgr := newCircuitBreakerManager(false, 0, 0)
+	if mgr.GetOrCreate("s1") != nil { t.Error("Expected nil when disabled") }
 }
 
 func TestGetOrCreateRateLimiter(t *testing.T) {
-	checker := &HealthChecker{
-		rateLimiters: make(map[string]*rate.Limiter),
-		rateLimit:    5,
-	}
-
-	limiter1 := checker.getOrCreateRateLimiter("service1")
-	if limiter1 == nil {
-		t.Fatal("Expected non-nil rate limiter")
-	}
-
-	limiter2 := checker.getOrCreateRateLimiter("service1")
-	if limiter1 != limiter2 {
-		t.Error("Expected same rate limiter instance")
-	}
-
-	limiter3 := checker.getOrCreateRateLimiter("service2")
-	if limiter1 == limiter3 {
-		t.Error("Expected different rate limiter for different service")
-	}
+	mgr := newRateLimiterManager(5)
+	l1 := mgr.GetOrCreate("s1")
+	if l1 == nil { t.Fatal("Expected non-nil") }
+	if mgr.GetOrCreate("s1") != l1 { t.Error("Expected same") }
+	if mgr.GetOrCreate("s2") == l1 { t.Error("Expected different") }
 }
 
 func TestGetOrCreateRateLimiter_Disabled(t *testing.T) {
-	checker := &HealthChecker{
-		rateLimiters: make(map[string]*rate.Limiter),
-		rateLimit:    0,
-	}
-
-	limiter := checker.getOrCreateRateLimiter("service1")
-	if limiter != nil {
-		t.Error("Expected nil rate limiter when disabled (rateLimit <= 0)")
-	}
+	mgr := newRateLimiterManager(0)
+	if mgr.GetOrCreate("s1") != nil { t.Error("Expected nil when disabled") }
 }
 
 func TestStatusFromHTTPCode(t *testing.T) {
-	checker := &HealthChecker{}
+	checker := &HealthChecker{breakers: newCircuitBreakerManager(false, 0, 0), rateLimiters: newRateLimiterManager(0), endpointCache: newEndpointCache()}
 
 	tests := []struct {
 		code       int
@@ -139,7 +88,7 @@ func TestStatusFromHTTPCode(t *testing.T) {
 }
 
 func TestParseHealthResponseBody(t *testing.T) {
-	checker := &HealthChecker{}
+	checker := &HealthChecker{breakers: newCircuitBreakerManager(false, 0, 0), rateLimiters: newRateLimiterManager(0), endpointCache: newEndpointCache()}
 
 	tests := []struct {
 		name       string
@@ -217,7 +166,7 @@ func TestParseHealthResponseBody(t *testing.T) {
 }
 
 func TestParseHealthResponseBody_InvalidJSON(t *testing.T) {
-	checker := &HealthChecker{}
+	checker := &HealthChecker{breakers: newCircuitBreakerManager(false, 0, 0), rateLimiters: newRateLimiterManager(0), endpointCache: newEndpointCache()}
 	result := &httpHealthCheckResult{
 		Status: HealthStatusHealthy,
 	}
@@ -233,7 +182,7 @@ func TestParseHealthResponseBody_InvalidJSON(t *testing.T) {
 }
 
 func TestCheckPort(t *testing.T) {
-	checker := &HealthChecker{}
+	checker := &HealthChecker{breakers: newCircuitBreakerManager(false, 0, 0), rateLimiters: newRateLimiterManager(0), endpointCache: newEndpointCache()}
 
 	// Start a test listener on loopback
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -273,7 +222,7 @@ func TestCheckPort(t *testing.T) {
 }
 
 func TestCheckPort_ContextCancellation(t *testing.T) {
-	checker := &HealthChecker{}
+	checker := &HealthChecker{breakers: newCircuitBreakerManager(false, 0, 0), rateLimiters: newRateLimiterManager(0), endpointCache: newEndpointCache()}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -369,7 +318,7 @@ func TestPerformHTTPCheck_Timeout(t *testing.T) {
 }
 
 func TestPerformShellCheck(t *testing.T) {
-	checker := &HealthChecker{}
+	checker := &HealthChecker{breakers: newCircuitBreakerManager(false, 0, 0), rateLimiters: newRateLimiterManager(0), endpointCache: newEndpointCache()}
 	ctx := context.Background()
 
 	tests := []struct {
@@ -406,7 +355,7 @@ func TestPerformShellCheck(t *testing.T) {
 }
 
 func TestPerformCommandCheck(t *testing.T) {
-	checker := &HealthChecker{}
+	checker := &HealthChecker{breakers: newCircuitBreakerManager(false, 0, 0), rateLimiters: newRateLimiterManager(0), endpointCache: newEndpointCache()}
 	ctx := context.Background()
 
 	tests := []struct {
@@ -444,7 +393,7 @@ func TestPerformCommandCheck(t *testing.T) {
 }
 
 func TestBuildResultFromHTTPCheck(t *testing.T) {
-	checker := &HealthChecker{}
+	checker := &HealthChecker{breakers: newCircuitBreakerManager(false, 0, 0), rateLimiters: newRateLimiterManager(0), endpointCache: newEndpointCache()}
 
 	httpResult := &httpHealthCheckResult{
 		Endpoint:     "http://localhost:8080/health",
@@ -507,11 +456,9 @@ func TestBuildResultFromHTTPCheck(t *testing.T) {
 func TestChecker_StoppedService(t *testing.T) {
 	checker := &HealthChecker{
 		httpClient:    &http.Client{Timeout: 5 * time.Second},
-		breakers:      make(map[string]*gobreaker.CircuitBreaker),
-		rateLimiters:  make(map[string]*rate.Limiter),
-		endpointCache: make(map[string]string),
-		enableBreaker: false,
-		rateLimit:     0,
+		breakers: newCircuitBreakerManager(false, 0, 0),
+		rateLimiters: newRateLimiterManager(0),
+		endpointCache: newEndpointCache(),
 	}
 
 	svc := ServiceInfo{
@@ -531,11 +478,9 @@ func TestChecker_StoppedService(t *testing.T) {
 func TestChecker_RateLimitExceeded(t *testing.T) {
 	checker := &HealthChecker{
 		httpClient:    &http.Client{Timeout: 5 * time.Second},
-		breakers:      make(map[string]*gobreaker.CircuitBreaker),
-		rateLimiters:  make(map[string]*rate.Limiter),
-		endpointCache: make(map[string]string),
-		enableBreaker: false,
-		rateLimit:     1,
+		breakers: newCircuitBreakerManager(false, 0, 0),
+		rateLimiters: newRateLimiterManager(0),
+		endpointCache: newEndpointCache(),
 	}
 
 	svc := ServiceInfo{
@@ -585,7 +530,7 @@ func TestTryCustomHealthCheck_HTTPUrl(t *testing.T) {
 }
 
 func TestTryCustomHealthCheck_NONE(t *testing.T) {
-	checker := &HealthChecker{}
+	checker := &HealthChecker{breakers: newCircuitBreakerManager(false, 0, 0), rateLimiters: newRateLimiterManager(0), endpointCache: newEndpointCache()}
 
 	config := &HealthCheckConfig{
 		Test: []string{"NONE", "ignored"},
@@ -880,7 +825,7 @@ func TestHTTPCheck_StatusCodeSuggestions(t *testing.T) {
 						return http.ErrUseLastResponse
 					},
 				},
-				endpointCache: make(map[string]string),
+				endpointCache: newEndpointCache(),
 			}
 
 			result := checker.tryHTTPHealthCheck(context.Background(), port)
@@ -909,7 +854,7 @@ func TestTCPCheck_WithSuggestion(t *testing.T) {
 		timeout:            5 * time.Second,
 		defaultEndpoint:    "/health",
 		httpClient:         &http.Client{Timeout: 5 * time.Second},
-		endpointCache:      make(map[string]string),
+		endpointCache: newEndpointCache(),
 		startupGracePeriod: 0,
 	}
 
@@ -990,14 +935,14 @@ func TestNewHealthCheckerFromConfig(t *testing.T) {
 	if checker.defaultEndpoint != "/healthz" {
 		t.Errorf("defaultEndpoint = %q, want %q", checker.defaultEndpoint, "/healthz")
 	}
-	if !checker.enableBreaker {
-		t.Error("enableBreaker should be true")
+	if !checker.breakers.enabled {
+		t.Error("breakers.enabled should be true")
 	}
-	if checker.breakerFailures != 3 {
-		t.Errorf("breakerFailures = %d, want 3", checker.breakerFailures)
+	if checker.breakers.maxFail != 3 {
+		t.Errorf("breakers.maxFail = %d, want 3", checker.breakers.maxFail)
 	}
-	if checker.rateLimit != 5 {
-		t.Errorf("rateLimit = %d, want 5", checker.rateLimit)
+	if checker.rateLimiters.rateLimit != 5 {
+		t.Errorf("rateLimit = %d, want 5", checker.rateLimiters.rateLimit)
 	}
 	if checker.startupGracePeriod != 20*time.Second {
 		t.Errorf("startupGracePeriod = %v, want %v", checker.startupGracePeriod, 20*time.Second)

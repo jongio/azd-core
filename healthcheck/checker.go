@@ -12,13 +12,11 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/jongio/azd-core/procutil"
 	"github.com/sony/gobreaker"
-	"golang.org/x/time/rate"
 )
 
 var (
@@ -45,14 +43,9 @@ type HealthChecker struct {
 	timeout            time.Duration
 	defaultEndpoint    string
 	httpClient         *http.Client
-	breakers           map[string]*gobreaker.CircuitBreaker
-	rateLimiters       map[string]*rate.Limiter
-	endpointCache      map[string]string // Maps service:port to successful endpoint path
-	mu                 sync.RWMutex
-	enableBreaker      bool
-	breakerFailures    int
-	breakerTimeout     time.Duration
-	rateLimit          int
+	breakers           *CircuitBreakerManager
+	rateLimiters       *RateLimiterManager
+	endpointCache      *EndpointCache
 	startupGracePeriod time.Duration
 }
 
@@ -68,13 +61,9 @@ func NewHealthChecker(config MonitorConfig) *HealthChecker {
 	return &HealthChecker{
 		timeout:            config.Timeout,
 		defaultEndpoint:    config.DefaultEndpoint,
-		breakers:           make(map[string]*gobreaker.CircuitBreaker),
-		rateLimiters:       make(map[string]*rate.Limiter),
-		endpointCache:      make(map[string]string),
-		enableBreaker:      config.EnableCircuitBreaker,
-		breakerFailures:    config.CircuitBreakerFailures,
-		breakerTimeout:     config.CircuitBreakerTimeout,
-		rateLimit:          config.RateLimit,
+		breakers:           newCircuitBreakerManager(config.EnableCircuitBreaker, config.CircuitBreakerFailures, config.CircuitBreakerTimeout),
+		rateLimiters:       newRateLimiterManager(config.RateLimit),
+		endpointCache:      newEndpointCache(),
 		startupGracePeriod: gracePeriod,
 		httpClient: &http.Client{
 			Timeout:   config.Timeout,
@@ -84,78 +73,6 @@ func NewHealthChecker(config MonitorConfig) *HealthChecker {
 			},
 		},
 	}
-}
-
-// getOrCreateCircuitBreaker gets or creates a circuit breaker for a service.
-func (c *HealthChecker) getOrCreateCircuitBreaker(serviceName string) *gobreaker.CircuitBreaker {
-	if !c.enableBreaker {
-		return nil
-	}
-
-	c.mu.RLock()
-	breaker, exists := c.breakers[serviceName]
-	c.mu.RUnlock()
-
-	if exists {
-		return breaker
-	}
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if breaker, exists := c.breakers[serviceName]; exists {
-		return breaker
-	}
-
-	settings := gobreaker.Settings{
-		Name:        serviceName,
-		MaxRequests: 3,
-		Interval:    c.breakerTimeout,
-		Timeout:     c.breakerTimeout,
-		ReadyToTrip: func(counts gobreaker.Counts) bool {
-			if c.breakerFailures < 0 {
-				return false
-			}
-			failureRatio := float64(counts.TotalFailures) / float64(counts.Requests)
-			return counts.Requests >= uint32(c.breakerFailures) && failureRatio >= 0.6 //nolint:gosec // G115: safe conversion, breakerFailures is bounded
-		},
-		OnStateChange: func(name string, from gobreaker.State, to gobreaker.State) {
-			if metricsEnabled.Load() {
-				recordCircuitBreakerState(name, to)
-			}
-		},
-	}
-
-	breaker = gobreaker.NewCircuitBreaker(settings)
-	c.breakers[serviceName] = breaker
-	return breaker
-}
-
-// getOrCreateRateLimiter gets or creates a rate limiter for a service.
-func (c *HealthChecker) getOrCreateRateLimiter(serviceName string) *rate.Limiter {
-	if c.rateLimit <= 0 {
-		return nil
-	}
-
-	c.mu.RLock()
-	limiter, exists := c.rateLimiters[serviceName]
-	c.mu.RUnlock()
-
-	if exists {
-		return limiter
-	}
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if limiter, exists := c.rateLimiters[serviceName]; exists {
-		return limiter
-	}
-
-	limiter = rate.NewLimiter(rate.Limit(c.rateLimit), c.rateLimit*2)
-	c.rateLimiters[serviceName] = limiter
-
-	return limiter
 }
 
 // CheckService performs a health check on a single service using cascading strategy.
@@ -175,7 +92,7 @@ func (c *HealthChecker) CheckService(ctx context.Context, svc ServiceInfo) Healt
 	}
 
 	// Apply rate limiting if configured
-	limiter := c.getOrCreateRateLimiter(serviceName)
+	limiter := c.rateLimiters.GetOrCreate(serviceName)
 	if limiter != nil {
 		if err := limiter.Wait(ctx); err != nil {
 			return HealthCheckResult{
@@ -187,7 +104,7 @@ func (c *HealthChecker) CheckService(ctx context.Context, svc ServiceInfo) Healt
 		}
 	}
 
-	breaker := c.getOrCreateCircuitBreaker(serviceName)
+	breaker := c.breakers.GetOrCreate(serviceName)
 
 	var result HealthCheckResult
 
@@ -542,63 +459,40 @@ func (c *HealthChecker) performShellCheck(ctx context.Context, command string, s
 // tryHTTPHealthCheck attempts HTTP health checks using smart endpoint discovery.
 func (c *HealthChecker) tryHTTPHealthCheck(ctx context.Context, port int) *httpHealthCheckResult {
 	cacheKey := fmt.Sprintf("port:%d", port)
-
-	c.mu.Lock()
-	if c.endpointCache == nil {
-		c.endpointCache = make(map[string]string)
-	}
-	c.mu.Unlock()
-
-	c.mu.RLock()
-	cachedEndpoint, hasCached := c.endpointCache[cacheKey]
-	c.mu.RUnlock()
-
+	cachedEndpoint, hasCached := c.endpointCache.Get(cacheKey)
 	if hasCached {
-		if cachedEndpoint == endpointCacheNone {
+		if c.endpointCache.IsNone(cacheKey) {
 			return nil
 		}
-
 		result := c.checkSingleEndpoint(ctx, port, cachedEndpoint)
 		if result != nil && result.Status == HealthStatusHealthy {
 			return result
 		}
-		c.mu.Lock()
-		delete(c.endpointCache, cacheKey)
-		c.mu.Unlock()
+		c.endpointCache.Invalidate(cacheKey)
 	}
-
 	endpoints := []string{c.defaultEndpoint}
 	for _, path := range commonHealthPaths {
 		if path != c.defaultEndpoint {
 			endpoints = append(endpoints, path)
 		}
 	}
-
 	var lastResult *httpHealthCheckResult
-
 	for _, endpoint := range endpoints {
 		if ctx.Err() != nil {
 			return nil
 		}
-
 		result := c.checkSingleEndpoint(ctx, port, endpoint)
 		if result != nil {
 			if result.Status == HealthStatusHealthy {
-				c.mu.Lock()
-				c.endpointCache[cacheKey] = endpoint
-				c.mu.Unlock()
+				c.endpointCache.Set(cacheKey, endpoint)
 				return result
 			}
 			lastResult = result
 		}
 	}
-
 	if lastResult == nil {
-		c.mu.Lock()
-		c.endpointCache[cacheKey] = endpointCacheNone
-		c.mu.Unlock()
+		c.endpointCache.SetNone(cacheKey)
 	}
-
 	return lastResult
 }
 

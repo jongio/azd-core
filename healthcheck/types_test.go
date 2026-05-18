@@ -163,6 +163,9 @@ func TestHTTPHealthCheck(t *testing.T) {
 			port := tcpAddr.Port
 
 			checker := &HealthChecker{
+		breakers:       newCircuitBreakerManager(false, 0, 0),
+		rateLimiters:   newRateLimiterManager(0),
+		endpointCache:  newEndpointCache(),
 				timeout:         5 * time.Second,
 				defaultEndpoint: "/health",
 				httpClient: &http.Client{
@@ -200,6 +203,9 @@ func TestPortCheck(t *testing.T) {
 	port := tcpAddr.Port
 
 	checker := &HealthChecker{
+		breakers:       newCircuitBreakerManager(false, 0, 0),
+		rateLimiters:   newRateLimiterManager(0),
+		endpointCache:  newEndpointCache(),
 		timeout: 5 * time.Second,
 	}
 
@@ -244,6 +250,9 @@ func TestCheckService(t *testing.T) {
 	port := tcpAddr.Port
 
 	checker := &HealthChecker{
+		breakers:       newCircuitBreakerManager(false, 0, 0),
+		rateLimiters:   newRateLimiterManager(0),
+		endpointCache:  newEndpointCache(),
 		timeout:         5 * time.Second,
 		defaultEndpoint: "/health",
 		httpClient: &http.Client{
@@ -276,6 +285,9 @@ func TestCheckService(t *testing.T) {
 
 func TestCheckServiceFallback(t *testing.T) {
 	checker := &HealthChecker{
+		breakers:       newCircuitBreakerManager(false, 0, 0),
+		rateLimiters:   newRateLimiterManager(0),
+		endpointCache:  newEndpointCache(),
 		timeout:         5 * time.Second,
 		defaultEndpoint: "/health",
 		httpClient: &http.Client{
@@ -311,6 +323,9 @@ func TestCustomHealthCheck_HTTPUrl(t *testing.T) {
 	defer server.Close()
 
 	checker := &HealthChecker{
+		breakers:       newCircuitBreakerManager(false, 0, 0),
+		rateLimiters:   newRateLimiterManager(0),
+		endpointCache:  newEndpointCache(),
 		timeout:         5 * time.Second,
 		defaultEndpoint: "/health",
 		httpClient: &http.Client{
@@ -344,6 +359,9 @@ func TestCustomHealthCheck_HTTPUrl_Unhealthy(t *testing.T) {
 	defer server.Close()
 
 	checker := &HealthChecker{
+		breakers:       newCircuitBreakerManager(false, 0, 0),
+		rateLimiters:   newRateLimiterManager(0),
+		endpointCache:  newEndpointCache(),
 		timeout:         5 * time.Second,
 		defaultEndpoint: "/health",
 		httpClient: &http.Client{
@@ -383,6 +401,9 @@ func TestTryHTTPHealthCheck_Skips404(t *testing.T) {
 	_, _ = fmt.Sscanf(portStr, "%d", &port)
 
 	checker := &HealthChecker{
+		breakers:       newCircuitBreakerManager(false, 0, 0),
+		rateLimiters:   newRateLimiterManager(0),
+		endpointCache:  newEndpointCache(),
 		timeout:         5 * time.Second,
 		defaultEndpoint: "/health",
 		httpClient: &http.Client{
@@ -413,6 +434,9 @@ func TestTryHTTPHealthCheck_Skips400BadRequest(t *testing.T) {
 	_, _ = fmt.Sscanf(portStr, "%d", &port)
 
 	checker := &HealthChecker{
+		breakers:       newCircuitBreakerManager(false, 0, 0),
+		rateLimiters:   newRateLimiterManager(0),
+		endpointCache:  newEndpointCache(),
 		timeout:         5 * time.Second,
 		defaultEndpoint: "/health",
 		httpClient: &http.Client{
@@ -429,6 +453,9 @@ func TestTryHTTPHealthCheck_Skips400BadRequest(t *testing.T) {
 
 func TestCheckService_StoppedService(t *testing.T) {
 	checker := &HealthChecker{
+		breakers:       newCircuitBreakerManager(false, 0, 0),
+		rateLimiters:   newRateLimiterManager(0),
+		endpointCache:  newEndpointCache(),
 		timeout:         5 * time.Second,
 		defaultEndpoint: "/health",
 		httpClient: &http.Client{
@@ -455,6 +482,9 @@ func TestCheckService_StoppedService(t *testing.T) {
 
 func TestCheckService_RunningService(t *testing.T) {
 	checker := &HealthChecker{
+		breakers:       newCircuitBreakerManager(false, 0, 0),
+		rateLimiters:   newRateLimiterManager(0),
+		endpointCache:  newEndpointCache(),
 		timeout:         5 * time.Second,
 		defaultEndpoint: "/health",
 		httpClient: &http.Client{
