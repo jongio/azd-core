@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -629,7 +630,10 @@ func TestTrackFailure_LastSuccessTime(t *testing.T) {
 	}
 	firstSuccess := *result1.LastSuccessTime
 
-	time.Sleep(10 * time.Millisecond)
+	// Ensure time advances for the next time.Now() call inside the tracker
+	for time.Now().Equal(firstSuccess) {
+		runtime.Gosched()
+	}
 
 	result2 := HealthCheckResult{ServiceName: serviceName, Status: HealthStatusUnhealthy}
 	tracker.trackFailure(&result2)

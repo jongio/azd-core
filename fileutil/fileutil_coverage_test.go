@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
-	"time"
 )
 
 // Additional tests to improve coverage to ≥90%
@@ -236,7 +235,6 @@ func TestAtomicWriteJSON_RetryLogic(t *testing.T) {
 		if err := AtomicWriteJSON(path, data); err != nil {
 			t.Errorf("AtomicWriteJSON() iteration %d error = %v", i, err)
 		}
-		time.Sleep(10 * time.Millisecond)
 	}
 
 	// Verify final state
@@ -258,7 +256,6 @@ func TestAtomicWriteFile_RetryLogic(t *testing.T) {
 		if err := AtomicWriteFile(path, data, 0644); err != nil {
 			t.Errorf("AtomicWriteFile() iteration %d error = %v", i, err)
 		}
-		time.Sleep(10 * time.Millisecond)
 	}
 
 	// Verify final state

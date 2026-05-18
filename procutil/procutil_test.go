@@ -107,14 +107,17 @@ func TestIsProcessRunningRealProcess(t *testing.T) {
 	// Wait for process to exit
 	_ = cmd.Wait()
 
-	// Give the system a moment to clean up the process
-	time.Sleep(100 * time.Millisecond)
-
 	// On Unix, process should not be running after kill
 	// On Windows, this may still return true due to stale PID issue
 	if runtime.GOOS != "windows" {
-		// After a brief wait, the process should be gone on Unix
-		time.Sleep(200 * time.Millisecond)
+		// Poll until the process is gone (up to 1 second)
+		deadline := time.Now().Add(1 * time.Second)
+		for time.Now().Before(deadline) {
+			if !IsProcessRunning(pid) {
+				break
+			}
+			runtime.Gosched()
+		}
 		if IsProcessRunning(pid) {
 			t.Logf("Warning: IsProcessRunning(%d) = true after process killed (may be transient)", pid)
 		}
