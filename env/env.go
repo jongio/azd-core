@@ -18,7 +18,7 @@
 //		"API_KEY": "@Microsoft.KeyVault(VaultName=myvault;SecretName=api-key)",
 //	}
 //
-//	resolved, warnings, err := env.ResolveMap(ctx, envMap, resolver, keyvault.ResolveEnvironmentOptions{})
+//	resolved, warnings, err := env.ResolveMap(ctx, envMap, resolver, ResolveOptions{})
 //	if err != nil {
 //		// handle error
 //	}
@@ -37,7 +37,7 @@
 //	}
 //
 //	envSlice := os.Environ() // or []string{"KEY=value", ...}
-//	resolved, warnings, err := env.ResolveSlice(ctx, envSlice, resolver, keyvault.ResolveEnvironmentOptions{})
+//	resolved, warnings, err := env.ResolveSlice(ctx, envSlice, resolver, ResolveOptions{})
 //	if err != nil {
 //		// handle error
 //	}
@@ -48,7 +48,7 @@
 // By default, resolution continues even if individual references fail (warnings are collected).
 // Use StopOnError to fail fast:
 //
-//	opts := keyvault.ResolveEnvironmentOptions{StopOnError: true}
+//	opts := ResolveOptions{StopOnError: true}
 //	resolved, warnings, err := env.ResolveMap(ctx, envMap, resolver, opts)
 //	if err != nil {
 //		// Resolution failed, warnings contains details
@@ -74,12 +74,57 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jongio/azd-core/keyvault"
+	"regexp"
 )
 
-// Resolver abstracts key vault environment resolution to ease testing.
+// ResolveOptions configures environment resolution behavior.
+type ResolveOptions struct {
+	StopOnError bool
+}
+
+// ResolutionWarning captures non-fatal resolution failures.
+type ResolutionWarning struct {
+	Key string
+	Err error
+}
+
+// Resolver abstracts secret reference resolution to ease testing.
 type Resolver interface {
-	ResolveEnvironmentVariables(ctx context.Context, env []string, opts keyvault.ResolveEnvironmentOptions) ([]string, []keyvault.KeyVaultResolutionWarning, error)
+	ResolveEnvironmentVariables(ctx context.Context, env []string, opts ResolveOptions) ([]string, []ResolutionWarning, error)
+}
+
+// Key Vault reference patterns (duplicated from keyvault to avoid import cycle).
+var (
+	kvRefSecretURIPattern = regexp.MustCompile(`^@Microsoft\.KeyVault\(SecretUri=(.+)\)$`)
+	kvRefVaultNamePattern = regexp.MustCompile(`^@Microsoft\.KeyVault\(VaultName=([^;]+);SecretName=([^;)]+)(?:;SecretVersion=([^;)]+))?\)$`)
+	kvRefAzdAkvsPattern   = regexp.MustCompile(`^akvs://([^/]+)/([^/]+)/([^/]+)(?:/([^/]+))?$`)
+)
+
+func IsKeyVaultReference(value string) bool {
+	normalized := normalizeReferenceValue(value)
+	if kvRefSecretURIPattern.MatchString(normalized) {
+		return true
+	}
+	if kvRefVaultNamePattern.MatchString(normalized) {
+		return true
+	}
+	if strings.HasPrefix(normalized, "akvs://") {
+		return kvRefAzdAkvsPattern.MatchString(normalized)
+	}
+	return false
+}
+
+func normalizeReferenceValue(value string) string {
+	normalized := strings.TrimSpace(value)
+	if len(normalized) < 2 {
+		return normalized
+	}
+	first := normalized[0]
+	last := normalized[len(normalized)-1]
+	if (first == '"' && last == '"') || (first == 39 && last == 39) {
+		normalized = strings.TrimSpace(normalized[1 : len(normalized)-1])
+	}
+	return normalized
 }
 
 // MapToSlice converts an env map into KEY=VALUE entries.
@@ -111,7 +156,7 @@ func HasKeyVaultReferences(envVars []string) bool {
 		if len(parts) != 2 {
 			continue
 		}
-		if keyvault.IsKeyVaultReference(parts[1]) {
+		if IsKeyVaultReference(parts[1]) {
 			return true
 		}
 	}
@@ -119,7 +164,7 @@ func HasKeyVaultReferences(envVars []string) bool {
 }
 
 // Resolve applies a key vault resolver to the provided env map if needed.
-func Resolve(ctx context.Context, env map[string]string, resolver Resolver, opts keyvault.ResolveEnvironmentOptions) (map[string]string, []keyvault.KeyVaultResolutionWarning, error) {
+func Resolve(ctx context.Context, env map[string]string, resolver Resolver, opts ResolveOptions) (map[string]string, []ResolutionWarning, error) {
 	if env == nil {
 		env = map[string]string{}
 	}
@@ -160,7 +205,7 @@ func Resolve(ctx context.Context, env map[string]string, resolver Resolver, opts
 //		"DATABASE_URL": "postgres://localhost/db",
 //		"API_KEY": "@Microsoft.KeyVault(VaultName=myvault;SecretName=api-key)",
 //	}
-//	resolved, warnings, err := env.ResolveMap(ctx, envMap, resolver, keyvault.ResolveEnvironmentOptions{})
+//	resolved, warnings, err := env.ResolveMap(ctx, envMap, resolver, ResolveOptions{})
 //	if err != nil {
 //		// handle error
 //	}
@@ -168,7 +213,7 @@ func Resolve(ctx context.Context, env map[string]string, resolver Resolver, opts
 //		// log warning: w.Key, w.Err
 //	}
 //	// resolved["API_KEY"] now contains the actual secret value
-func ResolveMap(ctx context.Context, envMap map[string]string, resolver Resolver, opts keyvault.ResolveEnvironmentOptions) (map[string]string, []keyvault.KeyVaultResolutionWarning, error) {
+func ResolveMap(ctx context.Context, envMap map[string]string, resolver Resolver, opts ResolveOptions) (map[string]string, []ResolutionWarning, error) {
 	return Resolve(ctx, envMap, resolver, opts)
 }
 
@@ -191,7 +236,7 @@ func ResolveMap(ctx context.Context, envMap map[string]string, resolver Resolver
 //		"DATABASE_URL=postgres://localhost/db",
 //		"API_KEY=@Microsoft.KeyVault(VaultName=myvault;SecretName=api-key)",
 //	}
-//	resolved, warnings, err := env.ResolveSlice(ctx, envSlice, resolver, keyvault.ResolveEnvironmentOptions{})
+//	resolved, warnings, err := env.ResolveSlice(ctx, envSlice, resolver, ResolveOptions{})
 //	if err != nil {
 //		// handle error
 //	}
@@ -199,7 +244,7 @@ func ResolveMap(ctx context.Context, envMap map[string]string, resolver Resolver
 //		// log warning: w.Key, w.Err
 //	}
 //	// resolved can now be used with cmd.Env = resolved
-func ResolveSlice(ctx context.Context, envSlice []string, resolver Resolver, opts keyvault.ResolveEnvironmentOptions) ([]string, []keyvault.KeyVaultResolutionWarning, error) {
+func ResolveSlice(ctx context.Context, envSlice []string, resolver Resolver, opts ResolveOptions) ([]string, []ResolutionWarning, error) {
 	if envSlice == nil {
 		return []string{}, nil, nil
 	}

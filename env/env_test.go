@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/jongio/azd-core/keyvault"
 )
 
 func TestMapToSliceAndBack(t *testing.T) {
@@ -44,7 +43,7 @@ func TestHasKeyVaultReferences(t *testing.T) {
 
 func TestResolveSkipsWhenResolverMissing(t *testing.T) {
 	env := map[string]string{"FOO": "bar"}
-	result, warnings, err := Resolve(context.Background(), env, nil, keyvault.ResolveEnvironmentOptions{})
+	result, warnings, err := Resolve(context.Background(), env, nil, ResolveOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -66,7 +65,7 @@ func TestResolveUsesResolverForReferences(t *testing.T) {
 		resolved: []string{"SECRET=resolved", "FOO=bar"},
 	}
 
-	result, warnings, err := Resolve(context.Background(), env, fake, keyvault.ResolveEnvironmentOptions{})
+	result, warnings, err := Resolve(context.Background(), env, fake, ResolveOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -88,7 +87,7 @@ func TestResolveSkipsWhenNoReferences(t *testing.T) {
 	env := map[string]string{"FOO": "bar"}
 	fake := &fakeResolver{resolved: MapToSlice(env)}
 
-	result, warnings, err := Resolve(context.Background(), env, fake, keyvault.ResolveEnvironmentOptions{})
+	result, warnings, err := Resolve(context.Background(), env, fake, ResolveOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -108,14 +107,14 @@ func TestResolvePropagatesError(t *testing.T) {
 		"SECRET": "@Microsoft.KeyVault(VaultName=vault;SecretName=name)",
 	}
 
-	warning := keyvault.KeyVaultResolutionWarning{Key: "SECRET", Err: errors.New("resolve failed")}
+	warning := ResolutionWarning{Key: "SECRET", Err: errors.New("resolve failed")}
 	fake := &fakeResolver{
 		resolved: MapToSlice(env),
-		warnings: []keyvault.KeyVaultResolutionWarning{warning},
+		warnings: []ResolutionWarning{warning},
 		err:      warning.Err,
 	}
 
-	result, warnings, err := Resolve(context.Background(), env, fake, keyvault.ResolveEnvironmentOptions{})
+	result, warnings, err := Resolve(context.Background(), env, fake, ResolveOptions{})
 	if err == nil {
 		t.Fatal("expected error but got none")
 	}
@@ -129,12 +128,12 @@ func TestResolvePropagatesError(t *testing.T) {
 
 type fakeResolver struct {
 	resolved []string
-	warnings []keyvault.KeyVaultResolutionWarning
+	warnings []ResolutionWarning
 	err      error
 	called   bool
 }
 
-func (f *fakeResolver) ResolveEnvironmentVariables(ctx context.Context, env []string, opts keyvault.ResolveEnvironmentOptions) ([]string, []keyvault.KeyVaultResolutionWarning, error) {
+func (f *fakeResolver) ResolveEnvironmentVariables(ctx context.Context, env []string, opts ResolveOptions) ([]string, []ResolutionWarning, error) {
 	f.called = true
 	if f.resolved == nil {
 		f.resolved = env
@@ -202,7 +201,7 @@ func TestResolveWithNilEnvironment(t *testing.T) {
 		resolved: []string{},
 	}
 
-	result, warnings, err := Resolve(context.Background(), nil, resolver, keyvault.ResolveEnvironmentOptions{})
+	result, warnings, err := Resolve(context.Background(), nil, resolver, ResolveOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -259,14 +258,14 @@ func TestResolveEnvironmentVariables_WithStopOnError(t *testing.T) {
 		"SECRET": "@Microsoft.KeyVault(VaultName=vault;SecretName=name)",
 	}
 
-	warning := keyvault.KeyVaultResolutionWarning{Key: "SECRET", Err: errors.New("resolve failed")}
+	warning := ResolutionWarning{Key: "SECRET", Err: errors.New("resolve failed")}
 	fake := &fakeResolver{
 		resolved: MapToSlice(env),
-		warnings: []keyvault.KeyVaultResolutionWarning{warning},
+		warnings: []ResolutionWarning{warning},
 		err:      warning.Err,
 	}
 
-	_, warnings, err := Resolve(context.Background(), env, fake, keyvault.ResolveEnvironmentOptions{StopOnError: true})
+	_, warnings, err := Resolve(context.Background(), env, fake, ResolveOptions{StopOnError: true})
 	if err == nil {
 		t.Fatal("expected error with StopOnError=true")
 	}
@@ -287,19 +286,19 @@ func TestResolveWithDifferentOptions(t *testing.T) {
 	fake := &fakeResolver{resolved: MapToSlice(env)}
 
 	// Test with default options
-	_, _, err := Resolve(context.Background(), env, fake, keyvault.ResolveEnvironmentOptions{})
+	_, _, err := Resolve(context.Background(), env, fake, ResolveOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	// Test with StopOnError true
-	_, _, err = Resolve(context.Background(), env, fake, keyvault.ResolveEnvironmentOptions{StopOnError: true})
+	_, _, err = Resolve(context.Background(), env, fake, ResolveOptions{StopOnError: true})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	// Test with StopOnError false
-	_, _, err = Resolve(context.Background(), env, fake, keyvault.ResolveEnvironmentOptions{StopOnError: false})
+	_, _, err = Resolve(context.Background(), env, fake, ResolveOptions{StopOnError: false})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -317,7 +316,7 @@ func TestResolveMap_WithReferences(t *testing.T) {
 		resolved: []string{"SECRET=resolved-secret", "FOO=bar"},
 	}
 
-	result, warnings, err := ResolveMap(context.Background(), env, fake, keyvault.ResolveEnvironmentOptions{})
+	result, warnings, err := ResolveMap(context.Background(), env, fake, ResolveOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -343,7 +342,7 @@ func TestResolveMap_NoReferences(t *testing.T) {
 	env := map[string]string{"FOO": "bar", "BAZ": "qux"}
 	fake := &fakeResolver{resolved: MapToSlice(env)}
 
-	result, warnings, err := ResolveMap(context.Background(), env, fake, keyvault.ResolveEnvironmentOptions{})
+	result, warnings, err := ResolveMap(context.Background(), env, fake, ResolveOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -366,7 +365,7 @@ func TestResolveMap_NilResolver(t *testing.T) {
 		"SECRET": "@Microsoft.KeyVault(VaultName=vault;SecretName=name)",
 	}
 
-	result, warnings, err := ResolveMap(context.Background(), env, nil, keyvault.ResolveEnvironmentOptions{})
+	result, warnings, err := ResolveMap(context.Background(), env, nil, ResolveOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -385,7 +384,7 @@ func TestResolveMap_NilEnvironment(t *testing.T) {
 		resolved: []string{},
 	}
 
-	result, warnings, err := ResolveMap(context.Background(), nil, resolver, keyvault.ResolveEnvironmentOptions{})
+	result, warnings, err := ResolveMap(context.Background(), nil, resolver, ResolveOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -404,14 +403,14 @@ func TestResolveMap_WithError(t *testing.T) {
 		"SECRET": "@Microsoft.KeyVault(VaultName=vault;SecretName=name)",
 	}
 
-	warning := keyvault.KeyVaultResolutionWarning{Key: "SECRET", Err: errors.New("resolve failed")}
+	warning := ResolutionWarning{Key: "SECRET", Err: errors.New("resolve failed")}
 	fake := &fakeResolver{
 		resolved: MapToSlice(env),
-		warnings: []keyvault.KeyVaultResolutionWarning{warning},
+		warnings: []ResolutionWarning{warning},
 		err:      warning.Err,
 	}
 
-	result, warnings, err := ResolveMap(context.Background(), env, fake, keyvault.ResolveEnvironmentOptions{StopOnError: true})
+	result, warnings, err := ResolveMap(context.Background(), env, fake, ResolveOptions{StopOnError: true})
 	if err == nil {
 		t.Fatal("expected error but got none")
 	}
@@ -437,7 +436,7 @@ func TestResolveSlice_WithReferences(t *testing.T) {
 		resolved: []string{"FOO=bar", "SECRET=resolved-secret"},
 	}
 
-	result, warnings, err := ResolveSlice(context.Background(), envSlice, fake, keyvault.ResolveEnvironmentOptions{})
+	result, warnings, err := ResolveSlice(context.Background(), envSlice, fake, ResolveOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -460,7 +459,7 @@ func TestResolveSlice_NoReferences(t *testing.T) {
 	envSlice := []string{"FOO=bar", "BAZ=qux"}
 	fake := &fakeResolver{resolved: envSlice}
 
-	result, warnings, err := ResolveSlice(context.Background(), envSlice, fake, keyvault.ResolveEnvironmentOptions{})
+	result, warnings, err := ResolveSlice(context.Background(), envSlice, fake, ResolveOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -488,7 +487,7 @@ func TestResolveSlice_NilResolver(t *testing.T) {
 		"SECRET=@Microsoft.KeyVault(VaultName=vault;SecretName=name)",
 	}
 
-	result, warnings, err := ResolveSlice(context.Background(), envSlice, nil, keyvault.ResolveEnvironmentOptions{})
+	result, warnings, err := ResolveSlice(context.Background(), envSlice, nil, ResolveOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -507,7 +506,7 @@ func TestResolveSlice_NilSlice(t *testing.T) {
 		resolved: []string{},
 	}
 
-	result, warnings, err := ResolveSlice(context.Background(), nil, resolver, keyvault.ResolveEnvironmentOptions{})
+	result, warnings, err := ResolveSlice(context.Background(), nil, resolver, ResolveOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -526,14 +525,14 @@ func TestResolveSlice_WithError(t *testing.T) {
 		"SECRET=@Microsoft.KeyVault(VaultName=vault;SecretName=name)",
 	}
 
-	warning := keyvault.KeyVaultResolutionWarning{Key: "SECRET", Err: errors.New("resolve failed")}
+	warning := ResolutionWarning{Key: "SECRET", Err: errors.New("resolve failed")}
 	fake := &fakeResolver{
 		resolved: envSlice,
-		warnings: []keyvault.KeyVaultResolutionWarning{warning},
+		warnings: []ResolutionWarning{warning},
 		err:      warning.Err,
 	}
 
-	result, warnings, err := ResolveSlice(context.Background(), envSlice, fake, keyvault.ResolveEnvironmentOptions{StopOnError: true})
+	result, warnings, err := ResolveSlice(context.Background(), envSlice, fake, ResolveOptions{StopOnError: true})
 	if err == nil {
 		t.Fatal("expected error but got none")
 	}
@@ -553,14 +552,14 @@ func TestResolveSlice_WithWarnings(t *testing.T) {
 		"SECRET=@Microsoft.KeyVault(VaultName=vault;SecretName=name)",
 	}
 
-	warning := keyvault.KeyVaultResolutionWarning{Key: "SECRET", Err: errors.New("resolve failed")}
+	warning := ResolutionWarning{Key: "SECRET", Err: errors.New("resolve failed")}
 	fake := &fakeResolver{
 		resolved: []string{"FOO=bar", "SECRET=@Microsoft.KeyVault(VaultName=vault;SecretName=name)"},
-		warnings: []keyvault.KeyVaultResolutionWarning{warning},
+		warnings: []ResolutionWarning{warning},
 		err:      nil, // No error, just warnings
 	}
 
-	result, warnings, err := ResolveSlice(context.Background(), envSlice, fake, keyvault.ResolveEnvironmentOptions{})
+	result, warnings, err := ResolveSlice(context.Background(), envSlice, fake, ResolveOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -604,7 +603,7 @@ func TestResolveSlice_EmptySlice(t *testing.T) {
 	envSlice := []string{}
 	fake := &fakeResolver{resolved: []string{}}
 
-	result, warnings, err := ResolveSlice(context.Background(), envSlice, fake, keyvault.ResolveEnvironmentOptions{})
+	result, warnings, err := ResolveSlice(context.Background(), envSlice, fake, ResolveOptions{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
