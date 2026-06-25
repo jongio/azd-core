@@ -18,27 +18,27 @@ import (
 	"time"
 )
 
-
 const (
-// DefaultMaxRedirects is the maximum number of HTTP redirects to follow.
-DefaultMaxRedirects = 10
+	// DefaultMaxRedirects is the maximum number of HTTP redirects to follow.
+	DefaultMaxRedirects = 10
 
-// DefaultMaxRetries is the default number of retry attempts for failed requests.
-DefaultMaxRetries = 3
+	// DefaultMaxRetries is the default number of retry attempts for failed requests.
+	DefaultMaxRetries = 3
 
-// DefaultMaxResponseSize is the maximum response body size in bytes (100 MB).
-DefaultMaxResponseSize = 100 * 1024 * 1024
+	// DefaultMaxResponseSize is the maximum response body size in bytes (100 MB).
+	DefaultMaxResponseSize = 100 * 1024 * 1024
 
-// MaxBodySizeForRetry is the maximum request body size that will be buffered
-// in memory for retry attempts (10 MB).
-MaxBodySizeForRetry = 10 * 1024 * 1024
+	// MaxBodySizeForRetry is the maximum request body size that will be buffered
+	// in memory for retry attempts (10 MB).
+	MaxBodySizeForRetry = 10 * 1024 * 1024
 
-// DefaultMaxPaginationPages is the maximum number of pages to follow during pagination.
-DefaultMaxPaginationPages = 1000
+	// DefaultMaxPaginationPages is the maximum number of pages to follow during pagination.
+	DefaultMaxPaginationPages = 1000
 
-// BinaryDetectionBytes is the number of leading bytes inspected when detecting binary content.
-BinaryDetectionBytes = 512
+	// BinaryDetectionBytes is the number of leading bytes inspected when detecting binary content.
+	BinaryDetectionBytes = 512
 )
+
 // Version is the version string used in the User-Agent header.
 // It can be overridden at build time or by the caller.
 var Version = "0.0.0-dev"
@@ -115,6 +115,7 @@ type redirectConfig struct {
 	maxRedirects    int
 }
 
+// NewClient creates a new HTTP Client with retry, redirect, and TLS configuration.
 func NewClient(tokenProvider TokenProvider, insecure bool, timeout time.Duration) *Client {
 	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{
@@ -281,7 +282,7 @@ func (c *Client) executeWithRetry(ctx context.Context, req *http.Request, client
 		if attempt > 0 {
 			// Exponential backoff: 1s, 2s, 4s, etc.
 			shift := min(attempt-1, 30) // cap to prevent overflow
-backoff := time.Duration(1<<uint(shift)) * time.Second
+			backoff := time.Duration(1<<shift) * time.Second
 			select {
 			case <-ctx.Done():
 				return nil, fmt.Errorf("request canceled: %w", ctx.Err())
@@ -389,59 +390,59 @@ func ShouldSkipAuth(url string, headers map[string]string, skipAuth bool) bool {
 
 // isRetryableError determines if an error is retryable using typed error checks.
 func isRetryableError(err error) bool {
-if err == nil {
-return false
-}
+	if err == nil {
+		return false
+	}
 
-// Context cancellation/deadline exceeded.
-if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
-return true
-}
+	// Context cancellation/deadline exceeded.
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return true
+	}
 
-// Network-level errors: timeouts and temporary failures.
-var netErr net.Error
-if errors.As(err, &netErr) {
-return netErr.Timeout()
-}
+	// Network-level errors: timeouts and temporary failures.
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return netErr.Timeout()
+	}
 
-// DNS resolution failures.
-var dnsErr *net.DNSError
-if errors.As(err, &dnsErr) {
-return true
-}
+	// DNS resolution failures.
+	var dnsErr *net.DNSError
+	if errors.As(err, &dnsErr) {
+		return true
+	}
 
-// Connection-level errors (connection refused, reset, etc.).
-var opErr *net.OpError
-if errors.As(err, &opErr) {
-return true
-}
+	// Connection-level errors (connection refused, reset, etc.).
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		return true
+	}
 
-// url.Error wraps net errors from the HTTP client.
-var urlErr *url.Error
-if errors.As(err, &urlErr) {
-return urlErr.Timeout() || isRetryableError(urlErr.Err)
-}
+	// url.Error wraps net errors from the HTTP client.
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		return urlErr.Timeout() || isRetryableError(urlErr.Err)
+	}
 
-// Fall back to string matching for errors without typed wrappers.
-errStr := strings.ToLower(err.Error())
-retryablePatterns := []string{
-"timeout",
-"connection refused",
-"connection reset",
-"no such host",
-"network is unreachable",
-"temporary failure",
-"i/o timeout",
-"context deadline exceeded",
-}
+	// Fall back to string matching for errors without typed wrappers.
+	errStr := strings.ToLower(err.Error())
+	retryablePatterns := []string{
+		"timeout",
+		"connection refused",
+		"connection reset",
+		"no such host",
+		"network is unreachable",
+		"temporary failure",
+		"i/o timeout",
+		"context deadline exceeded",
+	}
 
-for _, pattern := range retryablePatterns {
-if strings.Contains(errStr, pattern) {
-return true
-}
-}
+	for _, pattern := range retryablePatterns {
+		if strings.Contains(errStr, pattern) {
+			return true
+		}
+	}
 
-return false
+	return false
 }
 
 // DetectContentType attempts to determine if content is binary
@@ -527,11 +528,11 @@ var ErrPaginationPageLimitExceeded = fmt.Errorf("pagination page count limit exc
 
 // extractNextLinkFromBody extracts nextLink from JSON response body (Azure API format)
 func extractNextLinkFromBody(body []byte) (string, bool) {
-var data map[string]any
-if err := json.Unmarshal(body, &data); err != nil {
-return "", false
-}
-return extractNextLinkFromParsed(data)
+	var data map[string]any
+	if err := json.Unmarshal(body, &data); err != nil {
+		return "", false
+	}
+	return extractNextLinkFromParsed(data)
 }
 
 // handlePagination handles pagination by following next links.

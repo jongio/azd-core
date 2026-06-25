@@ -8,7 +8,9 @@ import (
 func TestGetRegistry(t *testing.T) {
 	registryCacheMu.Lock()
 	oldCache := make(map[string]*ServiceRegistry)
-	for k, v := range registryCache { oldCache[k] = v }
+	for k, v := range registryCache {
+		oldCache[k] = v
+	}
 	registryCacheMu.Unlock()
 	t.Cleanup(func() {
 		registryCacheMu.Lock()
@@ -40,7 +42,9 @@ func TestGetRegistry(t *testing.T) {
 func TestGetRegistryEmptyDir(t *testing.T) {
 	registryCacheMu.Lock()
 	oldCache := make(map[string]*ServiceRegistry)
-	for k, v := range registryCache { oldCache[k] = v }
+	for k, v := range registryCache {
+		oldCache[k] = v
+	}
 	registryCacheMu.Unlock()
 	t.Cleanup(func() {
 		registryCacheMu.Lock()

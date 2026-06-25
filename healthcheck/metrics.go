@@ -79,4 +79,3 @@ func containsAny(s string, substrs ...string) bool {
 
 // Ensure backward compatibility - kept as re-exports only for callers
 // that used CreateMetricsServer or ServeMetrics directly.
-

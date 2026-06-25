@@ -534,7 +534,6 @@ func TestAtomicWrite_Concurrency(t *testing.T) {
 		<-done
 	}
 
-
 	// Verify file exists and is not corrupted
 	data, err := os.ReadFile(path)
 	if err != nil {
