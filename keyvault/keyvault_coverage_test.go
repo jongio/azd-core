@@ -36,7 +36,7 @@ func TestResolveBySecretURI_InvalidFormats(t *testing.T) {
 	}
 }
 
-func TestValidateVaultName(t *testing.T) {
+func TestValidateVaultName_Coverage(t *testing.T) {
 	cases := []struct {
 		name      string
 		vaultName string
@@ -122,7 +122,7 @@ func TestResolveByVaultNameAndSecret_InvalidNames(t *testing.T) {
 				credential: nil,
 				clients:    make(map[string]*azsecrets.Client),
 			}
-			_, err := r.resolveByVaultNameAndSecret(context.Background(), tc.vaultName, tc.secretName)
+			_, err := r.resolveByVaultNameAndSecret(context.Background(), tc.vaultName, tc.secretName, "")
 			if err == nil {
 				t.Errorf("resolveByVaultNameAndSecret(%q, %q) expected error", tc.vaultName, tc.secretName)
 			}

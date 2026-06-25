@@ -4,6 +4,7 @@
 package cmdutil
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -48,7 +49,7 @@ func TestPrepareHookCommand_ShellSelection(t *testing.T) {
 	script := filepath.Join(tmpDir, "test.sh")
 	os.WriteFile(script, []byte("#!/bin/bash\necho hello"), 0755)
 
-	cmd := prepareHookCommand(script)
+	cmd := prepareHookCommand(context.Background(), "bash", script, tmpDir, nil)
 	if cmd == nil {
 		t.Fatal("prepareHookCommand returned nil")
 	}
@@ -68,9 +69,23 @@ func TestPrepareHookCommand_EnvVars(t *testing.T) {
 		os.WriteFile(script, []byte("#!/bin/sh\necho hello"), 0755)
 	}
 
-	cmd := prepareHookCommand(script)
+	shell := "bash"
+	if runtime.GOOS == "windows" {
+		shell = "cmd"
+	}
+	cmd := prepareHookCommand(context.Background(), shell, script, tmpDir, []string{"HOOK_TEST_VAR=1"})
 	if cmd == nil {
 		t.Fatal("prepareHookCommand returned nil")
+	}
+	found := false
+	for _, e := range cmd.Env {
+		if e == "HOOK_TEST_VAR=1" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected HOOK_TEST_VAR to be appended to command env")
 	}
 }
 
@@ -85,7 +100,11 @@ func TestConfigureCommandIO_Interactive(t *testing.T) {
 		os.WriteFile(script, []byte("#!/bin/sh"), 0755)
 	}
 
-	cmd := prepareHookCommand(script)
+	shell := "bash"
+	if runtime.GOOS == "windows" {
+		shell = "cmd"
+	}
+	cmd := prepareHookCommand(context.Background(), shell, script, tmpDir, nil)
 	if cmd == nil {
 		t.Fatal("prepareHookCommand returned nil")
 	}
@@ -99,14 +118,14 @@ func TestConfigureCommandIO_Interactive(t *testing.T) {
 }
 
 func TestExecuteHook_EmptyPath(t *testing.T) {
-	err := ExecuteHook("", nil, true)
+	err := ExecuteHook(context.Background(), HookConfig{Run: ""}, ".")
 	if err != nil {
-		t.Errorf("ExecuteHook with empty path should return nil, got %v", err)
+		t.Errorf("ExecuteHook with empty Run should return nil, got %v", err)
 	}
 }
 
 func TestExecuteHook_NonExistentScript(t *testing.T) {
-	err := ExecuteHook("/nonexistent/path/hook.sh", nil, false)
+	err := ExecuteHook(context.Background(), HookConfig{Run: "/nonexistent/path/hook.sh"}, ".")
 	if err == nil {
 		t.Error("ExecuteHook with non-existent script should return error")
 	}

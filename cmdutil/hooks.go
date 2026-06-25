@@ -78,11 +78,16 @@ func isScriptFilePath(script string) bool {
 		return false
 	}
 
-	pathPrefixes := []string{"./", "../", "/", ".\\", "..\\"}
-	for _, prefix := range pathPrefixes {
-		if strings.HasPrefix(trimmed, prefix) {
-			parts := strings.Fields(trimmed)
-			return len(parts) == 1
+	// Inline commands typically contain multiple space-separated tokens,
+	// whereas a script file reference is a single path token.
+	if len(strings.Fields(trimmed)) != 1 {
+		return false
+	}
+
+	scriptExtensions := []string{".sh", ".ps1", ".psm1", ".cmd", ".bat", ".py"}
+	for _, ext := range scriptExtensions {
+		if strings.HasSuffix(trimmed, ext) {
+			return true
 		}
 	}
 	return false
