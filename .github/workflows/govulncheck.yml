@@ -15,10 +15,6 @@ concurrency:
 permissions:
   contents: read
 
-concurrency:
-  group: govulncheck-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   govulncheck:
     name: Run govulncheck
