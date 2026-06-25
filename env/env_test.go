@@ -364,4 +364,3 @@ func TestCopySlice(t *testing.T) {
 		t.Fatal("clone was modified when original was modified - not a deep copy")
 	}
 }
-

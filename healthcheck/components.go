@@ -10,20 +10,20 @@ import (
 
 // CircuitBreakerManager manages per-service circuit breakers.
 type CircuitBreakerManager struct {
-	breakers        map[string]*gobreaker.CircuitBreaker
-	mu              sync.RWMutex
-	enabled         bool
+	breakers         map[string]*gobreaker.CircuitBreaker
+	mu               sync.RWMutex
+	enabled          bool
 	failureThreshold int
-	timeout         time.Duration
+	timeout          time.Duration
 }
 
 // NewCircuitBreakerManager creates a new CircuitBreakerManager.
 func NewCircuitBreakerManager(enabled bool, failureThreshold int, timeout time.Duration) *CircuitBreakerManager {
 	return &CircuitBreakerManager{
-		breakers:        make(map[string]*gobreaker.CircuitBreaker),
-		enabled:         enabled,
+		breakers:         make(map[string]*gobreaker.CircuitBreaker),
+		enabled:          enabled,
 		failureThreshold: failureThreshold,
-		timeout:         timeout,
+		timeout:          timeout,
 	}
 }
 

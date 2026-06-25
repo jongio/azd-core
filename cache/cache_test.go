@@ -6,8 +6,8 @@ package cache
 import (
 	"os"
 	"path/filepath"
-	"sync"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 )
