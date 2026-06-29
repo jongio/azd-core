@@ -8,7 +8,7 @@
 [![govulncheck](https://img.shields.io/badge/govulncheck-passing-brightgreen)](https://github.com/jongio/azd-core/actions/workflows/govulncheck.yml)
 [![golangci-lint](https://img.shields.io/badge/golangci--lint-enabled-blue)](https://github.com/jongio/azd-core/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Go Version](https://img.shields.io/badge/go-1.26.0-blue)](https://go.dev/)
+[![Go Version](https://img.shields.io/badge/go-1.26.4-blue)](https://go.dev/)
 [![Platform Support](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20windows-lightgrey)](https://github.com/jongio/azd-core)
 
 Common reusable Go modules for building Azure Developer CLI (azd) extensions and tooling.
