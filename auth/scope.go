@@ -6,6 +6,17 @@ import (
 	"strings"
 )
 
+const (
+	managementScope = "https://management.azure.com/.default"
+	graphScope      = "https://graph.microsoft.com/.default"
+	devOpsScope     = "499b84ac-1321-427f-aa17-267ca6975798/.default"
+	serviceBusScope = "https://servicebus.azure.net/.default"
+	eventHubsScope  = "https://eventhubs.azure.net/.default"
+	keyVaultScope   = "https://vault.azure.net/.default"
+	storageScope    = "https://storage.azure.com/.default"
+	ossRdbmsScope   = "https://ossrdbms-aad.database.windows.net/.default"
+)
+
 // DetectScope analyzes a URL and returns the appropriate Azure OAuth scope.
 // Returns empty string when the hostname does not match a known Azure service.
 func DetectScope(urlString string) (string, error) {
@@ -22,10 +33,10 @@ func DetectScope(urlString string) (string, error) {
 	path := parsedURL.EscapedPath()
 
 	exactMatches := map[string]string{
-		"management.azure.com": "https://management.azure.com/.default",
-		"graph.microsoft.com":  "https://graph.microsoft.com/.default",
+		"management.azure.com": managementScope,
+		"graph.microsoft.com":  graphScope,
 		"api.loganalytics.io":  "https://api.loganalytics.io/.default",
-		"dev.azure.com":        "499b84ac-1321-427f-aa17-267ca6975798/.default",
+		"dev.azure.com":        devOpsScope,
 	}
 
 	if scope, ok := exactMatches[host]; ok {
@@ -33,7 +44,7 @@ func DetectScope(urlString string) (string, error) {
 	}
 
 	if strings.HasSuffix(host, ".visualstudio.com") {
-		return "499b84ac-1321-427f-aa17-267ca6975798/.default", nil
+		return devOpsScope, nil
 	}
 
 	if strings.HasSuffix(host, ".kusto.windows.net") {
@@ -42,25 +53,25 @@ func DetectScope(urlString string) (string, error) {
 
 	if strings.HasSuffix(host, ".servicebus.windows.net") {
 		if strings.Contains(path, "/queue") || strings.Contains(path, "/queues") {
-			return "https://servicebus.azure.net/.default", nil
+			return serviceBusScope, nil
 		}
-		return "https://eventhubs.azure.net/.default", nil
+		return eventHubsScope, nil
 	}
 
 	suffixMatches := map[string]string{
-		".vault.azure.net":             "https://vault.azure.net/.default",
-		".blob.core.windows.net":       "https://storage.azure.com/.default",
-		".queue.core.windows.net":      "https://storage.azure.com/.default",
-		".table.core.windows.net":      "https://storage.azure.com/.default",
-		".file.core.windows.net":       "https://storage.azure.com/.default",
-		".dfs.core.windows.net":        "https://storage.azure.com/.default",
+		".vault.azure.net":             keyVaultScope,
+		".blob.core.windows.net":       storageScope,
+		".queue.core.windows.net":      storageScope,
+		".table.core.windows.net":      storageScope,
+		".file.core.windows.net":       storageScope,
+		".dfs.core.windows.net":        storageScope,
 		".azurecr.io":                  "https://containerregistry.azure.net/.default",
 		".documents.azure.com":         "https://cosmos.azure.com/.default",
 		".azconfig.io":                 "https://azconfig.io/.default",
 		".batch.azure.com":             "https://batch.core.windows.net/.default",
-		".postgres.database.azure.com": "https://ossrdbms-aad.database.windows.net/.default",
-		".mysql.database.azure.com":    "https://ossrdbms-aad.database.windows.net/.default",
-		".mariadb.database.azure.com":  "https://ossrdbms-aad.database.windows.net/.default",
+		".postgres.database.azure.com": ossRdbmsScope,
+		".mysql.database.azure.com":    ossRdbmsScope,
+		".mariadb.database.azure.com":  ossRdbmsScope,
 		".database.windows.net":        "https://database.windows.net/.default",
 		".dev.azuresynapse.net":        "https://dev.azuresynapse.net/.default",
 		".azuredatalakestore.net":      "https://datalake.azure.net/.default",

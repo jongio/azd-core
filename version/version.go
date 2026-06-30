@@ -4,6 +4,11 @@ package version
 
 import "fmt"
 
+const (
+	devVersionValue = "0.0.0-dev"
+	unknownValue    = "unknown"
+)
+
 // Info holds version information for an extension.
 type Info struct {
 	Version     string `json:"version"`
@@ -17,9 +22,9 @@ type Info struct {
 // are expected to be set via ldflags at build time.
 func New(extensionID, name string) *Info {
 	return &Info{
-		Version:     "0.0.0-dev",
-		BuildDate:   "unknown",
-		GitCommit:   "unknown",
+		Version:     devVersionValue,
+		BuildDate:   unknownValue,
+		GitCommit:   unknownValue,
 		ExtensionID: extensionID,
 		Name:        name,
 	}

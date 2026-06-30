@@ -49,6 +49,13 @@ const (
 	EnvVarDebug = "AZD_DEBUG"
 )
 
+// Script extension constants.
+const (
+	extPowerShell = ".ps1"
+	extCmd        = ".cmd"
+	extBatch      = ".bat"
+)
+
 // File reading constants for shebang detection.
 const (
 	// shebangPrefix is the expected start of a shebang line ("#!").
@@ -73,12 +80,12 @@ func DetectShell(scriptPath string) string {
 	ext := strings.ToLower(filepath.Ext(scriptPath))
 
 	switch ext {
-	case ".ps1":
+	case extPowerShell:
 		if runtime.GOOS == osWindows {
 			return ShellPowerShell
 		}
 		return ShellPwsh
-	case ".cmd", ".bat":
+	case extCmd, extBatch:
 		return ShellCmd
 	case ".sh":
 		return ShellBash

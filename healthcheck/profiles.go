@@ -66,8 +66,8 @@ func LoadHealthProfiles(projectDir string) (*HealthProfiles, error) {
 func getDefaultProfiles() *HealthProfiles {
 	return &HealthProfiles{
 		Profiles: map[string]HealthProfile{
-			"development": {
-				Name:                   "development",
+			profileDevelopment: {
+				Name:                   profileDevelopment,
 				Interval:               5 * time.Second,
 				Timeout:                10 * time.Second,
 				Retries:                1,
@@ -82,8 +82,8 @@ func getDefaultProfiles() *HealthProfiles {
 				MetricsPort:            9090,
 				CacheTTL:               0,
 			},
-			"production": {
-				Name:                   "production",
+			profileProduction: {
+				Name:                   profileProduction,
 				Interval:               30 * time.Second,
 				Timeout:                5 * time.Second,
 				Retries:                3,
@@ -93,7 +93,7 @@ func getDefaultProfiles() *HealthProfiles {
 				RateLimit:              10,
 				Verbose:                false,
 				LogLevel:               "info",
-				LogFormat:              "json",
+				LogFormat:              logFormatJSON,
 				Metrics:                true,
 				MetricsPort:            9090,
 				CacheTTL:               5 * time.Second,
@@ -109,13 +109,13 @@ func getDefaultProfiles() *HealthProfiles {
 				RateLimit:              0,
 				Verbose:                true,
 				LogLevel:               "info",
-				LogFormat:              "json",
+				LogFormat:              logFormatJSON,
 				Metrics:                false,
 				MetricsPort:            9090,
 				CacheTTL:               0,
 			},
-			"staging": {
-				Name:                   "staging",
+			profileStaging: {
+				Name:                   profileStaging,
 				Interval:               15 * time.Second,
 				Timeout:                10 * time.Second,
 				Retries:                3,
@@ -125,7 +125,7 @@ func getDefaultProfiles() *HealthProfiles {
 				RateLimit:              20,
 				Verbose:                true,
 				LogLevel:               "debug",
-				LogFormat:              "json",
+				LogFormat:              logFormatJSON,
 				Metrics:                true,
 				MetricsPort:            9090,
 				CacheTTL:               3 * time.Second,

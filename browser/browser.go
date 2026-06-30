@@ -20,6 +20,8 @@ import (
 type Target string
 
 const (
+	defaultBrowserDisplayName = "default browser"
+
 	// TargetDefault uses the system default browser
 	TargetDefault Target = "default"
 	// TargetSystem uses the system default browser (alias for TargetDefault)
@@ -115,9 +117,9 @@ func GetTargetDisplayName(target Target) string {
 
 	switch resolved {
 	case TargetSystem, TargetDefault:
-		return "default browser"
+		return defaultBrowserDisplayName
 	case TargetNone:
-		return "none"
+		return string(TargetNone)
 	default:
 		return string(resolved)
 	}

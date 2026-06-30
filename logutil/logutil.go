@@ -28,7 +28,12 @@ const (
 // Environment variable names for logging configuration.
 const (
 	// EnvDebug enables debug logging when set to "true".
-	EnvDebug = "AZD_DEBUG"
+	EnvDebug          = "AZD_DEBUG"
+	envValueTrue      = "true"
+	logLevelDebugName = "debug"
+	logLevelInfoName  = "info"
+	logLevelWarnName  = "warn"
+	logLevelErrorName = "error"
 )
 
 var (
@@ -161,7 +166,7 @@ func IsDebugEnabled() bool {
 	mu.RLock()
 	level := currentLevel
 	mu.RUnlock()
-	return level == LevelDebug || os.Getenv(EnvDebug) == "true"
+	return level == LevelDebug || os.Getenv(EnvDebug) == envValueTrue
 }
 
 // getLogger returns the global logger under read lock for safe concurrent access.
@@ -215,13 +220,13 @@ func Error(msg string, args ...any) {
 // Returns LevelInfo for unrecognized values.
 func ParseLevel(s string) Level {
 	switch strings.ToLower(s) {
-	case "debug":
+	case logLevelDebugName:
 		return LevelDebug
-	case "info":
+	case logLevelInfoName:
 		return LevelInfo
-	case "warn", "warning":
+	case logLevelWarnName, "warning":
 		return LevelWarn
-	case "error":
+	case logLevelErrorName:
 		return LevelError
 	default:
 		return LevelInfo

@@ -83,13 +83,20 @@ func detectEditor() string {
 	return ""
 }
 
+const (
+	editorCode    = "code"
+	editorNotepad = "notepad"
+	editorNano    = "nano"
+	editorVim     = "vim"
+)
+
 // editorNamePattern validates editor names - only alphanumeric, dash, underscore, dot
 var editorNamePattern = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 
 // validateEditor validates an editor string from environment variables.
 // Returns the validated editor name if safe, empty string otherwise.
 // Only allows:
-// - Simple command names found in PATH (e.g., "code", "vim")
+// - Simple command names found in PATH (e.g., editorCode, editorVim)
 // - Absolute paths to executables (validated via LookPath)
 func validateEditor(editor string) string {
 	// Empty is not valid
@@ -136,27 +143,27 @@ func getEditorCandidates() []string {
 	switch runtime.GOOS {
 	case "windows":
 		return []string{
-			"code",    // VS Code
-			"notepad", // Always available
+			editorCode,    // VS Code
+			editorNotepad, // Always available
 			"notepad++",
 		}
 	case "darwin":
 		return []string{
-			"code", // VS Code
-			"subl", // Sublime Text
-			"mate", // TextMate
-			"nano", // Usually available
-			"vim",  // Usually available
-			"open", // macOS default (opens in default app)
+			editorCode, // VS Code
+			"subl",     // Sublime Text
+			"mate",     // TextMate
+			editorNano, // Usually available
+			editorVim,  // Usually available
+			"open",     // macOS default (opens in default app)
 		}
 	default: // Linux and others
 		return []string{
-			"code",     // VS Code
+			editorCode, // VS Code
 			"subl",     // Sublime Text
 			"gedit",    // GNOME
 			"kate",     // KDE
-			"nano",     // Usually available
-			"vim",      // Usually available
+			editorNano, // Usually available
+			editorVim,  // Usually available
 			"vi",       // Always available
 			"xdg-open", // Opens in default app
 		}
@@ -170,15 +177,15 @@ func buildEditorArgs(editor, path string, lineNumber int) []string {
 	// Handle line number for common editors
 	if lineNumber > 0 {
 		switch {
-		case contains(editor, "code"):
+		case contains(editor, editorCode):
 			// VS Code: code --goto file:line
 			args = append(args, "--goto", fmt.Sprintf("%s:%d", path, lineNumber))
 			return args
-		case contains(editor, "vim"), contains(editor, "vi"), contains(editor, "nvim"):
+		case contains(editor, editorVim), contains(editor, "vi"), contains(editor, "nvim"):
 			// Vim: vim +line file
 			args = append(args, fmt.Sprintf("+%d", lineNumber), path)
 			return args
-		case contains(editor, "nano"):
+		case contains(editor, editorNano):
 			// Nano: nano +line file
 			args = append(args, fmt.Sprintf("+%d", lineNumber), path)
 			return args
