@@ -22,6 +22,11 @@ const (
 	FormatJSON Format = "json"
 )
 
+const (
+	statusSuccess = "success"
+	statusRunning = "running"
+)
+
 // ANSI color codes for consistent styling
 const (
 	Reset = "\033[0m"
@@ -431,7 +436,7 @@ func Count(n int) string {
 // Status prints a status badge with appropriate color
 func Status(status string) string {
 	switch strings.ToLower(status) {
-	case "success", "ok", "running", "healthy":
+	case statusSuccess, "ok", statusRunning, "healthy":
 		return BrightGreen + status + Reset
 	case "warning", "pending", "starting":
 		return BrightYellow + status + Reset

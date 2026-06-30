@@ -15,6 +15,20 @@ import (
 	"github.com/sony/gobreaker/v2"
 )
 
+const (
+	labelService   = "service"
+	labelStatus    = "status"
+	labelCheckType = "check_type"
+
+	errorTypeTimeout           = "timeout"
+	errorTypeConnectionRefused = "connection_refused"
+	errorTypeCircuitBreaker    = "circuit_breaker"
+	errorTypePanic             = "panic"
+	errorTypeServerError       = "server_error"
+	errorTypeAuthError         = "auth_error"
+	errorTypeProcessError      = "process_error"
+)
+
 var (
 	healthCheckDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
@@ -22,7 +36,7 @@ var (
 			Help:    "Duration of health checks in seconds",
 			Buckets: []float64{.001, .005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10},
 		},
-		[]string{"service", "status", "check_type"},
+		[]string{labelService, labelStatus, labelCheckType},
 	)
 
 	healthCheckTotal = promauto.NewCounterVec(
@@ -30,7 +44,7 @@ var (
 			Name: "azd_health_check_total",
 			Help: "Total number of health checks performed",
 		},
-		[]string{"service", "status", "check_type"},
+		[]string{labelService, labelStatus, labelCheckType},
 	)
 
 	healthCheckErrors = promauto.NewCounterVec(
@@ -38,7 +52,7 @@ var (
 			Name: "azd_health_check_errors_total",
 			Help: "Total number of health check errors",
 		},
-		[]string{"service", "error_type"},
+		[]string{labelService, "error_type"},
 	)
 
 	serviceUptime = promauto.NewGaugeVec(
@@ -46,7 +60,7 @@ var (
 			Name: "azd_service_uptime_seconds",
 			Help: "Service uptime in seconds since last health check detected it running",
 		},
-		[]string{"service"},
+		[]string{labelService},
 	)
 
 	circuitBreakerState = promauto.NewGaugeVec(
@@ -54,7 +68,7 @@ var (
 			Name: "azd_circuit_breaker_state",
 			Help: "Circuit breaker state (0=closed, 1=half-open, 2=open)",
 		},
-		[]string{"service"},
+		[]string{labelService},
 	)
 
 	healthCheckResponseCode = promauto.NewCounterVec(
@@ -62,7 +76,7 @@ var (
 			Name: "azd_health_check_http_status_total",
 			Help: "HTTP status codes from health checks",
 		},
-		[]string{"service", "status_code"},
+		[]string{labelService, "status_code"},
 	)
 )
 
@@ -82,9 +96,9 @@ type HealthCheckResult struct {
 // RecordHealthCheck records Prometheus metrics for a health check result.
 func RecordHealthCheck(result HealthCheckResult) {
 	labels := prometheus.Labels{
-		"service":    result.ServiceName,
-		"status":     result.Status,
-		"check_type": result.CheckType,
+		labelService:   result.ServiceName,
+		labelStatus:    result.Status,
+		labelCheckType: result.CheckType,
 	}
 
 	healthCheckDuration.With(labels).Observe(result.ResponseTime.Seconds())
@@ -93,21 +107,21 @@ func RecordHealthCheck(result HealthCheckResult) {
 	if result.Error != "" {
 		errorType := getErrorType(result.Error)
 		healthCheckErrors.With(prometheus.Labels{
-			"service":    result.ServiceName,
+			labelService: result.ServiceName,
 			"error_type": errorType,
 		}).Inc()
 	}
 
 	if result.StatusCode > 0 {
 		healthCheckResponseCode.With(prometheus.Labels{
-			"service":     result.ServiceName,
+			labelService:  result.ServiceName,
 			"status_code": http.StatusText(result.StatusCode),
 		}).Inc()
 	}
 
 	if result.IsHealthy && result.Uptime > 0 {
 		serviceUptime.With(prometheus.Labels{
-			"service": result.ServiceName,
+			labelService: result.ServiceName,
 		}).Set(result.Uptime.Seconds())
 	}
 }
@@ -125,31 +139,31 @@ func RecordCircuitBreakerState(serviceName string, state gobreaker.State) {
 	}
 
 	circuitBreakerState.With(prometheus.Labels{
-		"service": serviceName,
+		labelService: serviceName,
 	}).Set(stateValue)
 }
 
 // getErrorType categorizes error messages for better metrics.
 func getErrorType(errMsg string) string {
 	switch {
-	case containsAny(errMsg, "timeout", "deadline", "timed out"):
-		return "timeout"
+	case containsAny(errMsg, errorTypeTimeout, "deadline", "timed out"):
+		return errorTypeTimeout
 	case containsAny(errMsg, "connection refused", "no connection", "unreachable"):
-		return "connection_refused"
+		return errorTypeConnectionRefused
 	case containsAny(errMsg, "circuit breaker", "circuit open", "too many failures"):
-		return "circuit_breaker"
-	case containsAny(errMsg, "panic"):
-		return "panic"
+		return errorTypeCircuitBreaker
+	case containsAny(errMsg, errorTypePanic):
+		return errorTypePanic
 	case containsAny(errMsg, "context canceled", "canceled"):
 		return "canceled"
 	case containsAny(errMsg, "500", "503", "502", "504"):
-		return "server_error"
+		return errorTypeServerError
 	case containsAny(errMsg, "401", "403"):
-		return "auth_error"
+		return errorTypeAuthError
 	case containsAny(errMsg, "404"):
 		return "not_found"
 	case containsAny(errMsg, "process", "PID"):
-		return "process_error"
+		return errorTypeProcessError
 	case containsAny(errMsg, "port"):
 		return "port_error"
 	default:

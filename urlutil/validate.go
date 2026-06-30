@@ -8,9 +8,12 @@ import (
 
 const (
 	// MaxURLLength is the RFC 2616 practical limit for URL length
-	MaxURLLength = 2048
-	schemeHTTP   = "http"
-	schemeHTTPS  = "https"
+	MaxURLLength  = 2048
+	schemeHTTP    = "http"
+	schemeHTTPS   = "https"
+	localhostHost = "localhost"
+	loopbackIPv4  = "127.0.0.1"
+	loopbackIPv6  = "::1"
 )
 
 // Validate performs comprehensive HTTP/HTTPS URL validation using net/url.Parse.
@@ -199,7 +202,7 @@ func ValidateDomain(domain string) error {
 	// Allow letters, numbers, dots, hyphens
 	// Must not start or end with hyphen
 	// Must have at least one dot (except localhost)
-	if domain != "localhost" {
+	if domain != localhostHost {
 		parts := strings.Split(domain, ".")
 		if len(parts) < 2 {
 			return fmt.Errorf("domain must have at least one dot (e.g., example.com)")
@@ -237,8 +240,8 @@ func isLocalhost(hostname string) bool {
 	hostname = strings.ToLower(hostname)
 
 	// Check common localhost names and IPs
-	return hostname == "localhost" ||
-		hostname == "127.0.0.1" ||
-		hostname == "::1" ||
+	return hostname == localhostHost ||
+		hostname == loopbackIPv4 ||
+		hostname == loopbackIPv6 ||
 		hostname == "[::1]"
 }

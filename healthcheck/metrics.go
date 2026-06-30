@@ -42,24 +42,24 @@ func CreateMetricsServer(port int) *http.Server {
 // Kept for backward compatibility with tests.
 func getErrorType(errMsg string) string {
 	switch {
-	case containsAny(errMsg, "timeout", "deadline", "timed out"):
-		return "timeout"
+	case containsAny(errMsg, errorTypeTimeout, "deadline", "timed out"):
+		return errorTypeTimeout
 	case containsAny(errMsg, "connection refused", "no connection", "unreachable"):
-		return "connection_refused"
+		return errorTypeConnectionRefused
 	case containsAny(errMsg, "circuit breaker", "circuit open", "too many failures"):
-		return "circuit_breaker"
-	case containsAny(errMsg, "panic"):
-		return "panic"
+		return errorTypeCircuitBreaker
+	case containsAny(errMsg, errorTypePanic):
+		return errorTypePanic
 	case containsAny(errMsg, "context canceled", "canceled"):
 		return "canceled"
 	case containsAny(errMsg, "500", "503", "502", "504"):
-		return "server_error"
+		return errorTypeServerError
 	case containsAny(errMsg, "401", "403"):
-		return "auth_error"
+		return errorTypeAuthError
 	case containsAny(errMsg, "404"):
 		return "not_found"
 	case containsAny(errMsg, "process", "PID"):
-		return "process_error"
+		return errorTypeProcessError
 	case containsAny(errMsg, "port"):
 		return "port_error"
 	default:

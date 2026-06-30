@@ -80,7 +80,7 @@ func (c *HealthChecker) CheckService(ctx context.Context, svc ServiceInfo) Healt
 	startTime := time.Now()
 	serviceName := svc.Name
 
-	if svc.RegistryStatus == "stopped" {
+	if svc.RegistryStatus == registryStatusStopped {
 		return HealthCheckResult{
 			ServiceName:  serviceName,
 			Timestamp:    time.Now(),
@@ -117,7 +117,7 @@ func (c *HealthChecker) CheckService(ctx context.Context, svc ServiceInfo) Healt
 
 					slog.Error("panic during health check",
 						"service", serviceName,
-						"panic", panicValue,
+						detailKeyPanic, panicValue,
 						"stack", stackTrace,
 					)
 
@@ -128,7 +128,7 @@ func (c *HealthChecker) CheckService(ctx context.Context, svc ServiceInfo) Healt
 						Error:        fmt.Sprintf("panic recovered during health check: %v", r),
 						ErrorDetails: stackTrace,
 						Details: map[string]interface{}{
-							"panic": panicValue,
+							detailKeyPanic: panicValue,
 						},
 					}
 				}
@@ -653,9 +653,9 @@ func (c *HealthChecker) performBuildTaskHealthCheck(svc ServiceInfo, isInStartup
 			result.Status = HealthStatusHealthy
 		}
 		if svc.Mode == ServiceModeBuild {
-			result.Details = map[string]any{"state": "building"}
+			result.Details = map[string]any{detailKeyState: detailStateBuilding}
 		} else {
-			result.Details = map[string]any{"state": "running"}
+			result.Details = map[string]any{detailKeyState: detailStateRunning}
 		}
 		return result
 	}
@@ -664,14 +664,14 @@ func (c *HealthChecker) performBuildTaskHealthCheck(svc ServiceInfo, isInStartup
 		if *svc.ExitCode == 0 {
 			result.Status = HealthStatusHealthy
 			if svc.Mode == ServiceModeBuild {
-				result.Details = map[string]any{"state": "built", "exitCode": 0}
+				result.Details = map[string]any{detailKeyState: detailStateBuilt, detailKeyExitCode: 0}
 			} else {
-				result.Details = map[string]any{"state": "completed", "exitCode": 0}
+				result.Details = map[string]any{detailKeyState: detailStateCompleted, detailKeyExitCode: 0}
 			}
 		} else {
 			result.Status = HealthStatusUnhealthy
 			result.Error = fmt.Sprintf("process exited with code %d", *svc.ExitCode)
-			result.Details = map[string]any{"state": "failed", "exitCode": *svc.ExitCode}
+			result.Details = map[string]any{detailKeyState: "failed", detailKeyExitCode: *svc.ExitCode}
 		}
 		return result
 	}
@@ -679,9 +679,9 @@ func (c *HealthChecker) performBuildTaskHealthCheck(svc ServiceInfo, isInStartup
 	if svc.PID > 0 {
 		result.Status = HealthStatusHealthy
 		if svc.Mode == ServiceModeBuild {
-			result.Details = map[string]any{"state": "built", "note": "exit code not captured"}
+			result.Details = map[string]any{detailKeyState: detailStateBuilt, "note": "exit code not captured"}
 		} else {
-			result.Details = map[string]any{"state": "completed", "note": "exit code not captured"}
+			result.Details = map[string]any{detailKeyState: detailStateCompleted, "note": "exit code not captured"}
 		}
 		return result
 	}
@@ -746,7 +746,7 @@ func suggestHTTPErrorAction(statusCode int) string {
 	case 503:
 		return "Service temporarily unavailable. Check if dependencies are running."
 	case 500, 501, 502, 504, 505, 506, 507, 508, 509, 510, 511:
-		return "Server error. Check application logs for details."
+		return serverErrorAction
 	case 404:
 		return "Health endpoint not found. Verify endpoint configuration."
 	case 401:
@@ -759,7 +759,7 @@ func suggestHTTPErrorAction(statusCode int) string {
 		return "Request timeout. Check network connectivity and service performance."
 	default:
 		if statusCode >= 500 && statusCode < 600 {
-			return "Server error. Check application logs for details."
+			return serverErrorAction
 		}
 		return "HTTP request failed. Check service logs for details."
 	}

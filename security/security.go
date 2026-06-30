@@ -16,6 +16,15 @@ import (
 	"strings"
 )
 
+const (
+	packageManagerNPM    = "npm"
+	packageManagerPNPM   = "pnpm"
+	packageManagerYarn   = "yarn"
+	packageManagerPip    = "pip"
+	packageManagerPoetry = "poetry"
+	envValueTrue         = "true"
+)
+
 var (
 	// ErrInvalidPath indicates a path contains invalid characters or patterns.
 	ErrInvalidPath = errors.New("invalid path")
@@ -110,13 +119,13 @@ func ValidateServiceName(name string, allowEmpty bool) error {
 // ValidatePackageManager checks if the package manager name is allowed.
 func ValidatePackageManager(pm string) error {
 	allowed := map[string]bool{
-		"npm":    true,
-		"pnpm":   true,
-		"yarn":   true,
-		"pip":    true,
-		"poetry": true,
-		"uv":     true,
-		"dotnet": true,
+		packageManagerNPM:    true,
+		packageManagerPNPM:   true,
+		packageManagerYarn:   true,
+		packageManagerPip:    true,
+		packageManagerPoetry: true,
+		"uv":                 true,
+		"dotnet":             true,
 	}
 
 	if !allowed[pm] {
@@ -148,12 +157,12 @@ func SanitizeScriptName(name string) error {
 // - Kubernetes pods (KUBERNETES_SERVICE_HOST set)
 func IsContainerEnvironment() bool {
 	// Check for GitHub Codespaces
-	if os.Getenv("CODESPACES") == "true" {
+	if os.Getenv("CODESPACES") == envValueTrue {
 		return true
 	}
 
 	// Check for VS Code Dev Containers
-	if os.Getenv("REMOTE_CONTAINERS") == "true" {
+	if os.Getenv("REMOTE_CONTAINERS") == envValueTrue {
 		return true
 	}
 

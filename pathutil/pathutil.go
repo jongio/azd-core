@@ -12,6 +12,21 @@ import (
 	"strings"
 )
 
+const (
+	toolNode   = "node"
+	toolPNPM   = "pnpm"
+	toolNPM    = "npm"
+	toolPython = "python"
+	toolPip    = "pip"
+	toolDocker = "docker"
+	toolGit    = "git"
+	toolDotnet = "dotnet"
+	toolAspire = "aspire"
+	toolAzd    = "azd"
+	toolFunc   = "func"
+	toolJava   = "java"
+)
+
 // RefreshPATH refreshes the current process's PATH environment variable
 // by reading from the system and user environment variables.
 // Returns the new PATH value and any error encountered.
@@ -111,8 +126,8 @@ func SearchToolInSystemPath(toolName string) string {
 			"C:\\Program Files\\Python310",
 			"C:\\Program Files\\dotnet",
 			filepath.Join(os.Getenv("LOCALAPPDATA"), "Programs", "Python"),
-			filepath.Join(os.Getenv("APPDATA"), "npm"),
-			filepath.Join(os.Getenv("USERPROFILE"), "AppData", "Roaming", "npm"),
+			filepath.Join(os.Getenv("APPDATA"), toolNPM),
+			filepath.Join(os.Getenv("USERPROFILE"), "AppData", "Roaming", toolNPM),
 			filepath.Join(os.Getenv("USERPROFILE"), "go", "bin"), // Go tools installed via 'go install'
 		}
 	} else {
@@ -132,6 +147,7 @@ func SearchToolInSystemPath(toolName string) string {
 	// Search in each path
 	for _, dir := range searchPaths {
 		fullPath := filepath.Join(dir, exeName)
+		// #nosec G703 -- fullPath is built from fixed system directories and a tool executable name.
 		if _, err := os.Stat(fullPath); err == nil {
 			return fullPath
 		}
@@ -143,28 +159,28 @@ func SearchToolInSystemPath(toolName string) string {
 // GetInstallSuggestion returns a suggestion for how to install a missing tool.
 func GetInstallSuggestion(toolName string) string {
 	suggestions := map[string]string{
-		"node":   "Install from https://nodejs.org/",
-		"pnpm":   "Install from https://pnpm.io/installation",
-		"npm":    "Install Node.js from https://nodejs.org/",
-		"yarn":   "Install from https://yarnpkg.com/getting-started/install",
-		"python": "Install from https://www.python.org/downloads/",
-		"pip":    "Install Python from https://www.python.org/downloads/",
-		"poetry": "Install from https://python-poetry.org/docs/#installation",
-		"uv":     "Install from https://docs.astral.sh/uv/getting-started/installation/",
-		"pipenv": "Install from https://pipenv.pypa.io/en/latest/installation.html",
-		"docker": "Install Docker Desktop from https://www.docker.com/products/docker-desktop",
-		"git":    "Install from https://git-scm.com/downloads",
-		"go":     "Install from https://go.dev/dl/",
-		"dotnet": "Install from https://dotnet.microsoft.com/download",
-		"aspire": "Install from https://learn.microsoft.com/dotnet/aspire/fundamentals/setup-tooling",
-		"azd":    "Install from https://aka.ms/install-azd",
-		"az":     "Install from https://aka.ms/installazurecli",
-		"air":    "Install from https://github.com/air-verse/air#installation",
-		"func":   "Install from https://learn.microsoft.com/azure/azure-functions/functions-run-local#install-the-azure-functions-core-tools",
-		"java":   "Install from https://adoptium.net/",
-		"mvn":    "Install from https://maven.apache.org/install.html",
-		"gradle": "Install from https://gradle.org/install/",
-		"gh":     "Install from https://cli.github.com/",
+		toolNode:   "Install from https://nodejs.org/",
+		toolPNPM:   "Install from https://pnpm.io/installation",
+		toolNPM:    "Install Node.js from https://nodejs.org/",
+		"yarn":     "Install from https://yarnpkg.com/getting-started/install",
+		toolPython: "Install from https://www.python.org/downloads/",
+		toolPip:    "Install Python from https://www.python.org/downloads/",
+		"poetry":   "Install from https://python-poetry.org/docs/#installation",
+		"uv":       "Install from https://docs.astral.sh/uv/getting-started/installation/",
+		"pipenv":   "Install from https://pipenv.pypa.io/en/latest/installation.html",
+		toolDocker: "Install Docker Desktop from https://www.docker.com/products/docker-desktop",
+		toolGit:    "Install from https://git-scm.com/downloads",
+		"go":       "Install from https://go.dev/dl/",
+		toolDotnet: "Install from https://dotnet.microsoft.com/download",
+		toolAspire: "Install from https://learn.microsoft.com/dotnet/aspire/fundamentals/setup-tooling",
+		toolAzd:    "Install from https://aka.ms/install-azd",
+		"az":       "Install from https://aka.ms/installazurecli",
+		"air":      "Install from https://github.com/air-verse/air#installation",
+		toolFunc:   "Install from https://learn.microsoft.com/azure/azure-functions/functions-run-local#install-the-azure-functions-core-tools",
+		toolJava:   "Install from https://adoptium.net/",
+		"mvn":      "Install from https://maven.apache.org/install.html",
+		"gradle":   "Install from https://gradle.org/install/",
+		"gh":       "Install from https://cli.github.com/",
 	}
 
 	if suggestion, ok := suggestions[toolName]; ok {

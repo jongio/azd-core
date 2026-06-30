@@ -37,6 +37,9 @@ const (
 
 	// BinaryDetectionBytes is the number of leading bytes inspected when detecting binary content.
 	BinaryDetectionBytes = 512
+
+	contentTypeOctetStream = "application/octet-stream"
+	jsonValueKey           = "value"
 )
 
 // Version is the version string used in the User-Agent header.
@@ -448,7 +451,7 @@ func isRetryableError(err error) bool {
 // DetectContentType attempts to determine if content is binary
 func DetectContentType(body []byte, contentType string) bool {
 	binaryTypes := []string{
-		"application/octet-stream",
+		contentTypeOctetStream,
 		"application/pdf",
 		"image/",
 		"video/",
@@ -582,7 +585,7 @@ func handlePagination(ctx context.Context, client *http.Client, opts RequestOpti
 		return currentBody, nil
 	}
 
-	if valueArray, ok := firstData["value"].([]any); ok {
+	if valueArray, ok := firstData[jsonValueKey].([]any); ok {
 		allResults = append(allResults, valueArray...)
 	} else {
 		allResults = append(allResults, firstData)
@@ -670,7 +673,7 @@ func handlePagination(ctx context.Context, client *http.Client, opts RequestOpti
 			break
 		}
 
-		if valueArray, ok := pageData["value"].([]any); ok {
+		if valueArray, ok := pageData[jsonValueKey].([]any); ok {
 			allResults = append(allResults, valueArray...)
 		}
 
@@ -693,11 +696,11 @@ func handlePagination(ctx context.Context, client *http.Client, opts RequestOpti
 
 	if len(allResults) > 0 {
 		combined := map[string]any{
-			"value": allResults,
+			jsonValueKey: allResults,
 		}
 
 		for key, value := range firstData {
-			if key != "value" && key != "nextLink" && key != "@odata.nextLink" && key != "@odata.next" {
+			if key != jsonValueKey && key != "nextLink" && key != "@odata.nextLink" && key != "@odata.next" {
 				combined[key] = value
 			}
 		}

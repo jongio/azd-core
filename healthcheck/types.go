@@ -37,9 +37,9 @@ const (
 
 // Common health check endpoint paths to try
 var commonHealthPaths = []string{
-	"/health",
-	"/healthz",
-	"/ready",
+	healthPath,
+	healthzPath,
+	readyPath,
 	"/alive",
 	"/ping",
 }
