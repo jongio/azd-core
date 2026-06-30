@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/jongio/azd-core/procutil"
-	"github.com/sony/gobreaker"
+	"github.com/sony/gobreaker/v2"
 )
 
 var (
