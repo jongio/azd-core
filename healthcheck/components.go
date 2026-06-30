@@ -4,13 +4,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sony/gobreaker"
+	"github.com/sony/gobreaker/v2"
 	"golang.org/x/time/rate"
 )
 
 // CircuitBreakerManager manages per-service circuit breakers.
 type CircuitBreakerManager struct {
-	breakers         map[string]*gobreaker.CircuitBreaker
+	breakers         map[string]*gobreaker.CircuitBreaker[any]
 	mu               sync.RWMutex
 	enabled          bool
 	failureThreshold int
@@ -20,7 +20,7 @@ type CircuitBreakerManager struct {
 // NewCircuitBreakerManager creates a new CircuitBreakerManager.
 func NewCircuitBreakerManager(enabled bool, failureThreshold int, timeout time.Duration) *CircuitBreakerManager {
 	return &CircuitBreakerManager{
-		breakers:         make(map[string]*gobreaker.CircuitBreaker),
+		breakers:         make(map[string]*gobreaker.CircuitBreaker[any]),
 		enabled:          enabled,
 		failureThreshold: failureThreshold,
 		timeout:          timeout,
@@ -28,7 +28,7 @@ func NewCircuitBreakerManager(enabled bool, failureThreshold int, timeout time.D
 }
 
 // GetOrCreate gets or creates a circuit breaker for a service.
-func (m *CircuitBreakerManager) GetOrCreate(serviceName string) *gobreaker.CircuitBreaker {
+func (m *CircuitBreakerManager) GetOrCreate(serviceName string) *gobreaker.CircuitBreaker[any] {
 	if m == nil || !m.enabled {
 		return nil
 	}
@@ -67,7 +67,7 @@ func (m *CircuitBreakerManager) GetOrCreate(serviceName string) *gobreaker.Circu
 		},
 	}
 
-	breaker = gobreaker.NewCircuitBreaker(settings)
+	breaker = gobreaker.NewCircuitBreaker[any](settings)
 	m.breakers[serviceName] = breaker
 	return breaker
 }

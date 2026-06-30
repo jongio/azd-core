@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/jongio/azd-core/healthcheck/metrics"
-	"github.com/sony/gobreaker"
+	"github.com/sony/gobreaker/v2"
 )
 
 // recordHealthCheck records metrics for a health check result.

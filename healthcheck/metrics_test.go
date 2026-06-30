@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sony/gobreaker"
+	"github.com/sony/gobreaker/v2"
 )
 
 func TestRecordHealthCheck_Healthy(t *testing.T) {
