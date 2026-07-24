@@ -425,7 +425,7 @@ func TestGetStatusIconAndColor(t *testing.T) {
 			name:      "pending",
 			status:    TaskStatusPending,
 			wantColor: cliout.Dim,
-			checkIcon: func(icon string) bool { return icon == "○" },
+			checkIcon: func(icon string) bool { return icon == iconPending },
 		},
 		{
 			name:      "running",
@@ -437,13 +437,13 @@ func TestGetStatusIconAndColor(t *testing.T) {
 			name:      "success",
 			status:    TaskStatusSuccess,
 			wantColor: cliout.Green,
-			checkIcon: func(icon string) bool { return icon == "✓" },
+			checkIcon: func(icon string) bool { return icon == iconSuccess },
 		},
 		{
 			name:      "failed",
 			status:    TaskStatusFailed,
 			wantColor: cliout.Red,
-			checkIcon: func(icon string) bool { return icon == "✗" },
+			checkIcon: func(icon string) bool { return icon == iconFailed },
 		},
 		{
 			name:      "skipped",
@@ -1101,7 +1101,7 @@ func TestAssembleProgressLine(t *testing.T) {
 	mp := &MultiProgress{termWidth: 100}
 
 	// Pending status
-	line := mp.assembleProgressLine("○", cliout.Dim, "Task", "─────", 0, "", TaskStatusPending)
+	line := mp.assembleProgressLine(iconPending, cliout.Dim, "Task", "─────", 0, "", TaskStatusPending)
 	if !strings.Contains(line, "Task") {
 		t.Errorf("assembleProgressLine(pending) should contain description, got: %q", line)
 	}
