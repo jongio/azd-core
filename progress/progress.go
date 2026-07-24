@@ -36,6 +36,14 @@ const (
 	bytesPerIncrement       = 1024             // 1KB per write
 )
 
+// Status icon constants
+const (
+	iconPending = "○"
+	iconSuccess = "✓"
+	iconFailed  = "✗"
+	iconSkipped = "-"
+)
+
 // Progress bar layout constants
 const (
 	iconWidth     = 2  // icon + space
@@ -349,17 +357,17 @@ func (mp *MultiProgress) getStatusIconAndColor(status TaskStatus, t time.Time) (
 
 	switch status {
 	case TaskStatusPending:
-		return "○", cliout.Dim
+		return iconPending, cliout.Dim
 	case TaskStatusRunning:
 		return getSpinnerFrame(t), cliout.Cyan
 	case TaskStatusSuccess:
-		return "✓", cliout.Green
+		return iconSuccess, cliout.Green
 	case TaskStatusFailed:
-		return "✗", cliout.Red
+		return iconFailed, cliout.Red
 	case TaskStatusSkipped:
-		return "-", cliout.Gray
+		return iconSkipped, cliout.Gray
 	default:
-		return "○", cliout.Dim
+		return iconPending, cliout.Dim
 	}
 }
 
