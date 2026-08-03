@@ -52,8 +52,8 @@ Each task must land with all three extensions still building against the prior `
 
 | # | Repo | Task | Depends on |
 |---|---|---|---|
-| 2.0 | C | Add `github.com/azure/azure-dev/cli/azd v1.29.0` to `go.mod` | 0.1 |
-| 2.1 | C | Delete `procutil`. Callers move to `azdext.IsProcessRunning` / `GetProcessInfo` | 2.0 |
+| [x] 2.0 | C | Add `github.com/azure/azure-dev/cli/azd v1.29.0` to `go.mod` | 0.1 |
+| [x] 2.1 | C | Delete `procutil`. Callers move to `azdext.IsProcessRunning` / `GetProcessInfo` | 2.0 |
 | 2.2 | C | Delete `shellutil`. Callers move to `azdext.DetectShell` / `ShellCommand` | 2.0 |
 | 2.3 | C | Delete `pathutil`. Callers move to `azdext.LookupTool` / `RequireTools` / `PrependPATH` | 2.0 |
 | 2.4 | C | Delete `azdextutil` (`RateLimiter`, `ValidateShellName`, `GetProjectDir`). Callers move to `MCPServerBuilder.WithRateLimit`, `azdext.ValidateScriptName`, `azdext.GetProjectDir` | 2.0 |

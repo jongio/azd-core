@@ -15,7 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/jongio/azd-core/procutil"
+	"github.com/azure/azure-dev/cli/azd/pkg/azdext"
 	"github.com/sony/gobreaker/v2"
 )
 
@@ -735,9 +735,9 @@ func suggestProcessErrorAction(pid int, isRunning bool, mode string) string {
 	return ""
 }
 
-// isProcessRunning delegates to procutil.IsProcessRunning for cross-platform process detection.
+// isProcessRunning delegates to azdext.IsProcessRunning for cross-platform process detection.
 func isProcessRunning(pid int) bool {
-	return procutil.IsProcessRunning(pid)
+	return azdext.IsProcessRunning(pid)
 }
 
 // suggestHTTPErrorAction provides actionable suggestions based on HTTP status code.

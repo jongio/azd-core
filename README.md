@@ -53,7 +53,6 @@ go get github.com/jongio/azd-core/keyvault
 go get github.com/jongio/azd-core/logutil
 go get github.com/jongio/azd-core/notify
 go get github.com/jongio/azd-core/pathutil
-go get github.com/jongio/azd-core/procutil
 go get github.com/jongio/azd-core/progress
 go get github.com/jongio/azd-core/projecttype
 go get github.com/jongio/azd-core/registry
@@ -349,21 +348,6 @@ Security validation utilities for path traversal prevention, input sanitization,
 - Container environment detection
 - World-writable file detection (security warning)
 
-### `procutil`
-Cross-platform process detection utilities using gopsutil for reliable cross-platform behavior.
-
-**Key Functions:**
-- `IsProcessRunning` - Check if process with given PID is running
-
-**Features:**
-- Cross-platform support (Windows, Linux, macOS, BSD, Solaris, AIX)
-- Reliable Windows process detection (no stale PID issues)
-- Uses platform-native APIs (Windows: OpenProcess, Linux: /proc, macOS: sysctl)
-- Powered by github.com/shirou/gopsutil/v4
-- Uses Signal(0) on Unix for accurate detection
-- Windows fallback with documented limitations (stale PID may return true)
-- Invalid PID handling (≤0 returns false)
-
 ### `copilotskills`
 Installs agentskills.io-compliant SKILL.md files from an embedded filesystem to `~/.copilot/skills/{name}/`.
 
@@ -539,10 +523,10 @@ err := browser.Launch(browser.LaunchOptions{
 ### Process Detection
 
 ```go
-import "github.com/jongio/azd-core/procutil"
+import "github.com/azure/azure-dev/cli/azd/pkg/azdext"
 
 // Check if process is running
-if procutil.IsProcessRunning(pid) {
+if azdext.IsProcessRunning(pid) {
     fmt.Println("Process is running")
 }
 ```

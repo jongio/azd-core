@@ -20,7 +20,6 @@
     "github.com/jongio/azd-core/logutil": 96,
     "github.com/jongio/azd-core/notify": 85.7,
     "github.com/jongio/azd-core/pathutil": 78.3,
-    "github.com/jongio/azd-core/procutil": 88.9,
     "github.com/jongio/azd-core/progress": 81.5,
     "github.com/jongio/azd-core/registry": 98.5,
     "github.com/jongio/azd-core/security": 81.8,
@@ -31,5 +30,5 @@
     "github.com/jongio/azd-core/yamlutil": 88.3
   },
   "mode": "atomic",
-  "note": "atomic mode; recorded with -covermode=atomic to match CI"
+  "note": "recorded by mage coverageRecord"
 }
