@@ -38,7 +38,6 @@ Or add specific packages to your `go.mod`:
 
 ```bash
 go get github.com/jongio/azd-core/auth
-go get github.com/jongio/azd-core/azdextutil
 go get github.com/jongio/azd-core/browser
 go get github.com/jongio/azd-core/cache
 go get github.com/jongio/azd-core/cliout

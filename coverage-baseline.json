@@ -2,7 +2,6 @@
   "total": 86.1,
   "packages": {
     "github.com/jongio/azd-core/auth": 88.7,
-    "github.com/jongio/azd-core/azdextutil": 89.5,
     "github.com/jongio/azd-core/browser": 86.5,
     "github.com/jongio/azd-core/cache": 87.7,
     "github.com/jongio/azd-core/cliout": 95.5,

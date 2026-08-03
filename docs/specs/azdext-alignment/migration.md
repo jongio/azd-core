@@ -14,6 +14,10 @@ reconstructed from memory.
 | `procutil` (package) | `azdext` | The SDK is a superset: it adds `GetProcessInfo`, `CurrentProcessInfo`, `ParentProcessInfo`, `FindProcessByName`, `GetProcessEnvironment`. Removing this package also drops `github.com/shirou/gopsutil/v4` from the dependency graph. |
 | `shellutil.DetectShell(scriptPath string) string` | none | **No drop-in replacement.** See "Not equivalent" below. Copy the function if you need it. |
 | `shellutil.ReadShebang(scriptPath string) string` | none | **No drop-in replacement.** The SDK never reads script files. |
+| `azdextutil.NewRateLimiter`, `RateLimiter.Allow`, `RateLimiter.CheckRateLimit` | `MCPServerBuilder.WithRateLimit(burst int, refillRate float64)` | Only if you are already building your server with `MCPServerBuilder`. The SDK exposes no standalone limiter type. If you need one outside a builder, use `golang.org/x/time/rate` directly, which is all `azdextutil.RateLimiter` wrapped. |
+| `azdextutil.ValidateShellName(shell string) error` | none | **Not** `azdext.ValidateScriptName`. See "Not equivalent" below. |
+| `azdextutil.GetProjectDir(envVar string) (string, error)` | `azdext.GetProjectDir() (string, error)` | Behavior change. The azd-core version read the named environment variable and fell back to the working directory, so it effectively always succeeded. The SDK version walks up looking for `azure.yaml` and returns `azdext.ErrProjectNotFound` when there is no azd project. Handle that error. |
+| `azdextutil` (package) | `azdext` | Deprecated in v0.5.3 and had no remaining callers in azd-core or any extension at removal time. |
 | `shellutil.Shell*` constants | `azdext.ShellType*` | Similar names, different type. `shellutil` used untyped `string`; the SDK uses a typed `azdext.ShellType`. `shellutil.ShellPwsh` and `ShellPowerShell` both map to `azdext.ShellTypePowerShell`. |
 
 ## Removed functions from retained packages
@@ -73,3 +77,18 @@ the same reason. `GetDefaultShell` picks the best *available* shell by
 return `fish` for a fish user and break hooks written for bash.
 `prepareHookCommand` also handles `-File` for `.ps1` paths and emits a UTF-8
 console preamble, neither of which `azdext.ShellCommandWith` provides.
+
+`azdext.ValidateScriptName` is **not** a replacement for
+`azdextutil.ValidateShellName`.
+
+| | `azdextutil.ValidateShellName(shell)` | `azdext.ValidateScriptName(name)` |
+|---|---|---|
+| Question answered | Is this one of the shells we support? | Could this filename be used for command injection? |
+| Strategy | Allowlist of six names: bash, sh, zsh, pwsh, powershell, cmd | Denylist of shell metacharacters, plus `..` and null bytes |
+| Verdict on `"fish"` | Rejected, not in the allowlist | Accepted, contains no metacharacters |
+| Verdict on `"deploy.sh"` | Rejected, not a shell name | Accepted |
+| Empty input | Accepted, treated as "unset" | Rejected |
+
+They agree on almost no input. `azdextutil` was removed because it had zero
+callers and had already been deprecated in v0.5.3, not because the SDK
+supersedes it. Code needing a shell allowlist should keep its own.
