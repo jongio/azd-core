@@ -92,6 +92,33 @@ console preamble, neither of which `azdext.ShellCommandWith` provides.
 They agree on almost no input. `azdextutil` was removed because it had zero
 callers and had already been deprecated in v0.5.3, not because the SDK
 supersedes it. Code needing a shell allowlist should keep its own.
+
+`azdext.SSRFGuard` is **not** a replacement for `urlutil`.
+
+| | `urlutil.Validate(rawURL)` | `azdext.SSRFGuard.Check(rawURL)` |
+|---|---|---|
+| Question answered | Is this string a well-formed http(s) URL? | Is it safe to send a request to this URL? |
+| Touches the network | Never | Yes, resolves the host when private-network blocking is on |
+| Verdict on `http://localhost:3000` | Accepted | Accepted (explicit loopback bypass) |
+| Verdict on `http://10.0.0.5/health` | Accepted | Blocked by `DefaultSSRFGuard` (RFC 1918) |
+| Verdict on `http://internal.corp/health` | Accepted | Blocked by `DefaultSSRFGuard` (HTTPS required) |
+| Enforces a max URL length | Yes, 2048 | No |
+| Requires a non-empty host | Yes, explicitly | Only as a side effect of resolution failing |
+
+`urlutil` is retained. Its only consumer validates service URLs from user
+config, which routinely point at localhost or an internal host, so an SSRF
+guard would reject exactly the input the validator exists to accept, and would
+perform DNS lookups while parsing a config file. The two are meant to be
+layered: validate the string with `urlutil`, then guard the request with
+`azdext.SSRFGuard` at the point of outbound call.
+
+`azdext.ValidateHostname` is **not** a replacement for `urlutil.ValidateDomain`
+either. The per-label rules are identical (alphanumeric start and end, `-`
+allowed inside, 1 to 63 characters, 253 total), but `ValidateDomain` also
+rejects an embedded protocol and an embedded port, requires at least one dot
+unless the value is exactly `localhost`, and names the offending character in
+its error. Delegating would loosen validation for a custom-domain config field
+and replace a specific message with a generic one.
 ## Changed signatures in retained packages
 
 | Symbol | Change | Notes |
