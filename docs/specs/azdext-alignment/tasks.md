@@ -2,7 +2,7 @@
 
 Spec: [spec.md](./spec.md)
 
-Legend: `[ ]` pending, `[~]` in progress, `[x]` done. Rows with no marker are pending. Repos: **C** azd-core, **A** azd-app, **P** azd-copilot, **R** azd-rest.
+Legend: `[ ]` pending, `[~]` in progress, `[x]` done, `[-]` deliberately not done with a documented reason. Rows with no marker are pending. Repos: **C** azd-core, **A** azd-app, **P** azd-copilot, **R** azd-rest.
 
 ## Phase 0: Baseline
 
@@ -26,18 +26,26 @@ Order: R, then P, then A.
 
 | # | Repo | Task | Depends on |
 |---|---|---|---|
-| 1.1 | R | Replace `main()` with `azdext.Run(cmd.NewRootCmd())`. Delete `ExitCoder` and manual error printing in `src/cmd/rest/main.go` and `src/internal/cmd/env.go` | 0.1 |
-| 1.2 | R | Add `src/internal/cmd/errors.go` with `const` snake_case error codes. Convert command-handler failures to `azdext.LocalError` / `azdext.ServiceError` with categories and suggestions | 1.1 |
-| 1.3 | R | Add a startup test asserting `azdext.ValidateNoReservedFlagConflicts(NewRootCmd())` returns nil | 1.1 |
-| 1.4 | P | Replace `main()` with `azdext.Run(newRootCmd())`. Delete manual `Execute()` error handling in `src/cmd/copilot/main.go` | 0.1 |
-| 1.5 | P | Add error codes and convert handler failures to structured errors | 1.4 |
-| 1.6 | P | Add reserved-flag conflict test | 1.4 |
-| 1.7 | P | Add `azdext.NewVersionCommand("jongio.azd.copilot", ...)` | 1.4 |
-| 1.8 | A | Replace `main()` with `azdext.Run(rootCmd)`. Preserve the chained `PersistentPreRunE` behavior | 0.1 |
-| 1.9 | A | Add error codes and convert handler failures to structured errors | 1.8 |
-| 1.10 | A | Add reserved-flag conflict test | 1.8 |
-| 1.11 | A | Add `azdext.NewVersionCommand("jongio.azd.app", ...)` | 1.8 |
+| [x] 1.1 | R | Replace `main()` with `azdext.Run(cmd.NewRootCmd())`. Delete `ExitCoder` and manual error printing in `src/cmd/rest/main.go` and `src/internal/cmd/env.go` | 0.1 |
+| [x] 1.2 | R | Add `src/internal/cmd/errors.go` with `const` snake_case error codes. Convert command-handler failures to `azdext.LocalError` / `azdext.ServiceError` with categories and suggestions | 1.1 |
+| [x] 1.3 | R | Add a startup test asserting `azdext.ValidateNoReservedFlagConflicts(NewRootCmd())` returns nil | 1.1 |
+| [x] 1.4 | P | Replace `main()` with `azdext.Run(newRootCmd())`. Delete manual `Execute()` error handling in `src/cmd/copilot/main.go` | 0.1 |
+| [x] 1.5 | P | Add error codes and convert handler failures to structured errors | 1.4 |
+| [x] 1.6 | P | Add reserved-flag conflict test | 1.4 |
+| [-] 1.7 | P | Add `azdext.NewVersionCommand("jongio.azd.copilot", ...)` | 1.4 |
+| [x] 1.8 | A | Replace `main()` with `azdext.Run(rootCmd)`. Preserve the chained `PersistentPreRunE` behavior | 0.1 |
+| [x] 1.9 | A | Add error codes and convert handler failures to structured errors | 1.8 |
+| [x] 1.10 | A | Add reserved-flag conflict test | 1.8 |
+| [-] 1.11 | A | Add `azdext.NewVersionCommand("jongio.azd.app", ...)` | 1.8 |
 
+Phase 1 notes:
+
+- 1.1-1.3: azd-rest, commit `5499505`. Six snake_case codes in `src/internal/service/errors.go`, `fail.go` deleted, five test files moved off `ExitCode()` assertions. `RequestOptions.URL` gave a real host for the `serviceName` telemetry argument via a new `hostFromURL` helper, so nothing passes an empty string. Coverage 86.3% -> 87.0%.
+- 1.4-1.6: azd-copilot, commit `9a96db4`. Five codes in `commands/errors.go`. Coverage 30.0% -> 31.4%.
+- 1.8-1.10: azd-app, commit `9af66050`. Five codes in `commands/errors.go`. Coverage 65.0% -> 65.1%, and `cmd/app` went 0.0% -> 24.0% because extracting `newRootCmd` made the command tree testable.
+- 1.7 and 1.11 rejected. `azdext.NewVersionCommand` is a regression against azd-core's `version.NewCommand`, not an upgrade. The SDK command emits only `{name, version}` in JSON, prints `id version` as text, and has no `--quiet`. azd-core's emits the full `Info` (version, buildDate, gitCommit, extensionId, name), prints four labeled fields, and has `--quiet`/`-q`. The SDK command's one real advantage is that it calls `RegisterFlagOptions` so azd can discover `--output json`. Task 2.5 folds that advantage into azd-core's command instead, and moves azd-rest back onto it. `spec.md` line 58 previously claimed the two were equivalent; that claim is corrected.
+- Adopting `azdext.Run` was not cosmetic. azd-copilot and azd-app both called `rootCmd.Execute()`, which runs the command tree on `context.Background()` with no azd trace propagation and no gRPC access token. `azdext.Run` uses `ExecuteContext(NewContext())` with `WithAccessToken`.
+- 1.10 found a shipping bug rather than passing. Five azd-app subcommands defined local flags that shadowed azd reserved globals, so `azdext.Run` would have refused to start. The collisions were already breaking `--output` and `-e` silently, because cobra resolves a local flag ahead of an inherited one. Fixed as a breaking flag rename; see the azd-app CHANGELOG.
 ## Phase 2: azd-core rebase
 
 Each task must land with all three extensions still building against the prior `azd-core` tag.
@@ -49,7 +57,7 @@ Each task must land with all three extensions still building against the prior `
 | 2.2 | C | Delete `shellutil`. Callers move to `azdext.DetectShell` / `ShellCommand` | 2.0 |
 | 2.3 | C | Delete `pathutil`. Callers move to `azdext.LookupTool` / `RequireTools` / `PrependPATH` | 2.0 |
 | 2.4 | C | Delete `azdextutil` (`RateLimiter`, `ValidateShellName`, `GetProjectDir`). Callers move to `MCPServerBuilder.WithRateLimit`, `azdext.ValidateScriptName`, `azdext.GetProjectDir` | 2.0 |
-| 2.5 | C | Delete `version`. Callers move to `azdext.NewVersionCommand` | 1.7, 1.11 |
+| 2.5 | C | Keep `version`. Add `RegisterFlagOptions(cmd, "output", FlagOptions{Name: "output", AllowedValues: []string{"json"}})` so azd can discover the flag, which is the one thing `azdext.NewVersionCommand` did better. Then move azd-rest back onto `version.NewCommand`, since it already lost `--quiet`, `buildDate`, and `gitCommit` by adopting the SDK command | 2.0 |
 | 2.6 | C | Delete `urlutil`. Callers move to `azdext.SSRFGuard` / `MCPSecurityPolicy` | 2.0 |
 | 2.7 | C | Trim `fileutil`: delete `atomicWrite`, `renameWithRetry`, `AtomicWriteFile`, `EnsureDir`. Keep project-detection predicates and JSON cache helpers | 2.0 |
 | 2.8 | C | Trim `security`: keep only `ValidateFilePermissions` and `ValidatePackageManager` (no azdext equivalent). Delete the rest | 2.6 |

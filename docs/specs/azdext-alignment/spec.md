@@ -55,7 +55,7 @@ Verified by symbol extraction from `cli/azd/pkg/azdext/*.go` and `azd-core/*/*.g
 | `ScopeDetector.ScopesForURL` | `auth.DetectScope`, `auth.IsAzureHost` | Rule-driven and extensible |
 | `GetProjectDir`, `FindFileUpward`, `ErrProjectNotFound` | `azdextutil.GetProjectDir(envVar)` | Upward `azure.yaml` search instead of env-var-only |
 | `MCPServerBuilder.WithRateLimit` | `azdextutil.RateLimiter` | Already wired into every tool handler by the builder |
-| `NewVersionCommand` | `version.NewCommand` | Identical, plus JSON output |
+| `NewVersionCommand` | `version.NewCommand` | Not a replacement. The SDK command emits only `{name, version}` in JSON, prints `id version` as text, and has no `--quiet`. Ours emits the full `Info` (version, buildDate, gitCommit, extensionId, name) and has `--quiet`/`-q`. The SDK's only advantage is that it calls `RegisterFlagOptions` so azd can discover `--output json`. See task 2.5 |
 | `Logger`, `SetupLogging` | `logutil.ComponentLogger` and package globals | Component/operation tagging, no global mutable state |
 
 ### Tier 2: replace with fallback (azdext requires a live azd host)
@@ -129,14 +129,15 @@ Per extension, in this order: azd-rest (smallest, 10.4k LOC), azd-copilot (6.9k)
 - Introduce a per-extension `errors.go` with `const` error codes.
 - Convert user-facing failures at the command-handler layer to `azdext.LocalError` (category `validation`, `auth`, `dependency`, `compatibility`, `user`, `internal`) or `azdext.ServiceError` for Azure API failures. Leave lower-level helpers returning wrapped plain errors.
 - Add `azdext.ValidateNoReservedFlagConflicts(rootCmd)` to a startup test in each repo.
-- Add `azdext.NewVersionCommand` to azd-app and azd-copilot (azd-rest already has it).
+- Expect that test to fail somewhere. In azd-app it found five subcommands whose local flags shadowed azd reserved globals, which broke `--output` and `-e` silently and would have stopped `azdext.Run` from starting at all. Fixing it is a breaking flag rename, so budget for docs and a CHANGELOG entry.
+- Do not adopt `azdext.NewVersionCommand`. It is a regression against azd-core's `version.NewCommand`, so azd-app and azd-copilot keep the azd-core command and azd-rest moves back onto it in phase 2. See task 2.5.
 
 ### Phase 2: azd-core rebase onto azdext
 
 Order matters: each step must land with all three extensions still building against the previous `azd-core` tag.
 
 1. Add the `azdext` dependency to `azd-core/go.mod`.
-2. **Delete and forward:** `procutil`, `shellutil`, `pathutil`, `azdextutil`, `version`, `urlutil`. Replace call sites in extensions with direct `azdext` calls. These are small and have few consumers.
+2. **Delete and forward:** `procutil`, `shellutil`, `pathutil`, `azdextutil`, `urlutil`. `version` stays and instead gains the SDK's `RegisterFlagOptions` call. Replace call sites in extensions with direct `azdext` calls. These are small and have few consumers.
 3. **`fileutil`:** delete `atomicWrite`, `renameWithRetry`, `AtomicWriteFile`, `EnsureDir`. Keep the project-detection predicates (`FileExistsAny`, `HasAnyFileWithExts`, `ContainsTextInFile`) and the JSON cache helpers.
 4. **`security`:** delete everything except anything not covered by `azdext.ValidateServiceName`/`ValidateScriptName`/`SSRFGuard`. Audit `ValidateFilePermissions` and `ValidatePackageManager`, which have no azdext equivalent, and keep only those.
 5. **`keyvault` + `env` secret resolution:** replace the resolver internals with `azdext.KeyVaultResolver`. Keep `env.Resolve*` as the batch/warning-collecting façade if consumers depend on the warning shape.
