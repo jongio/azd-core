@@ -77,15 +77,30 @@ func TestParseProfile(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if len(got) != len(tt.want) {
-				t.Fatalf("got %d blocks, want %d", len(got), len(tt.want))
+			if len(got.Blocks) != len(tt.want) {
+				t.Fatalf("got %d blocks, want %d", len(got.Blocks), len(tt.want))
 			}
-			for i := range got {
-				if got[i] != tt.want[i] {
-					t.Errorf("block %d: got %+v, want %+v", i, got[i], tt.want[i])
+			for i := range got.Blocks {
+				if got.Blocks[i] != tt.want[i] {
+					t.Errorf("block %d: got %+v, want %+v", i, got.Blocks[i], tt.want[i])
 				}
 			}
 		})
+	}
+}
+
+func TestParseProfileCapturesMode(t *testing.T) {
+	t.Parallel()
+
+	for _, mode := range []string{"set", "count", "atomic"} {
+		input := "mode: " + mode + "\nm/a/x.go:1.1,2.2 1 1\n"
+		got, err := ParseProfile(strings.NewReader(input))
+		if err != nil {
+			t.Fatalf("mode %s: unexpected error: %v", mode, err)
+		}
+		if got.Mode != mode {
+			t.Errorf("Mode = %q, want %q", got.Mode, mode)
+		}
 	}
 }
 

@@ -19,6 +19,10 @@ type Baseline struct {
 	// Exclude records the glob patterns used when the baseline was written,
 	// so a later check cannot silently widen them.
 	Exclude []string `json:"exclude,omitempty"`
+	// Mode records the "go test -covermode" counter mode the baseline was
+	// measured with. Percentages are not comparable across modes, so a later
+	// check measured in a different mode is rejected.
+	Mode string `json:"mode,omitempty"`
 	// Note is free-form context for humans reading the file.
 	Note string `json:"note,omitempty"`
 }
@@ -105,6 +109,7 @@ func BaselineFrom(r Report, exclude []string, note string) Baseline {
 		Total:    r.Total.Percent(),
 		Packages: pkgs,
 		Exclude:  exclude,
+		Mode:     r.Mode,
 		Note:     note,
 	}
 }
@@ -123,6 +128,10 @@ type CheckOptions struct {
 	// those recorded in the baseline. By default a mismatch fails, because
 	// widening exclusions is the easiest way to fake a passing gate.
 	AllowExcludeDrift bool
+	// AllowModeDrift permits the profile's counter mode to differ from the
+	// mode the baseline was recorded with. By default a mismatch fails,
+	// because percentages are not comparable across modes.
+	AllowModeDrift bool
 }
 
 // Delta is a change in coverage for one scope, in either direction.
@@ -177,6 +186,11 @@ func (e *CheckError) Error() string {
 func Check(r Report, b Baseline, opts CheckOptions) error {
 	if !opts.AllowExcludeDrift {
 		if err := compareExcludes(b.Exclude, r); err != nil {
+			return err
+		}
+	}
+	if !opts.AllowModeDrift {
+		if err := compareModes(b.Mode, r.Mode); err != nil {
 			return err
 		}
 	}
@@ -243,6 +257,33 @@ func compareExcludes(baseline []string, r Report) error {
 	return fmt.Errorf(
 		"exclude patterns changed since the baseline was recorded\n  baseline: %v\n  current:  %v\n"+
 			"widening exclusions hides regressions, so re-record the baseline deliberately if this is intended",
+		baseline, current)
+}
+
+// compareModes fails when a profile was measured with a different counter mode
+// than the baseline recorded.
+//
+// This is not pedantry. Atomic counters survive concurrent updates that "set"
+// and "count" mode lose, so the same test suite can report several points
+// higher under atomic. A baseline recorded by a plain "go test -coverprofile"
+// run and then gated by a CI job using "-race" (which implies atomic) compares
+// two different measurements, which either hides regressions or invents them.
+func compareModes(baseline, current string) error {
+	if baseline == current {
+		return nil
+	}
+	if baseline == "" {
+		return fmt.Errorf(
+			"baseline predates counter-mode tracking (current profile is %q)\n"+
+				"re-record the baseline so the mode is captured, otherwise percentages\n"+
+				"cannot be compared reliably across different -covermode settings",
+			current)
+	}
+	return fmt.Errorf(
+		"coverage counter mode changed since the baseline was recorded\n  baseline: %q\n  current:  %q\n"+
+			"percentages are not comparable across modes, because atomic counters retain\n"+
+			"concurrent updates that set and count mode drop. Measure with the same\n"+
+			"-covermode used to record, or re-record the baseline deliberately",
 		baseline, current)
 }
 

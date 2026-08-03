@@ -188,6 +188,67 @@ func TestCheckAllowsIdenticalExclusionsInAnyOrder(t *testing.T) {
 	}
 }
 
+func TestCheckPassesWhenCounterModesMatch(t *testing.T) {
+	t.Parallel()
+
+	report := reportFrom(t, map[string]float64{"m/a": 80})
+	report.Mode = "atomic"
+	baseline := Baseline{Total: 80, Packages: map[string]float64{"m/a": 80}, Mode: "atomic"}
+
+	if err := Check(report, baseline, CheckOptions{}); err != nil {
+		t.Fatalf("matching modes must pass: %v", err)
+	}
+}
+
+func TestCheckDetectsCounterModeDrift(t *testing.T) {
+	t.Parallel()
+
+	// Atomic reports higher than set for the same tests, so comparing across
+	// modes silently inflates coverage and hides real regressions.
+	report := reportFrom(t, map[string]float64{"m/a": 80})
+	report.Mode = "set"
+	baseline := Baseline{Total: 80, Packages: map[string]float64{"m/a": 80}, Mode: "atomic"}
+
+	err := Check(report, baseline, CheckOptions{})
+	if err == nil {
+		t.Fatal("expected a counter mode mismatch to fail the gate")
+	}
+	if !strings.Contains(err.Error(), "counter mode changed") {
+		t.Fatalf("error should name the mode drift, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "atomic") || !strings.Contains(err.Error(), "set") {
+		t.Fatalf("error should report both modes, got: %v", err)
+	}
+}
+
+func TestCheckAllowsCounterModeDriftWhenOptedIn(t *testing.T) {
+	t.Parallel()
+
+	report := reportFrom(t, map[string]float64{"m/a": 80})
+	report.Mode = "set"
+	baseline := Baseline{Total: 80, Packages: map[string]float64{"m/a": 80}, Mode: "atomic"}
+
+	if err := Check(report, baseline, CheckOptions{AllowModeDrift: true}); err != nil {
+		t.Fatalf("AllowModeDrift must bypass the mode check: %v", err)
+	}
+}
+
+func TestCheckRejectsBaselineRecordedBeforeModeTracking(t *testing.T) {
+	t.Parallel()
+
+	report := reportFrom(t, map[string]float64{"m/a": 80})
+	report.Mode = "atomic"
+	baseline := Baseline{Total: 80, Packages: map[string]float64{"m/a": 80}}
+
+	err := Check(report, baseline, CheckOptions{})
+	if err == nil {
+		t.Fatal("a baseline with no recorded mode must not silently pass")
+	}
+	if !strings.Contains(err.Error(), "predates counter-mode tracking") {
+		t.Fatalf("error should tell the user to re-record, got: %v", err)
+	}
+}
+
 func TestCheckRegressionsSortedByLargestDrop(t *testing.T) {
 	t.Parallel()
 
@@ -340,6 +401,7 @@ func TestBaselineFromReport(t *testing.T) {
 	t.Parallel()
 
 	report := reportFrom(t, map[string]float64{"m/a": 80, "m/b": 60})
+	report.Mode = "atomic"
 	b := BaselineFrom(report, []string{"**/gen/**"}, "why")
 
 	if b.Total != 70 {
@@ -350,6 +412,9 @@ func TestBaselineFromReport(t *testing.T) {
 	}
 	if len(b.Exclude) != 1 || b.Exclude[0] != "**/gen/**" {
 		t.Errorf("Exclude = %v", b.Exclude)
+	}
+	if b.Mode != "atomic" {
+		t.Errorf("Mode = %q, want atomic", b.Mode)
 	}
 	if b.Note != "why" {
 		t.Errorf("Note = %q", b.Note)

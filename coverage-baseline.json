@@ -1,18 +1,18 @@
 {
-  "total": 85.8,
+  "total": 86,
   "packages": {
     "github.com/jongio/azd-core/auth": 88.7,
     "github.com/jongio/azd-core/azdextutil": 89.5,
-    "github.com/jongio/azd-core/browser": 81.1,
+    "github.com/jongio/azd-core/browser": 86.5,
     "github.com/jongio/azd-core/cache": 87.7,
     "github.com/jongio/azd-core/cliout": 95.5,
     "github.com/jongio/azd-core/cmdutil": 90.1,
     "github.com/jongio/azd-core/copilotskills": 74.3,
-    "github.com/jongio/azd-core/covergate": 97,
-    "github.com/jongio/azd-core/covergate/cmd/covergate": 88,
+    "github.com/jongio/azd-core/covergate": 97.2,
+    "github.com/jongio/azd-core/covergate/cmd/covergate": 88.5,
     "github.com/jongio/azd-core/editor": 84.4,
     "github.com/jongio/azd-core/env": 95,
-    "github.com/jongio/azd-core/fileutil": 86,
+    "github.com/jongio/azd-core/fileutil": 89,
     "github.com/jongio/azd-core/healthcheck": 83.1,
     "github.com/jongio/azd-core/healthcheck/metrics": 0,
     "github.com/jongio/azd-core/httpclient": 82.5,
@@ -30,5 +30,6 @@
     "github.com/jongio/azd-core/version": 95.8,
     "github.com/jongio/azd-core/yamlutil": 88.3
   },
-  "note": "recorded by mage coverageRecord"
+  "mode": "atomic",
+  "note": "atomic mode; recorded with -covermode=atomic to match CI"
 }

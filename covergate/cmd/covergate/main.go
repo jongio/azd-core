@@ -50,6 +50,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 	note := fs.String("note", "", "note stored alongside a recorded baseline")
 	ignoreNew := fs.Bool("ignore-new-packages", false, "allow new packages to fall below the baseline total")
 	allowDrift := fs.Bool("allow-exclude-drift", false, "allow exclude patterns to differ from the baseline")
+	allowModeDrift := fs.Bool("allow-mode-drift", false, "allow the profile counter mode to differ from the baseline")
 
 	var excludes excludeFlag
 	fs.Var(&excludes, "exclude", "glob pattern to exclude, repeatable")
@@ -66,6 +67,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 			Tolerance:         *tolerance,
 			IgnoreNewPackages: *ignoreNew,
 			AllowExcludeDrift: *allowDrift,
+			AllowModeDrift:    *allowModeDrift,
 		},
 		Out: stdout,
 	}

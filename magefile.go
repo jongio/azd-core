@@ -122,13 +122,13 @@ func Preflight() error {
 // Test runs all tests with coverage.
 func Test() error {
 	fmt.Println("==> Testing...")
-	return sh("go", "test", "-coverprofile=coverage.out", "./...")
+	return sh("go", "test", "-covermode=atomic", "-coverprofile=coverage.out", "./...")
 }
 
 // TestRace runs all tests with the race detector enabled.
 func TestRace() error {
 	fmt.Println("==> Testing with race detector...")
-	return sh("go", "test", "-race", "-coverprofile=coverage.out", "./...")
+	return sh("go", "test", "-race", "-covermode=atomic", "-coverprofile=coverage.out", "./...")
 }
 
 // Lint runs golangci-lint.

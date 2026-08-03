@@ -37,6 +37,10 @@ type Report struct {
 	Total Stats `json:"total"`
 	// Packages maps a package import path to its coverage.
 	Packages map[string]Stats `json:"packages"`
+	// Mode is the counter mode of the profile this report came from, such as
+	// "atomic". Aggregate leaves it empty; Profile fills it in from the
+	// profile header.
+	Mode string `json:"mode,omitempty"`
 	// Excluded is the number of blocks dropped by the Exclude patterns.
 	Excluded int `json:"-"`
 
@@ -96,13 +100,16 @@ func Aggregate(blocks []Block, opts Options) Report {
 	return report
 }
 
-// Profile parses a coverage profile file and aggregates it in one step.
+// Profile parses a coverage profile file and aggregates it in one step,
+// carrying the profile's counter mode onto the report.
 func Profile(profilePath string, opts Options) (Report, error) {
-	blocks, err := ParseProfileFile(profilePath)
+	data, err := ParseProfileFile(profilePath)
 	if err != nil {
 		return Report{}, err
 	}
-	return Aggregate(blocks, opts), nil
+	report := Aggregate(data.Blocks, opts)
+	report.Mode = data.Mode
+	return report, nil
 }
 
 func matchesAny(patterns []*regexp.Regexp, file string) bool {

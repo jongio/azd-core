@@ -11,7 +11,7 @@ tested code path and nobody notices until something breaks in the field.
 
 | Repository | Baseline | Scope |
 | --- | --- | --- |
-| azd-core | 85.8% | all packages |
+| azd-core | 86.0% | all packages |
 | azd-rest | 86.3% | `./src/...` |
 | azd-app | 65.0% | `./src/...`, excluding generated protobuf under `src/gen` |
 | azd-copilot | 30.0% | `./src/...` |
@@ -61,10 +61,35 @@ that and fails anyway, because it is the easiest way to fake a pass.
 - **New packages** against the baseline total, so new code cannot dilute
   coverage.
 - **Exclude patterns**, compared against the ones recorded in the baseline.
+- **Counter mode**, compared against the mode recorded in the baseline.
 
 A 0.5 point tolerance absorbs rounding noise. A missing baseline is a hard
 failure rather than a silent pass, so a repository that was never recorded
 cannot appear to be protected.
+
+### Counter mode is part of the measurement
+
+`go test -covermode` changes the reported number, not just how it is counted.
+Atomic counters survive concurrent updates that `set` and `count` mode lose, so
+a package whose tests exercise goroutines reports higher under atomic. Measured
+on azd-core, `browser` reports 81.1% under `set` and 86.5% under `atomic`, and
+`fileutil` reports 86.0% versus 89.0%. Those are the same tests over the same
+code.
+
+That matters because `-race` implies `-covermode=atomic`. A baseline recorded by
+a plain local `go test -coverprofile` run and then gated by a CI job using
+`-race` compares two different measurements. The drift shows up as free
+improvement, which is harmless, but the reverse direction invents regressions
+that nobody can reproduce.
+
+So every invocation in these repositories pins `-covermode=atomic` explicitly,
+in the magefiles and in CI, on every operating system. The baseline records the
+mode it was measured with and the gate rejects a profile measured differently.
+Use `-allow-mode-drift` only if you understand why you are comparing across
+modes.
+
+A baseline recorded before mode tracking existed has no `mode` field. The gate
+rejects it and asks for a re-record rather than guessing.
 
 ## In CI
 
