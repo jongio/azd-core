@@ -47,3 +47,8 @@ pathutil_cover
 # OS metadata
 .DS_Store
 Thumbs.db
+
+# Coverage ratchet baselines are tracked on purpose: they are the regression gate.
+!**/coverage-baseline.json
+!coverage-baseline.json
+!**/coverage-ratchet.md

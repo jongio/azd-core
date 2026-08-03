@@ -9,7 +9,32 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/jongio/azd-core/covergate"
 )
+
+// coverageConfig is the repository's coverage ratchet. Coverage may rise
+// freely but may not fall below the recorded baseline.
+//
+// COVERAGE_PROFILE overrides the profile path so CI can gate the profile it
+// already produced instead of running the suite a second time.
+func coverageConfig() covergate.Config {
+	profile := os.Getenv("COVERAGE_PROFILE")
+	if profile == "" {
+		profile = "coverage.out"
+	}
+	return covergate.Config{
+		Profile:      profile,
+		BaselineFile: "coverage-baseline.json",
+		Check:        covergate.CheckOptions{Tolerance: 0.5},
+	}
+}
+
+// CoverageGate checks an existing coverage profile against the baseline without
+// running the tests. CI uses this after its own test step.
+func CoverageGate() error {
+	return covergate.Gate(coverageConfig())
+}
 
 var Default = All
 
@@ -22,6 +47,32 @@ func All() error {
 		return err
 	}
 	return Test()
+}
+
+// Coverage runs the tests and fails if coverage dropped below the baseline.
+func Coverage() error {
+	if err := Test(); err != nil {
+		return err
+	}
+	fmt.Println("==> Checking coverage against the baseline...")
+	return covergate.Gate(coverageConfig())
+}
+
+// CoverageRecord re-records the coverage baseline from the current profile.
+// Run this only when a coverage change is deliberate, and say why in the
+// commit message.
+func CoverageRecord() error {
+	if err := Test(); err != nil {
+		return err
+	}
+	fmt.Println("==> Recording a new coverage baseline...")
+	return covergate.Record(coverageConfig(), "recorded by mage coverageRecord")
+}
+
+// coveragePreflight gates coverage during preflight. TestRace has already
+// written the profile by this point, so it does not re-run the tests.
+func coveragePreflight() error {
+	return covergate.Gate(coverageConfig())
 }
 
 // Preflight runs all quality checks before release — mirrors dispatch's preflight pattern.
@@ -52,6 +103,7 @@ func Preflight() error {
 
 		// Tests
 		{"Running tests with race detector", TestRace},
+		{"Checking coverage against the baseline", coveragePreflight},
 	}
 
 	for i, check := range checks {
