@@ -54,17 +54,7 @@ func refreshWindowsPATH() (string, error) {
 	}
 
 	// Combine and clean up
-	machinePathStr := strings.TrimSpace(string(machinePath))
-	userPathStr := strings.TrimSpace(string(userPath))
-
-	var newPath string
-	if machinePathStr != "" && userPathStr != "" {
-		newPath = machinePathStr + ";" + userPathStr
-	} else if machinePathStr != "" {
-		newPath = machinePathStr
-	} else {
-		newPath = userPathStr
-	}
+	newPath := combineWindowsPATH(string(machinePath), string(userPath))
 
 	// Set the new PATH
 	if err := os.Setenv("PATH", newPath); err != nil {
@@ -72,6 +62,23 @@ func refreshWindowsPATH() (string, error) {
 	}
 
 	return newPath, nil
+}
+
+// combineWindowsPATH joins the Machine and User PATH values in the order Windows
+// itself resolves them, skipping either side when it is empty so the result never
+// contains a stray separator. Both inputs are trimmed before use.
+func combineWindowsPATH(machine, user string) string {
+	machine = strings.TrimSpace(machine)
+	user = strings.TrimSpace(user)
+
+	switch {
+	case machine != "" && user != "":
+		return machine + ";" + user
+	case machine != "":
+		return machine
+	default:
+		return user
+	}
 }
 
 // refreshUnixPATH refreshes PATH on Unix-like systems.
@@ -84,24 +91,6 @@ func refreshUnixPATH() (string, error) {
 	// The best we can do is return the current PATH.
 	currentPath := os.Getenv("PATH")
 	return currentPath, nil
-}
-
-// FindToolInPath searches for a tool executable in the system PATH.
-// Returns the full path to the executable if found, empty string otherwise.
-func FindToolInPath(toolName string) string {
-	// Add .exe extension on Windows if not present
-	searchName := toolName
-	if runtime.GOOS == "windows" && !strings.HasSuffix(strings.ToLower(toolName), ".exe") {
-		searchName = toolName + ".exe"
-	}
-
-	// Try to find the executable
-	path, err := exec.LookPath(searchName)
-	if err != nil {
-		return ""
-	}
-
-	return path
 }
 
 // SearchToolInSystemPath searches for a tool in common system directories.

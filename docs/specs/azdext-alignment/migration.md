@@ -16,6 +16,37 @@ reconstructed from memory.
 | `shellutil.ReadShebang(scriptPath string) string` | none | **No drop-in replacement.** The SDK never reads script files. |
 | `shellutil.Shell*` constants | `azdext.ShellType*` | Similar names, different type. `shellutil` used untyped `string`; the SDK uses a typed `azdext.ShellType`. `shellutil.ShellPwsh` and `ShellPowerShell` both map to `azdext.ShellTypePowerShell`. |
 
+## Removed functions from retained packages
+
+| Removed | Replacement | Notes |
+|---|---|---|
+| `pathutil.FindToolInPath(name string) string` | `azdext.LookupTool(name).Path` | Also a **bug fix**, see below. `LookupTool` additionally returns `ToolInfo.Found` and prefers a project-local wrapper such as `./mvnw` over the PATH copy. |
+
+`pathutil` itself is **retained**. `SearchToolInSystemPath`, `GetInstallSuggestion`, and
+`RefreshPATH` have no SDK equivalent:
+
+- `SearchToolInSystemPath` scans well-known install directories that are **not** on PATH. `LookupTool` searches PATH and the working directory only.
+- `GetInstallSuggestion` returns curated install URLs for roughly 22 tools. `azdext.ToolsNotFoundError` only lists missing names.
+- `RefreshPATH` re-reads the Machine and User PATH from the Windows registry and applies it to the process. `azdext.PrependPATH` adds directories you already know about, which is a different operation.
+
+### Why `FindToolInPath` was a bug
+
+It appended `.exe` on Windows before calling `exec.LookPath`, which defeats
+`PATHEXT` resolution and so never matched `.cmd` shims. Measured on Windows:
+
+| Tool | `LookPath(name)` | `LookPath(name + ".exe")` |
+|---|---|---|
+| `npm` | found (`npm.cmd`) | not found |
+| `pnpm` | found (`pnpm.cmd`) | not found |
+| `az` | found (`az.cmd`) | not found |
+| `func` | found (`func.cmd`) | not found |
+| `node`, `git`, `docker` | found | found |
+
+So `azd app reqs fix` reported npm, pnpm, az, and func as missing on Windows
+even when they were installed. `azdext.LookupTool` calls `exec.LookPath(name)`
+without a suffix and resolves all of them.
+
+
 ## Not equivalent, despite the shared name
 
 `azdext.DetectShell()` is **not** a replacement for `shellutil.DetectShell(scriptPath)`.

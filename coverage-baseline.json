@@ -1,5 +1,5 @@
 {
-  "total": 86,
+  "total": 86.1,
   "packages": {
     "github.com/jongio/azd-core/auth": 88.7,
     "github.com/jongio/azd-core/azdextutil": 89.5,
@@ -19,7 +19,7 @@
     "github.com/jongio/azd-core/keyvault": 74.9,
     "github.com/jongio/azd-core/logutil": 96,
     "github.com/jongio/azd-core/notify": 85.7,
-    "github.com/jongio/azd-core/pathutil": 78.3,
+    "github.com/jongio/azd-core/pathutil": 86.8,
     "github.com/jongio/azd-core/progress": 81.5,
     "github.com/jongio/azd-core/registry": 98.5,
     "github.com/jongio/azd-core/security": 81.8,

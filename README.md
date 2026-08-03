@@ -300,15 +300,17 @@ File system utilities with atomic operations, JSON handling, and secure file det
 ### `pathutil`
 PATH environment variable management and tool discovery utilities.
 
+> PATH lookup itself lives in ``azdext.LookupTool``, which honors ``PATHEXT`` on Windows
+> and therefore resolves ``.cmd`` shims such as ``npm``, ``pnpm``, ``az``, and ``func``.
+> ``pathutil`` keeps only the parts the SDK has no equivalent for.
+
 **Key Functions:**
 - `RefreshPATH` - Refresh PATH from system (Windows registry, Unix environment)
-- `FindToolInPath` - Search PATH for executables (auto .exe handling on Windows)
 - `SearchToolInSystemPath` - Search common installation directories
 - `GetInstallSuggestion` - Get installation URLs for 22+ popular tools
 
 **Features:**
 - Cross-platform PATH refresh (Windows PowerShell registry read, Unix environment)
-- Automatic .exe extension handling on Windows
 - Common install directory search (Program Files, /usr/local/bin, Homebrew, etc.)
 - Installation suggestions for npm, python, docker, azd, and more
 
@@ -437,12 +439,13 @@ err := fileutil.AtomicWriteJSON("config.json", data)
 ```go
 import (
     "fmt"
+    "github.com/azure/azure-dev/cli/azd/pkg/azdext"
     "github.com/jongio/azd-core/pathutil"
 )
 
 // Find a tool in PATH
-if nodePath := pathutil.FindToolInPath("node"); nodePath != "" {
-    fmt.Printf("Node.js found at: %s\n", nodePath)
+if node := azdext.LookupTool("node"); node.Found {
+    fmt.Printf("Node.js found at: %s\n", node.Path)
 } else {
     fmt.Println(pathutil.GetInstallSuggestion("node"))
 }
