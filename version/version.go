@@ -7,6 +7,14 @@ import "fmt"
 const (
 	devVersionValue = "0.0.0-dev"
 	unknownValue    = "unknown"
+
+	// OutputFlagName is the azd global output flag that [NewCommand] declares
+	// supported values for.
+	OutputFlagName = "output"
+	// OutputFormatDefault renders human-readable output.
+	OutputFormatDefault = "default"
+	// OutputFormatJSON renders the [Info] struct as indented JSON.
+	OutputFormatJSON = "json"
 )
 
 // Info holds version information for an extension.

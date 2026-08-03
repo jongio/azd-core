@@ -24,7 +24,7 @@
     "github.com/jongio/azd-core/security": 81.8,
     "github.com/jongio/azd-core/testutil": 83.3,
     "github.com/jongio/azd-core/urlutil": 98.3,
-    "github.com/jongio/azd-core/version": 95.8,
+    "github.com/jongio/azd-core/version": 97.1,
     "github.com/jongio/azd-core/yamlutil": 88.3
   },
   "mode": "atomic",

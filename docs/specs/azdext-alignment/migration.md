@@ -92,3 +92,27 @@ console preamble, neither of which `azdext.ShellCommandWith` provides.
 They agree on almost no input. `azdextutil` was removed because it had zero
 callers and had already been deprecated in v0.5.3, not because the SDK
 supersedes it. Code needing a shell allowlist should keep its own.
+## Changed signatures in retained packages
+
+| Symbol | Change | Notes |
+|---|---|---|
+| `version.NewCommand(info *Info, outputFormat *string)` | gains `opts ...Option` | Source compatible. Existing calls keep the previous behavior: `-q` shorthand on `--quiet`, and an `--output` declaration accepting `default` and `json`. |
+
+`version.NewCommand` now calls `azdext.RegisterFlagOptions`, so azd gets shell
+completion, help text, extension metadata, and parse-time validation for the
+output flag from a single declaration.
+
+Two things had to become options because hardcoding them breaks real
+extensions:
+
+| Option | Why it exists |
+|---|---|
+| `version.WithQuietShorthand(string)` | `NewCommand` hardcoded `-q` for `--quiet`. cobra panics during flag parsing when a subcommand shorthand collides with an inherited persistent flag, so any extension already binding `-q` crashed on every invocation. azd-rest binds `-q` to `--query` and passes `""`. |
+| `version.WithOutputFlag(string, ...string)` | `NewCommand` hardcoded the flag name `output`. An extension that binds `outputFormat` to a flag of its own would have azd validating and completing a flag the command never reads. Pass `""` to skip the declaration. azd-rest reads its own `--format` and passes `""`. |
+
+### azd-rest
+
+`azd rest version` moves off `azdext.NewVersionCommand` and back onto
+`version.NewCommand`. It regains `--quiet`, `buildDate`, and `gitCommit`, all
+of which the SDK command drops. `--quiet` is registered without the `-q`
+shorthand there, since `-q` remains `--query`.
