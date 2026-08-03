@@ -119,6 +119,26 @@ rejects an embedded protocol and an embedded port, requires at least one dot
 unless the value is exactly `localhost`, and names the offending character in
 its error. Delegating would loosen validation for a custom-domain config field
 and replace a specific message with a generic one.
+## Behavior changes with no signature change
+
+`fileutil.AtomicWriteJSON`, `fileutil.AtomicWriteFile`, and `fileutil.EnsureDir`
+keep their signatures but now delegate to `azdext.WriteFileAtomic` and
+`azdext.EnsureDir`. No call site needs to change. Three behaviors differ:
+
+| Behavior | Before (v0.5.x) | After (v0.6.0) |
+|---|---|---|
+| Rename retry on Windows | Any error, 5 attempts, 200ms total | `ERROR_SHARING_VIOLATION` and `ERROR_ACCESS_DENIED` only, 10 attempts, up to 10s |
+| Rename retry on Unix | Any error, 5 attempts, 200ms total | None, `os.Rename` is already atomic |
+| `AtomicWriteFile` with `perm == 0` | Chmods the file to `0000`, leaving it unreadable | Preserves the existing file's permissions, or `0644` for a new file |
+
+The Windows change means a write that previously failed under a transient
+antivirus or indexer lock now waits and succeeds. The trade is that a
+genuinely stuck rename takes up to 10s to report failure instead of 200ms.
+
+`fileutil.EnsureDir` still creates directories with `fileutil.DirPermission`
+(`0750`). Do not swap it for `azdext.EnsureDir` at call sites: that function
+falls back to `0755` when passed a zero permission, which would grant
+world read and execute.
 ## Changed signatures in retained packages
 
 | Symbol | Change | Notes |

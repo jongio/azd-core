@@ -1,5 +1,5 @@
 {
-  "total": 86.1,
+  "total": 86.2,
   "packages": {
     "github.com/jongio/azd-core/auth": 88.7,
     "github.com/jongio/azd-core/browser": 86.5,
@@ -11,7 +11,7 @@
     "github.com/jongio/azd-core/covergate/cmd/covergate": 88.5,
     "github.com/jongio/azd-core/editor": 84.4,
     "github.com/jongio/azd-core/env": 95,
-    "github.com/jongio/azd-core/fileutil": 89,
+    "github.com/jongio/azd-core/fileutil": 95.5,
     "github.com/jongio/azd-core/healthcheck": 83.1,
     "github.com/jongio/azd-core/healthcheck/metrics": 0,
     "github.com/jongio/azd-core/httpclient": 82.5,
