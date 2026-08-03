@@ -54,7 +54,7 @@ Each task must land with all three extensions still building against the prior `
 |---|---|---|---|
 | [x] 2.0 | C | Add `github.com/azure/azure-dev/cli/azd v1.29.0` to `go.mod` | 0.1 |
 | [x] 2.1 | C | Delete `procutil`. Callers move to `azdext.IsProcessRunning` / `GetProcessInfo` | 2.0 |
-| 2.2 | C | Delete `shellutil`. Callers move to `azdext.DetectShell` / `ShellCommand` | 2.0 |
+| [x] 2.2 | C | Delete `shellutil`, but **not** for the reason originally stated. `azdext.DetectShell()` answers a different question (which shell the user is in) than `shellutil.DetectShell(scriptPath)` (which interpreter runs this script file), so it is not a replacement. `shellutil` is deleted because it has zero callers in azd-core and all three extensions. `cmdutil.GetDefaultShell` / `prepareHookCommand` are **kept** for the same non-equivalence reason. See `migration.md` | 2.0 |
 | 2.3 | C | Delete `pathutil`. Callers move to `azdext.LookupTool` / `RequireTools` / `PrependPATH` | 2.0 |
 | 2.4 | C | Delete `azdextutil` (`RateLimiter`, `ValidateShellName`, `GetProjectDir`). Callers move to `MCPServerBuilder.WithRateLimit`, `azdext.ValidateScriptName`, `azdext.GetProjectDir` | 2.0 |
 | 2.5 | C | Keep `version`. Add `RegisterFlagOptions(cmd, "output", FlagOptions{Name: "output", AllowedValues: []string{"json"}})` so azd can discover the flag, which is the one thing `azdext.NewVersionCommand` did better. Then move azd-rest back onto `version.NewCommand`, since it already lost `--quiet`, `buildDate`, and `gitCommit` by adopting the SDK command | 2.0 |
@@ -67,7 +67,7 @@ Each task must land with all three extensions still building against the prior `
 | 2.12 | C | Replace `logutil` internals with `azdext.Logger`. Keep signatures, mark deprecated | 2.0 |
 | 2.13 | C | Delegate `cliout.PrintJSON` / `Table` to `azdext.Output`, and color/prompt gating to `azdext.DetectInteractive()`. Keep the rest of the `cliout` API | 2.0 |
 | 2.14 | C | Switch `env.LoadAzdEnvironment` to `azdext.LoadAzdEnvironment`. Add an explicit `LoadAzdEnvironmentFromSubprocess` for detached children only | 2.0 |
-| 2.15 | C | Release `azd-core v0.6.0` with a `CHANGELOG.md` migration table for every deleted symbol | 2.1-2.14 |
+| 2.15 | C | Release `azd-core v0.6.0`, copying the accumulated `docs/specs/azdext-alignment/migration.md` table into `CHANGELOG.md` | 2.1-2.14 |
 | 2.16 | A P R | Bump `azd-core` to `v0.6.0` and fix all call sites | 2.15 |
 
 ## Phase 3: Capability uplift

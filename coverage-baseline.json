@@ -23,7 +23,6 @@
     "github.com/jongio/azd-core/progress": 81.5,
     "github.com/jongio/azd-core/registry": 98.5,
     "github.com/jongio/azd-core/security": 81.8,
-    "github.com/jongio/azd-core/shellutil": 86.1,
     "github.com/jongio/azd-core/testutil": 83.3,
     "github.com/jongio/azd-core/urlutil": 98.3,
     "github.com/jongio/azd-core/version": 95.8,

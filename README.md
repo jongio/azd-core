@@ -57,7 +57,6 @@ go get github.com/jongio/azd-core/progress
 go get github.com/jongio/azd-core/projecttype
 go get github.com/jongio/azd-core/registry
 go get github.com/jongio/azd-core/security
-go get github.com/jongio/azd-core/shellutil
 go get github.com/jongio/azd-core/testutil
 go get github.com/jongio/azd-core/urlutil
 go get github.com/jongio/azd-core/version
@@ -372,24 +371,6 @@ func installSkills(version string) error {
 }
 ```
 
-### `shellutil`
-Shell detection from file extensions, shebangs, and OS defaults.
-
-**Key Functions:**
-- `DetectShell` - Auto-detect shell from extension, shebang, or OS default
-- `ReadShebang` - Parse shebang line to extract interpreter
-
-**Shell Constants:**
-- `ShellBash`, `ShellSh`, `ShellZsh` - Unix shells
-- `ShellPwsh`, `ShellPowerShell` - PowerShell variants
-- `ShellCmd` - Windows Command Prompt
-
-**Features:**
-- Extension detection (.ps1 → pwsh, .sh → bash, .cmd → cmd, etc.)
-- Shebang parsing (#!/bin/bash, #!/usr/bin/env python3, etc.)
-- OS-specific defaults (Windows: cmd, Unix: bash)
-- Graceful error handling (falls back to OS default)
-
 ## Usage Examples
 
 ### Resolve Key Vault References in Environment
@@ -485,22 +466,6 @@ if err := security.ValidatePath(userPath); err != nil {
 // Validate service name (DNS-safe, container-safe)
 if err := security.ValidateServiceName(name, false); err != nil {
     return fmt.Errorf("invalid service name: %w", err)
-}
-```
-
-### Shell Detection
-
-```go
-import "github.com/jongio/azd-core/shellutil"
-
-// Auto-detect shell from script
-shell := shellutil.DetectShell("deploy.sh")  // Returns "bash"
-shell = shellutil.DetectShell("setup.ps1")   // Returns "pwsh" or "powershell"
-shell = shellutil.DetectShell("build.cmd")   // Returns "cmd"
-
-// Read shebang to detect interpreter
-if shebang := shellutil.ReadShebang("script.py"); shebang != "" {
-    fmt.Printf("Interpreter: %s\n", shebang)  // "python3"
 }
 ```
 
