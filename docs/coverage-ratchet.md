@@ -91,6 +91,13 @@ modes.
 A baseline recorded before mode tracking existed has no `mode` field. The gate
 rejects it and asks for a re-record rather than guessing.
 
+One practical consequence: `mage coverageGate` gates whatever `coverage.out` is
+already on disk, it does not run the tests. If you have an old profile lying
+around from a run that did not pin the mode, the gate fails with a mode-drift
+error rather than a coverage number. That is the gate doing its job. Run `mage
+coverage`, which runs the suite and then gates, and the profile is regenerated
+in atomic mode.
+
 ## In CI
 
 CI gates the profile it already produced, so the suite runs once:

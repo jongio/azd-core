@@ -2,16 +2,23 @@
 
 Spec: [spec.md](./spec.md)
 
-Legend: `[ ]` pending, `[~]` in progress, `[x]` done. Repos: **C** azd-core, **A** azd-app, **P** azd-copilot, **R** azd-rest.
+Legend: `[ ]` pending, `[~]` in progress, `[x]` done. Rows with no marker are pending. Repos: **C** azd-core, **A** azd-app, **P** azd-copilot, **R** azd-rest.
 
 ## Phase 0: Baseline
 
 | # | Repo | Task | Depends on |
 |---|---|---|---|
-| 0.1 | A P R | Bump `github.com/azure/azure-dev/cli/azd` to `v1.29.0`, `go mod tidy`, verify build and tests green with no code changes | |
-| 0.2 | R | Align `go` directive to `1.26.5` to match the other repos | 0.1 |
-| 0.3 | C | Move `EXTENSION_FRAMEWORK_GAP_ANALYSIS.md` to `docs/archive/` with a superseded-by note referencing azure-dev PR #6856 | |
-| 0.4 | C | Add `docs/sdk-upgrade-policy.md`: track latest stable `cli/azd/vX.Y.Z` tag, never pseudo-versions, never `main` | |
+| [x] 0.1 | A P R | Bump `github.com/azure/azure-dev/cli/azd` to `v1.29.0`, `go mod tidy`, verify build and tests green with no code changes | |
+| [x] 0.2 | R | Align `go` directive to `1.26.5` to match the other repos | 0.1 |
+| [x] 0.3 | C | Move `EXTENSION_FRAMEWORK_GAP_ANALYSIS.md` to `docs/archive/` with a superseded-by note referencing azure-dev PR #6856 | |
+| [x] 0.4 | C | Add `docs/sdk-upgrade-policy.md`: track latest stable `cli/azd/vX.Y.Z` tag, never pseudo-versions, never `main` | |
+
+Phase 0 notes:
+
+- 0.1: azd-copilot and azd-rest were already on `v1.29.0`. azd-app moved `v1.28.1` to `v1.29.0` with no source changes; build, tests, and the coverage gate stayed green at 65.0%.
+- 0.2: already satisfied. All four repos declare `go 1.26.5`.
+- 0.3: archived to `docs/archive/extension-framework-gap-analysis.md` with a superseded-by banner. `spec.md` now points at the new path.
+- 0.4: `docs/sdk-upgrade-policy.md`. All four repos move the SDK pin together; `azd-core` does not depend on the SDK directly yet.
 
 ## Phase 1: Entry points and structured errors
 

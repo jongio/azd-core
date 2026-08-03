@@ -1,3 +1,18 @@
+> **ARCHIVED. SUPERSEDED.**
+>
+> This document was written on 2025-06-01, before the upstream Azure Developer CLI
+> extension framework work landed. Azure/azure-dev PR #6856 shipped the listen-command
+> factories, MCP scaffolding, rate limiting, structured errors, and the `azdext.Run`
+> entry point that this analysis recommended we build ourselves in `azd-core`.
+>
+> Do not use this document to plan work. Its recommendations are now actively
+> misleading, because following them would duplicate framework features that already
+> exist upstream.
+>
+> The current plan is `docs/specs/azdext-alignment/spec.md` and its companion
+> `tasks.md`. This file is retained only as a record of what we believed at the time.
+
+---
 # Azure Developer CLI Extension Framework - Comprehensive Gap Analysis
 
 **Review Date:** 2025-06-01  

@@ -12,7 +12,7 @@ Three concrete symptoms:
 2. **Independent authentication.** `azd-core/auth` builds its own `azidentity` credential chain instead of using `azdext.TokenProvider`, which brokers tokens through the azd host session. Users can be logged into `azd` and still hit a credential prompt from our extensions.
 3. **Shelling out to azd.** `azd-core/env.LoadAzdEnvironment` runs `azd env get-values` as a subprocess. `azdext.LoadAzdEnvironment` reads the values already injected into the process. The subprocess approach is the documented cause of the detached-child hang worked around in `azd-app/cli/src/cmd/app/main.go:44-56`.
 
-A prior analysis (`azd-core/EXTENSION_FRAMEWORK_GAP_ANALYSIS.md`, dated 2025-06-01) recommended building listen-command factories, MCP scaffolding, and rate limiters into `azd-core`. Upstream shipped all of those in PR #6856. That document is now actively misleading and should be archived.
+A prior analysis (now archived at `azd-core/docs/archive/extension-framework-gap-analysis.md`, dated 2025-06-01) recommended building listen-command factories, MCP scaffolding, and rate limiters into `azd-core`. Upstream shipped all of those in PR #6856. That document is now actively misleading, so it carries a superseded-by banner and must not be used to plan work.
 
 ## Current state
 
