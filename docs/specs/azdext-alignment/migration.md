@@ -228,6 +228,60 @@ caller already chose localhost. Every other origin gets the full policy.
 `azdext.SSRFSafeRedirect` resolves the redirect host so it can test the address
 against the private ranges, and it fails closed. A redirect to a host that
 cannot be resolved is now refused rather than attempted.
+### `auth.DetectScope` now resolves three more services
+
+`DetectScope` delegates its static host lookups to `azdext.ScopeDetector`. Every
+mapping that resolved before still resolves to the same scope. Three hosts that
+previously returned an empty scope, meaning the request went out
+unauthenticated, now resolve:
+
+| Host suffix | Scope |
+| --- | --- |
+| `.openai.azure.com` | `https://cognitiveservices.azure.com/.default` |
+| `.cognitiveservices.azure.com` | `https://cognitiveservices.azure.com/.default` |
+| `.services.ai.azure.com` | `https://cognitiveservices.azure.com/.default` |
+
+If you were passing an explicit `--scope` to reach Azure OpenAI, you can drop it.
+An explicit scope still wins, so nothing breaks if you keep it.
+
+Two rules stayed in `azd-core` because `azdext.ScopeDetector` cannot express
+them. Azure Data Explorer needs a scope derived from the cluster host rather
+than a fixed string. Service Bus and Event Hubs share the
+`servicebus.windows.net` suffix and are told apart by the request path;
+`azdext` resolves that suffix to Event Hubs unconditionally, which would hand a
+queue operation a token for the wrong audience.
+
+`azd-core` also keeps a rule for `.azurecr.io` that deliberately disagrees with
+`azdext`. The SDK returns the Resource Manager scope, which is what you exchange
+for an ACR refresh token. `azd-core` returns
+`https://containerregistry.azure.net/.default` so a direct `/v2/` call works.
+
+`DetectScope` still returns `("", nil)` for a host it does not recognize.
+`azdext.ScopeDetector` returns a `*ScopeDetectorError` in that case; `azd-core`
+translates it back so that an unrecognized host is still sent unauthenticated
+rather than failing.
+
+### `auth` gained two constructors for host-supplied credentials
+
+`NewAzureTokenProviderWithCredential(cred azcore.TokenCredential)` wraps any
+credential in the existing per-scope cache, request timeout, and error
+classification.
+
+`NewAzureTokenProviderForHost(ctx, client, opts)` uses `azdext.TokenProvider`
+when `client` is non-nil and the resilient `azidentity` chain when it is nil.
+Under a host this is what makes token acquisition tenant correct: the SDK
+provider reads the tenant from the deployment context, while the credential
+chain has no way to know it and acquires against whatever the local login points
+at.
+
+`azdext.TokenProvider` is not a replacement for `AzureTokenProvider`. It has no
+token cache, so every call shells out to `azd`; it uses only the azd CLI
+credential, so managed identity and workload identity are unavailable; and it
+returns the raw `azidentity` error instead of an `AuthPermissionError` or an
+`AuthCredentialUnavailableError`. Wrapping it preserves all three.
+
+`NewAzureTokenProvider` is unchanged. Existing callers need no edit.
+
 ## Changed signatures in retained packages
 
 | Symbol | Change | Notes |

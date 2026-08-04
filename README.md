@@ -521,6 +521,33 @@ The `keyvault` package uses `azidentity.DefaultAzureCredential`, supporting:
 
 No global state is maintained, and client caching is thread-safe.
 
+The `auth` package acquires Azure OAuth tokens for arbitrary REST calls.
+
+`DetectScope(url)` maps a request URL to the OAuth scope its service expects,
+returning an empty scope for a host it does not recognize so the request is sent
+unauthenticated. Most of the mapping comes from `azdext.ScopeDetector`, extended
+with the services the SDK does not cover. Two services are resolved locally
+because a static host to scope map cannot describe them: Azure Data Explorer
+needs a scope derived from the cluster host, and Service Bus and Event Hubs share
+a DNS suffix and are told apart by the request path.
+
+`IsAzureHost(url)` is the broader question of whether to authenticate at all. A
+host can be recognizably Azure without `azd-core` knowing its scope.
+
+Token acquisition goes through `AzureTokenProvider`, which caches per scope,
+applies a request timeout, and classifies failures into `AuthPermissionError`,
+`AuthCredentialUnavailableError`, or `AuthError`. Three constructors:
+
+- `NewAzureTokenProvider()` builds a resilient credential chain that tries the
+  azd CLI, the Azure CLI, environment variables, workload identity, and managed
+  identity in that order, continuing past a hard failure rather than stopping at
+  the first one the way `DefaultAzureCredential` does.
+- `NewAzureTokenProviderForHost(ctx, client, opts)` uses `azdext.TokenProvider`
+  when an azd host client is supplied, so the tenant comes from the deployment
+  context, and falls back to the chain when it is not.
+- `NewAzureTokenProviderWithCredential(cred)` wraps any
+  `azcore.TokenCredential`.
+
 ## Testing
 
 ```bash
