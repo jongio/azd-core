@@ -70,6 +70,7 @@ Full API documentation is available at [pkg.go.dev/github.com/jongio/azd-core](h
 - [Extension Patterns Guide](docs/extension-patterns.md) - Comprehensive patterns and best practices for building azd extensions
 
 **Migration Guides:**
+- [Migrating to azd-core v0.6.0](docs/migration-v0.6.0.md) - The `azdext` SDK rebase: removed packages, changed signatures, and behavior changes
 - [URL Validation and Environment Patterns Migration](docs/migration-urlutil-env.md) - Migrate from custom validation to azd-core utilities
 
 ## Packages
