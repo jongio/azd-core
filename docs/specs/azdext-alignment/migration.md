@@ -201,6 +201,33 @@ is still ignored, exactly as before.
 clouds and a `ClientFactory` for injecting a fake secret client in tests.
 `NewKeyVaultResolver()` is unchanged and still builds a
 `DefaultAzureCredential`.
+### httpclient
+
+The client keeps its own retry loop and its own pagination, because
+`azdext.ResilientClient` and `azdext.Pager` cannot express what `azd rest`
+exposes. See the migration notes below for what changed anyway.
+
+| Behavior | Before | Now |
+|---|---|---|
+| Retry on 429 Too Many Requests | Not retried. A throttled Azure Resource Manager or Microsoft Graph call failed on the first response | Retried |
+| Retry on 408 Request Timeout | Not retried | Retried |
+| Retry on 501 and 505 | Retried, since every 5xx was retried | Not retried. Both describe a permanent property of the server, so retrying only spent the caller's time |
+| `Retry-After` | Ignored | Honored, reading `retry-after-ms`, `x-ms-retry-after-ms`, and `retry-after` in either seconds or HTTP date form, capped at `MaxRetryAfterDuration` (120s) so a hostile value cannot stall the client |
+| Backoff | Exactly 1s, 2s, 4s | The same base, capped at `MaxRetryBackoff` (30s) and jittered into [80%, 120%). Without jitter, every client throttled by the same server retries in lockstep |
+| Discarded response body before a retry | Closed | Drained up to `MaxDrainBytes` (1 MiB) and then closed, so the connection can be reused |
+| Redirect target | Only counted against `--max-redirects` | Also passed through `azdext.SSRFSafeRedirect`, which blocks HTTPS to HTTP downgrades, cloud metadata endpoints, and loopback targets |
+
+#### Redirects and localhost
+
+A caller who aimed the original request at localhost keeps full redirect
+freedom. `azdext.SSRFSafeRedirect` blocks loopback unconditionally, and running
+an extension against a local API server is a first-class azd workflow, so
+applying it there would break local development for no security gain: the
+caller already chose localhost. Every other origin gets the full policy.
+
+`azdext.SSRFSafeRedirect` resolves the redirect host so it can test the address
+against the private ranges, and it fails closed. A redirect to a host that
+cannot be resolved is now refused rather than attempted.
 ## Changed signatures in retained packages
 
 | Symbol | Change | Notes |
