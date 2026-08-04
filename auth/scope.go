@@ -102,7 +102,7 @@ func DetectScope(urlString string) (string, error) {
 		// An unmapped host is not an error here. Callers treat the empty scope
 		// as "send this request unauthenticated", which is how a request to a
 		// non-Azure host has always been handled.
-		return "", nil
+		return "", nil //nolint:nilerr // an unmapped host is not an error, see above
 	}
 
 	return scopes[0], nil

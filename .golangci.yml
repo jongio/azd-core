@@ -57,6 +57,11 @@ linters:
     goconst:
       min-len: 3
       min-occurrences: 3
+      # Matches azd-rest. Tests repeat literals like header names on purpose:
+      # a test that reuses the constant stops proving the constant's value.
+      # Without this, test occurrences count toward the threshold and push
+      # constants into production code that uses the literal only once.
+      ignore-tests: true
     revive:
       rules:
         - name: exported

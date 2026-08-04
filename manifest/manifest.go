@@ -49,7 +49,7 @@ type Manifest struct {
 
 // Load parses an extension manifest.
 func Load(path string) (*Manifest, error) {
-	content, err := os.ReadFile(path)
+	content, err := os.ReadFile(path) // #nosec G304 -- build-tool supplied manifest path
 	if err != nil {
 		return nil, fmt.Errorf("reading extension manifest: %w", err)
 	}
@@ -121,7 +121,7 @@ var azdModuleVersion = regexp.MustCompile(
 // a plain semantic version, because a floor derived from a commit hash would
 // mean nothing to a user installing the extension.
 func AzdModuleVersion(goModPath string) (string, error) {
-	content, err := os.ReadFile(goModPath)
+	content, err := os.ReadFile(goModPath) // #nosec G304 -- build-tool supplied go.mod path
 	if err != nil {
 		return "", fmt.Errorf("reading go.mod: %w", err)
 	}
