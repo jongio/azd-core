@@ -388,6 +388,10 @@ func installSkills(version string) error {
 }
 ```
 
+### `pack`
+The `jongio.azd` extension pack manifest, at `pack/extension.yaml`. Installing it installs `azd-app`, `azd-copilot` and `azd-rest`.
+
+Nothing is importable here. azd decides a manifest is a pack by what it lacks, dependencies present and `capabilities`, `namespace`, `language` and `entryPoint` all absent, so adding any of those silently turns the pack back into an extension with no code to run. The tests beside the manifest guard that, the dependency list, floor rather than pinned dependency versions, and the azd floor.
 ## Usage Examples
 
 ### Resolve Key Vault References in Environment

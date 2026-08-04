@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/cli/azd/extensions/extension.schema.json
+
+# Extension pack. Installs the whole azd extension family in one step.
+#
+# A pack is not an extension that happens to have dependencies, it is a manifest
+# with dependencies and nothing else. azd infers pack mode structurally, from the
+# absence of executable metadata, so this file must never gain capabilities,
+# namespace, language or entryPoint. Adding any one of them silently turns this
+# back into a regular extension that has no code to run.
+id: jongio.azd
+version: 0.1.0
+displayName: Azure Developer CLI Extension Pack
+description: Installs the jongio azd extensions, app, copilot and rest, in one step.
+
+# Floors rather than exact pins. The three extensions release together but not
+# always in lockstep, and an exact pin would force a pack release for every patch.
+dependencies:
+  - id: jongio.azd.app
+    version: ">= 0.20.0"
+  - id: jongio.azd.copilot
+    version: ">= 0.2.4"
+  - id: jongio.azd.rest
+    version: ">= 0.5.0"
+
+# Matches the floor the three extensions declare. The pack calls no azd APIs
+# itself, but installing it installs them, so a host that cannot run them cannot
+# usefully install this either.
+requiredAzdVersion: ">= 1.29.0"
+
+tags:
+  - azd
+  - extension-pack
