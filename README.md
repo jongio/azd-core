@@ -336,7 +336,7 @@ Security validation utilities for path traversal prevention, input sanitization,
 - `ValidatePath` - Prevent path traversal attacks (detects `..`, resolves symlinks)
 - `ValidateServiceName` - Validate service names (DNS-safe, container-safe)
 - `ValidatePackageManager` - Allowlist-based package manager validation
-- `SanitizeScriptName` - Detect shell metacharacters
+- `ValidateScriptName` - Reject shell metacharacters and path traversal
 - `IsContainerEnvironment` - Detect Codespaces, Dev Containers, Docker, Kubernetes
 - `ValidateFilePermissions` - Detect world-writable files (Unix only)
 

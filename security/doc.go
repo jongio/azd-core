@@ -11,7 +11,7 @@
 // - Symbolic link resolution and validation
 // - Service name validation (DNS-safe, container-safe identifiers)
 // - Package manager name validation (allowlist-based)
-// - Script name sanitization (detects shell metacharacters)
+// - Script name validation (rejects shell metacharacters and traversal)
 // - Container environment detection
 // - File permission validation (detects world-writable files)
 //
@@ -57,23 +57,24 @@
 //	    return fmt.Errorf("invalid path: %w", err)
 //	}
 //
-//	// Validate service name
-//	if err := security.ValidateServiceName(name); err != nil {
+//	// Validate a service name. Pass true to accept an empty name for an
+//	// optional parameter.
+//	if err := security.ValidateServiceName(name, false); err != nil {
 //	    return fmt.Errorf("invalid service name: %w", err)
 //	}
 //
-//	// Check for shell metacharacters
-//	if security.ContainsShellMetachars(scriptName) {
-//	    return errors.New("script name contains unsafe characters")
+//	// Reject script names carrying shell metacharacters or traversal
+//	if err := security.ValidateScriptName(scriptName); err != nil {
+//	    return err
 //	}
 //
 //	// Detect world-writable files
-//	isInsecure, err := security.IsWorldWritable("config.json")
-//	if err != nil {
-//	    return err
-//	}
-//	if isInsecure {
-//	    log.Warn("File has insecure permissions")
+//	if err := security.ValidateFilePermissions("config.json"); err != nil {
+//	    if errors.Is(err, security.ErrInsecureFilePermissions) {
+//	        log.Warn("File has insecure permissions")
+//	    } else {
+//	        return err
+//	    }
 //	}
 //
 // # Testing

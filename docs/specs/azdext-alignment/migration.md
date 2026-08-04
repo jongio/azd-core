@@ -25,6 +25,7 @@ reconstructed from memory.
 | Removed | Replacement | Notes |
 |---|---|---|
 | `pathutil.FindToolInPath(name string) string` | `azdext.LookupTool(name).Path` | Also a **bug fix**, see below. `LookupTool` additionally returns `ToolInfo.Found` and prefers a project-local wrapper such as `./mvnw` over the PATH copy. |
+| `security.SanitizeScriptName(name string) error` | `security.ValidateScriptName(name string) error` | Renamed to match what it does: it validates and never sanitizes. Now delegates to `azdext.ValidateScriptName`, which rejects a strict superset of the old metacharacters (adds `!`, `~`, `*`, `?`, `%`, and NUL), also rejects `..`, and rejects the empty string, which the old function accepted. The error text is now "script name contains forbidden shell metacharacter at position N" rather than "dangerous character". |
 
 `pathutil` itself is **retained**. `SearchToolInSystemPath`, `GetInstallSuggestion`, and
 `RefreshPATH` have no SDK equivalent:
@@ -139,6 +140,31 @@ genuinely stuck rename takes up to 10s to report failure instead of 200ms.
 (`0750`). Do not swap it for `azdext.EnsureDir` at call sites: that function
 falls back to `0755` when passed a zero permission, which would grant
 world read and execute.
+`security.IsContainerEnvironment` keeps its signature but now delegates to
+`azdext.IsContainerEnvironment`. Detection changed from value-based to
+presence-based, and one more variable is consulted:
+
+| Behavior | Before (v0.5.x) | After (v0.6.0) |
+|---|---|---|
+| `CODESPACES` / `REMOTE_CONTAINERS` | Must equal the literal `"true"` | Any non-empty value counts as present |
+| `REMOTE_CONTAINERS_IPC` | Not consulted | Counted as present when non-empty |
+| `KUBERNETES_SERVICE_HOST`, `/.dockerenv` | Consulted | Unchanged |
+
+Presence-based detection is the convention these tools actually use. GitHub
+never sets `CODESPACES` to anything but `"true"`, and adding
+`REMOTE_CONTAINERS_IPC` closes a real gap: some VS Code Dev Container versions
+set only that variable, so azd-core previously failed to detect them. If you
+have a test that sets one of these to `"false"` and expects `false`, invert it.
+`azdext` also exposes `ContainerRuntime()` returning `codespaces`,
+`kubernetes`, `devcontainer`, `docker`, or the empty string, if you need to
+distinguish them.
+
+`security.ValidateServiceName` keeps its signature, including the `allowEmpty`
+parameter, the length error message, and the `ErrInvalidServiceName` sentinel.
+Only the format rule now comes from `azdext.ValidateServiceName`, whose regex
+is byte-identical to the one it replaces. The explicit `..`, `/`, and `\`
+traversal check is retained because the SDK regex accepts `a..b`.
+
 ## Changed signatures in retained packages
 
 | Symbol | Change | Notes |
