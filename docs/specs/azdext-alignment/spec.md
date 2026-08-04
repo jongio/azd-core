@@ -193,11 +193,11 @@ Release `azd-core v0.6.0` as a breaking change with a migration table in `CHANGE
 
 ### Phase 4: distribution and consistency
 
-- Publish `jongio.azd` as an extension pack with `dependencies` on `jongio.azd.app`, `jongio.azd.copilot`, `jongio.azd.rest`.
+- Publish `jongio.azd` as an extension pack with `dependencies` on `jongio.azd.app`, `jongio.azd.copilot`, `jongio.azd.rest`. The pack lives in `jongio/azd-extensions`, the registry repo, because it has no code and no release of its own.
 - Standardize on `azd x build` / `azd x pack` / `azd x publish` / `azd x release` in all three magefiles. azd-rest already does this; azd-app and azd-copilot are inconsistent.
 - Align `go` directives: azd-rest is on `go 1.26.4`, the others on `1.26.5`.
 - Add `azdext.GenerateExtensionMetadata` configuration schemas and `EnvironmentVariables` documentation to all three metadata commands.
-- Submit all three to the azd dev registry (`registry.dev.json`) so users can `azd extension install --source dev`.
+- ~~Submit all three to the azd dev registry (`registry.dev.json`) so users can `azd extension install --source dev`.~~ Dropped. `registry.dev.json` is Microsoft's preview channel, carrying two Microsoft extensions, and no third party appears in it or in the production registry beside it. azd supports user-configured URL registries natively, and `jongio/azd-extensions` already serves one that all three extensions install from. See task 4.4.
 
 ## Risks
 
