@@ -282,6 +282,44 @@ returns the raw `azidentity` error instead of an `AuthPermissionError` or an
 
 `NewAzureTokenProvider` is unchanged. Existing callers need no edit.
 
+### `logutil` now honors every documented `AZD_DEBUG` value
+
+`IsDebugEnabled` compared `AZD_DEBUG` against the literal string `true`, so
+`AZD_DEBUG=1` and `AZD_DEBUG=yes` did nothing even though the azd extension
+framework honors both. It now uses the same parsing as the SDK: anything
+`strconv.ParseBool` accepts, plus `yes`, case-insensitively.
+
+If you were relying on `AZD_DEBUG=1` being ignored, you will now get debug
+output. Set `AZD_DEBUG=false` or unset it.
+
+### `logutil.ComponentLogger` is backed by `azdext.Logger`
+
+`NewLogger`, `WithService`, `WithOperation`, `WithFields`, `Component`, and the
+four level methods are unchanged. Three additions:
+
+| Method | Purpose |
+| --- | --- |
+| `WithComponent(name)` | Reparent under a new component, recording the old one as `parent_component`. Matches the SDK. |
+| `AzdextLogger()` | The wrapped `*azdext.Logger`, for APIs that accept one. |
+| `Slogger()` | The underlying `*slog.Logger`. |
+
+Both accessors bypass `SetLevel`, since the level filter lives in the wrapper.
+
+Level filtering and the output writer stayed in `logutil` on purpose.
+`azdext.LoggerOptions` carries a single `Debug` boolean, so it can express only
+debug and info; delegating the filter would have made `SetLevel(LevelWarn)` and
+`SetLevel(LevelError)` silently ineffective. Separately,
+`azdext.NewLogger` constructs a fresh handler and defaults to stderr rather than
+inheriting `slog.Default`, contrary to its documentation, so `logutil` passes the
+package writer explicitly. Without that, `SetOutput` and
+`SetupLoggerWithWriter` would have become no-ops for component loggers and every
+captured log line would have leaked to stderr.
+
+One consequence worth knowing: a `ComponentLogger` captures the writer and
+format in effect when it is constructed. Call `SetOutput` or
+`SetupLoggerWithWriter` before creating loggers you intend to capture. This was
+already true and is now documented.
+
 ## Changed signatures in retained packages
 
 | Symbol | Change | Notes |

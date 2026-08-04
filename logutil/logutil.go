@@ -7,8 +7,11 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/azure/azure-dev/cli/azd/pkg/azdext"
 )
 
 // Level represents the logging level.
@@ -29,7 +32,7 @@ const (
 const (
 	// EnvDebug enables debug logging when set to "true".
 	EnvDebug          = "AZD_DEBUG"
-	envValueTrue      = "true"
+	envValueYes       = "yes"
 	logLevelDebugName = "debug"
 	logLevelInfoName  = "info"
 	logLevelWarnName  = "warn"
@@ -72,15 +75,35 @@ func SetupLogger(debug, structured bool) {
 	isStructured = structured
 	outputWriter = os.Stderr
 
-	var handler slog.Handler
-	opts := &slog.HandlerOptions{
-		Level: level,
+	applyAzdextLogging(level, structured, outputWriter)
+}
+
+// applyAzdextLogging installs the process-wide logger through the SDK and
+// mirrors it into globalLogger.
+//
+// azdext.SetupLogging takes a Debug boolean rather than a level, so it can only
+// express debug and info. Warn and error fall back to constructing the handler
+// here. Caller must hold mu.
+func applyAzdextLogging(level slog.Level, structured bool, w io.Writer) {
+	if level == slog.LevelDebug || level == slog.LevelInfo {
+		azdext.SetupLogging(azdext.LoggerOptions{
+			Debug:      level == slog.LevelDebug,
+			Structured: structured,
+			Writer:     w,
+		})
+
+		globalLogger = slog.Default()
+
+		return
 	}
 
+	opts := &slog.HandlerOptions{Level: level}
+
+	var handler slog.Handler
 	if structured {
-		handler = slog.NewJSONHandler(outputWriter, opts)
+		handler = slog.NewJSONHandler(w, opts)
 	} else {
-		handler = slog.NewTextHandler(outputWriter, opts)
+		handler = slog.NewTextHandler(w, opts)
 	}
 
 	globalLogger = slog.New(handler)
@@ -109,19 +132,7 @@ func setupLoggerInternal() {
 		level = slog.LevelInfo
 	}
 
-	var handler slog.Handler
-	opts := &slog.HandlerOptions{
-		Level: level,
-	}
-
-	if isStructured {
-		handler = slog.NewJSONHandler(outputWriter, opts)
-	} else {
-		handler = slog.NewTextHandler(outputWriter, opts)
-	}
-
-	globalLogger = slog.New(handler)
-	slog.SetDefault(globalLogger)
+	applyAzdextLogging(level, isStructured, outputWriter)
 }
 
 // SetupLoggerWithWriter configures the logger with a custom writer.
@@ -144,19 +155,7 @@ func SetupLoggerWithWriter(w io.Writer, debug, structured bool) {
 
 	isStructured = structured
 
-	var handler slog.Handler
-	opts := &slog.HandlerOptions{
-		Level: level,
-	}
-
-	if structured {
-		handler = slog.NewJSONHandler(outputWriter, opts)
-	} else {
-		handler = slog.NewTextHandler(outputWriter, opts)
-	}
-
-	globalLogger = slog.New(handler)
-	slog.SetDefault(globalLogger)
+	applyAzdextLogging(level, structured, outputWriter)
 }
 
 // IsDebugEnabled returns true if debug logging is enabled.
@@ -166,7 +165,26 @@ func IsDebugEnabled() bool {
 	mu.RLock()
 	level := currentLevel
 	mu.RUnlock()
-	return level == LevelDebug || os.Getenv(EnvDebug) == envValueTrue
+
+	return level == LevelDebug || isDebugEnv()
+}
+
+// isDebugEnv reads AZD_DEBUG using the same rules as the azd extension SDK.
+//
+// This used to compare against the literal string "true", so AZD_DEBUG=1 and
+// AZD_DEBUG=yes silently did nothing even though the framework honors them.
+func isDebugEnv() bool {
+	v := os.Getenv(EnvDebug)
+	if v == "" {
+		return false
+	}
+
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		return strings.EqualFold(v, envValueYes)
+	}
+
+	return b
 }
 
 // getLogger returns the global logger under read lock for safe concurrent access.
@@ -262,19 +280,7 @@ func SetLevel(level Level) {
 		slogLevel = slog.LevelInfo
 	}
 
-	var handler slog.Handler
-	opts := &slog.HandlerOptions{
-		Level: slogLevel,
-	}
-
-	if isStructured {
-		handler = slog.NewJSONHandler(outputWriter, opts)
-	} else {
-		handler = slog.NewTextHandler(outputWriter, opts)
-	}
-
-	globalLogger = slog.New(handler)
-	slog.SetDefault(globalLogger)
+	applyAzdextLogging(slogLevel, isStructured, outputWriter)
 }
 
 // Logger returns the underlying slog.Logger for advanced usage.
