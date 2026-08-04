@@ -27,6 +27,7 @@ This library includes:
 - **Copilot Skill Installation**: Version-aware installation of agentskills.io SKILL.md files
 - **Browser Launching**: Secure cross-platform URL opening
 - **Security Validation**: Path traversal prevention, input sanitization, permission checks
+- **Extension Manifests**: Checks that catch extension.yaml keys azd silently ignores
 
 ## Installation
 
@@ -50,6 +51,7 @@ go get github.com/jongio/azd-core/healthcheck
 go get github.com/jongio/azd-core/httpclient
 go get github.com/jongio/azd-core/keyvault
 go get github.com/jongio/azd-core/logutil
+go get github.com/jongio/azd-core/manifest
 go get github.com/jongio/azd-core/notify
 go get github.com/jongio/azd-core/pathutil
 go get github.com/jongio/azd-core/progress
