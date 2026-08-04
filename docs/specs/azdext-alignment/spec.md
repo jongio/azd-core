@@ -154,7 +154,17 @@ Order matters: each step must land with all three extensions still building agai
    - `Confirm` gated only on `IsJSON()`, so in default format it called `fmt.Scanln` unconditionally and blocked under CI, `AZD_NO_PROMPT`, and AI agent hosts.
 
    The exported string helpers (`Highlight`, `Emphasize`, `Muted`, `URL`, `Count`, `Status`) intentionally still return ANSI codes. Stripping happens where the package writes, not where it composes, which keeps those helpers pure and their callers free to route the result anywhere.
-10. **`env.LoadAzdEnvironment`:** switch to `azdext.LoadAzdEnvironment`. Keep the subprocess path behind an explicit `FromSubprocess` variant used only by detached children.
+10. **`env.LoadAzdEnvironment`:** DONE, as a rejected delegation. Nothing changed at runtime; the reasoning is now enforced by tests so a future contributor cannot make the swap silently.
+
+    `azdext.LoadAzdEnvironment(ctx)` runs `azd env get-values` with no `-e` flag. It reads whichever environment azd currently considers default and offers no way to name one. `env.LoadAzdEnvironment(ctx, envName)` exists precisely because azd injects the default environment into the extension process and only then passes `-e` through, so the extension has to reload. Substituting the SDK function would have turned `azd app <cmd> -e staging` into a silent read of the default environment: a correctness bug with a plausible blast radius of writing staging output using production connection strings.
+
+    Three further capabilities would have been lost: the `--output json` path (the KEY=VALUE fallback cannot represent a value containing a newline), the environment name allowlist (the name reaches an `exec` argv), and the `CommandRunner` seam that all eleven existing loader tests depend on.
+
+    A probe also compared `ParseKeyValueFormat` against `azdext.ParseEnvironmentVariables` across twelve input shapes. They agree on ten. They differ on two, and both differences change the value the caller receives: the SDK applies `strings.TrimSpace` to the value (losing significant leading whitespace) and strips only double quotes (so `KEY='v'` keeps its quotes). So that parser is not a drop-in either.
+
+    No `LoadAzdEnvironmentFromSubprocess` was added. The detached-child skip depends on azd-app's own spawn marker environment variable and its once-and-unset semantics, which exist so that services and hooks spawned from `os.Environ()` do not inherit the marker. That is azd-app's detach protocol, not a shared concept, and hoisting it into azd-core would put azd-app internals in a general purpose package for no caller.
+
+    Pinned by `env/azdext_divergence_test.go`. If the SDK later gains `-e` targeting or matches the parser behavior, those tests fail and the delegation can be reconsidered.
 
 Release `azd-core v0.6.0` as a breaking change with a migration table in `CHANGELOG.md`.
 

@@ -58,6 +58,14 @@ func getRunner() CommandRunner {
 // the correct environment variables. However, currently azd injects the default
 // environment from config.json, then passes the -e flag to the extension.
 // This forces us to manually reload the environment using 'azd env get-values'.
+//
+// Do not replace this with azdext.LoadAzdEnvironment. The SDK function runs
+// 'azd env get-values' with no -e flag, so it always reads whichever environment
+// azd considers current. Substituting it would make 'azd <ext> <cmd> -e staging'
+// silently load the default environment instead, which is the exact bug this
+// function exists to prevent. The SDK version also has no JSON path (so values
+// containing newlines break), no environment name validation, and no injectable
+// command runner for tests. See TestSDKLoaderCannotTargetNamedEnvironment.
 func LoadAzdEnvironment(ctx context.Context, envName string) error {
 	values, err := GetAzdEnvironmentValues(ctx, envName)
 	if err != nil {
@@ -118,6 +126,12 @@ func GetAzdEnvironmentValues(ctx context.Context, envName string) (map[string]st
 
 // ParseKeyValueFormat parses output in "KEY=value" format (one per line).
 // Handles quoted values and skips empty lines and comments.
+//
+// Do not replace this with azdext.ParseEnvironmentVariables. The SDK parser
+// applies strings.TrimSpace to the value and only strips double quotes, so it
+// changes two kinds of value azd users can legitimately hold: one with
+// significant leading whitespace, and one wrapped in single quotes. Both are
+// pinned by TestParserDivergesFromSDK.
 func ParseKeyValueFormat(output []byte) (map[string]string, error) {
 	values := make(map[string]string)
 	lines := strings.Split(string(output), "\n")

@@ -357,6 +357,24 @@ existing scripted flows are unaffected.
 If you need an unattended yes, pass an explicit skip-confirmation flag rather
 than relying on the prompt failing open.
 
+### `env` loader stays local (no user-visible change)
+
+No behavior changed. This entry exists so the decision is discoverable.
+
+`env.LoadAzdEnvironment(ctx, envName)` and `env.ParseKeyValueFormat` were
+evaluated for delegation to `azdext.LoadAzdEnvironment` and
+`azdext.ParseEnvironmentVariables` and both were rejected.
+
+The SDK loader runs `azd env get-values` with no `-e` flag, so it cannot
+target a named environment. Delegating would have made `-e <name>` silently
+read the default environment. The SDK loader also has no JSON output path, no
+environment name validation, and no injectable command runner.
+
+The SDK parser trims the value and strips only double quotes, so it changes a
+value with significant leading whitespace and one wrapped in single quotes.
+
+`env/azdext_divergence_test.go` pins both findings.
+
 ## Changed signatures in retained packages
 
 | Symbol | Change | Notes |
