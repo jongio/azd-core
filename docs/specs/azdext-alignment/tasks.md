@@ -122,3 +122,15 @@ Run after each phase, not just at the end.
 - `azdext.ValidateNoReservedFlagConflicts` and `VerifyProvidersMatchManifest` tests pass.
 - Manual smoke on Windows, Linux, macOS: `azd app run`, `azd rest get <url>`, `azd copilot -p "hello"`.
 - `go build` binary size delta under 10 percent per extension.
+
+### Outcome
+
+| Check | Result |
+|---|---|
+| `mage test` in all four | Pass. |
+| `mage lint` in all four | Pass. Ten findings surfaced and were fixed rather than suppressed, except two that are deliberate and now carry a written reason: the `#nosec G304` on the two manifest reads, which take a path the build tool supplies rather than a user, and the `nilerr` on the auth scope lookup, where an unmapped host means send unauthenticated rather than fail. `goconst` now ignores tests in azd-core, matching the rationale azd-rest already documented. |
+| Coverage gates | azd-core 87.8%, azd-app 65.2%, azd-copilot 32.9%, azd-rest 87.0%, all at or above baseline. azd-copilot rose on the checkpoint validator. azd-rest dipped 0.1 on a new unreachable error branch, which was then covered rather than re-recorded, because re-recording a baseline to accept a drop is how a ratchet quietly stops ratcheting. |
+| `ValidateNoReservedFlagConflicts` | Pass in all three extensions, plus a companion test in each asserting the reserved list is non-empty, since the validator passes unconditionally against an empty list and would otherwise be a guard that guards nothing. |
+| `VerifyProvidersMatchManifest` | Pass in azd-app, the only repo declaring providers, together with the drift and undeclared negative cases and `TestCapabilitiesMatchRegisteredProviders`, which closes the gap the SDK helper leaves: azd gates on `capabilities` before it reads `providers`. |
+| Binary size delta | azd-rest +0.26%, azd-copilot +0.32%, azd-app +2.40%, all against a build of `origin/main`, well inside the 10 percent budget. azd-app was measured with an identical placeholder standing in for the dashboard bundle in both builds, so the number reflects Go code and dependency growth rather than frontend output. |
+| Cross-platform manual smoke | Not run. This is a user-side item: it needs three real operating systems and a live Azure session, so it cannot be claimed from CI or from this environment. |
