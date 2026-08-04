@@ -273,11 +273,22 @@ Azure Key Vault reference detection and resolution for environment variables.
 - `@Microsoft.KeyVault(VaultName=...;SecretName=...;SecretVersion=...)`
 - `akvs://<subscription-id>/<vault-name>/<secret-name>[/<version>]`
 
+Reference parsing, client construction, per-vault client caching, and secret
+retrieval come from `azdext.KeyVaultResolver`. This package adds the KEY=VALUE
+environment slice API and support for the versioned `akvs://` form, which
+`azdext` does not parse on its own.
+
 **Features:**
-- Uses `azidentity.DefaultAzureCredential` for authentication
-- Thread-safe client caching
+- `NewKeyVaultResolver` uses `azidentity.DefaultAzureCredential`
+- `NewKeyVaultResolverWithCredential` accepts an `azdext.TokenProvider`, a
+  sovereign cloud vault suffix, or an injected secret client for tests
+- Thread-safe per-vault client caching
 - Configurable error handling (fail-fast or graceful degradation)
-- SSRF protection and validation
+- Vault host allowlist covering the public, China, US Government, Germany, and
+  Managed HSM endpoints, so a `SecretUri` cannot point at an arbitrary host
+- Failures are `*azdext.KeyVaultResolveError`, carrying a `Reason` that
+  separates a malformed reference from a missing secret, an access denial, or a
+  service error
 
 ### `fileutil`
 File system utilities with atomic operations, JSON handling, and secure file detection.

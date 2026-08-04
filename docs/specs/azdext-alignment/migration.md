@@ -165,6 +165,42 @@ Only the format rule now comes from `azdext.ValidateServiceName`, whose regex
 is byte-identical to the one it replaces. The explicit `..`, `/`, and `\`
 traversal check is retained because the SDK regex accepts `a..b`.
 
+### keyvault
+
+The package is now a thin layer over `azdext.KeyVaultResolver`. Parsing, client
+construction, per-vault caching, and secret retrieval all move to the SDK. The
+exported API is unchanged, but the behavior behind it is not.
+
+| Behavior | Before | Now |
+|---|---|---|
+| `IsKeyVaultReference` on a malformed `akvs://` value | Strict regex, so `akvs://a/b` was not a reference and passed through as a literal value | Prefix check, so anything starting with `akvs://` is a reference. A typo now surfaces as a resolution warning naming the variable instead of silently shipping a broken literal into the environment |
+| `@Microsoft.KeyVault(` prefix casing | Case sensitive, so `@microsoft.keyvault(...)` was not recognized | Case insensitive, matching how Azure App Service reads the same syntax. This was a bug |
+| Vault name rules | Leading and trailing hyphens were accepted | `^[a-zA-Z][a-zA-Z0-9-]{1,22}[a-zA-Z0-9]$`, matching the Azure naming rule. A name that Azure would reject is now rejected before the network call |
+| `SecretUri` host | Only `.vault.azure.net` | `.vault.azure.net`, `.vault.azure.cn`, `.vault.usgovcloudapi.net`, `.vault.microsoftazure.de`, and `.managedhsm.azure.net`. Sovereign clouds and Managed HSM work, and the host allowlist still blocks an arbitrary URL |
+| Duplicate or unknown parameters in an app reference | Last value won, unknown keys ignored | Rejected as an invalid reference |
+| Error type | `fmt.Errorf` string, with the vault URL deliberately stripped | `*azdext.KeyVaultResolveError`, carrying `Reason` (`InvalidReference`, `ClientCreation`, `NotFound`, `AccessDenied`, `ServiceError`), the vault, and the secret name. Callers can branch on the reason with `errors.As` instead of matching substrings |
+
+The redaction is deliberately reversed. The old code stripped the vault URL to
+avoid disclosing it, but the error already quoted the reference the caller
+passed in, and that reference contains the vault name. Redacting one copy while
+printing the other only cost debuggability.
+
+#### `akvs://` with a version
+
+`azdext.ParseSecretReference` accepts exactly three segments. azd-core has
+documented a fourth version segment since v0.1, so `normalizeReference` rewrites
+`akvs://<subscription>/<vault>/<secret>/<version>` into
+`@Microsoft.KeyVault(VaultName=<vault>;SecretName=<secret>;SecretVersion=<version>)`
+before handing it to the SDK. Both forms keep working, and the subscription id
+is still ignored, exactly as before.
+
+#### New constructor
+
+`NewKeyVaultResolverWithCredential(cred, opts)` accepts an
+`*azdext.KeyVaultResolverOptions`, which exposes a `VaultSuffix` for sovereign
+clouds and a `ClientFactory` for injecting a fake secret client in tests.
+`NewKeyVaultResolver()` is unchanged and still builds a
+`DefaultAzureCredential`.
 ## Changed signatures in retained packages
 
 | Symbol | Change | Notes |
