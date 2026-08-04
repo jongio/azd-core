@@ -9,6 +9,25 @@
 //   - Orchestration mode for composing subcommands
 //   - Progress bars, tables, and interactive prompts
 //   - Cross-platform terminal detection (Windows Terminal, VS Code, PowerShell, ConEmu)
+//   - Automatic color and prompt suppression when the terminal cannot support it
+//
+// # Relationship to azdext
+//
+// JSON and table rendering delegate to azdext.Output, so azd-core and the azd
+// host agree on encoding and on what JSON mode means. Color and prompt gating
+// come from azdext.DetectInteractive.
+//
+// Color is enabled only when azdext reports the terminal can colorize, which
+// honors FORCE_COLOR=1 first, then any non-empty NO_COLOR, then whether stdout
+// is a terminal. ForceColor and NoColor override that detection. Suppression is
+// applied where the package writes, not where it composes, so the string
+// returning helpers (Highlight, Emphasize, Muted, URL, Count, Status) always
+// return ANSI codes and callers stay free to route the result anywhere.
+//
+// Confirm declines instead of prompting whenever azdext reports that prompting
+// is impossible: a redirected stdin or stdout, AZD_NO_PROMPT, a CI runner, or an
+// AI agent host. In JSON mode it continues to assume yes. Use an explicit
+// skip-confirmation flag for unattended runs rather than relying on either.
 //
 // # Basic Usage
 //

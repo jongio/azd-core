@@ -4,12 +4,14 @@
 package cliout
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
+
+	"github.com/azure/azure-dev/cli/azd/pkg/azdext"
 )
 
 // Format represents the output format.
@@ -95,8 +97,11 @@ var (
 // Global output format setting
 var globalFormat Format = FormatDefault
 
-// noColor disables all color output
-var noColor = false
+// noColor disables all color output. It is seeded from the azdext interactive
+// probe so that ANSI escapes are suppressed when stdout is redirected, when
+// NO_COLOR is set, and when running under CI or an AI agent. FORCE_COLOR=1
+// overrides the terminal check. ForceColor and NoColor override the probe.
+var noColor = !azdext.DetectInteractive().CanColorize()
 
 // orchestratedMode indicates if running as part of command orchestration
 var orchestratedMode = false
@@ -138,6 +143,31 @@ func getNoColor() bool {
 	mu.RLock()
 	defer mu.RUnlock()
 	return noColor
+}
+
+// ansiPattern matches ANSI SGR escape sequences emitted by the color constants
+// in this package.
+var ansiPattern = regexp.MustCompile("\x1b\\[[0-9;]*m")
+
+// styled returns s unchanged when color is enabled and strips every ANSI escape
+// sequence from it when color is disabled. Every helper in this package that
+// prints or returns decorated text routes through it, which is what makes
+// NoColor and the non-TTY detection actually take effect.
+func styled(s string) string {
+	if !getNoColor() {
+		return s
+	}
+	return ansiPattern.ReplaceAllString(s, "")
+}
+
+// outf is the package replacement for fmt.Printf. It applies color gating.
+func outf(format string, args ...any) {
+	fmt.Print(styled(fmt.Sprintf(format, args...)))
+}
+
+// outln is the package replacement for fmt.Println. It applies color gating.
+func outln(args ...any) {
+	fmt.Print(styled(fmt.Sprintln(args...)))
 }
 
 // supportsUnicode detects if the terminal supports Unicode/emojis
@@ -224,9 +254,23 @@ func IsJSON() bool {
 
 // PrintJSON prints data as JSON to stdout.
 func PrintJSON(data any) error {
-	encoder := json.NewEncoder(os.Stdout)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(data)
+	return newAzdextOutput(FormatJSON).JSON(data)
+}
+
+// newAzdextOutput builds an azdext.Output bound to the process stdout/stderr
+// for the given cliout format. The SDK type captures its writers at
+// construction, so it is built per call rather than cached, which keeps it
+// correct when tests swap os.Stdout.
+func newAzdextOutput(f Format) *azdext.Output {
+	format := azdext.OutputFormatDefault
+	if f == FormatJSON {
+		format = azdext.OutputFormatJSON
+	}
+	return azdext.NewOutput(azdext.OutputOptions{
+		Format:    format,
+		Writer:    os.Stdout,
+		ErrWriter: os.Stderr,
+	})
 }
 
 // PrintDefault prints data in default format using a custom formatter function.
@@ -251,8 +295,8 @@ func Print(data any, formatter func()) error {
 
 // Header prints a bold header with a divider
 func Header(text string) {
-	fmt.Printf("\n%s%s%s\n", Bold, text, Reset)
-	fmt.Println(strings.Repeat("=", len(text)))
+	outf("\n%s%s%s\n", Bold, text, Reset)
+	outln(strings.Repeat("=", len(text)))
 }
 
 // CommandHeader prints a minimal command header.
@@ -262,102 +306,102 @@ func CommandHeader(command, _ string) {
 	if IsJSON() || IsOrchestrated() {
 		return
 	}
-	fmt.Println()
-	fmt.Printf("%sazd app %s%s\n", Bold, command, Reset)
-	fmt.Println(strings.Repeat("─", 30))
-	fmt.Println()
+	outln()
+	outf("%sazd app %s%s\n", Bold, command, Reset)
+	outln(strings.Repeat("─", 30))
+	outln()
 }
 
 // Section prints a section header
 func Section(icon, text string) {
 	displayIcon := getIcon(icon, "[>]")
-	fmt.Printf("\n%s%s %s%s\n", Cyan, displayIcon, text, Reset)
+	outf("\n%s%s %s%s\n", Cyan, displayIcon, text, Reset)
 }
 
 // Success prints a success message with green checkmark
 func Success(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	check := getIcon(SymbolCheck, ASCIICheck)
-	fmt.Printf("%s%s%s %s\n", BrightGreen, check, Reset, msg)
+	outf("%s%s%s %s\n", BrightGreen, check, Reset, msg)
 }
 
 // Error prints an error message with red X
 func Error(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	cross := getIcon(SymbolCross, ASCIICross)
-	fmt.Printf("%s%s%s %s\n", BrightRed, cross, Reset, msg)
+	outf("%s%s%s %s\n", BrightRed, cross, Reset, msg)
 }
 
 // Warning prints a warning message with yellow triangle
 func Warning(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	warning := getIcon(SymbolWarning, ASCIIWarning)
-	fmt.Printf("%s%s%s  %s\n", BrightYellow, warning, Reset, msg)
+	outf("%s%s%s  %s\n", BrightYellow, warning, Reset, msg)
 }
 
 // Info prints an info message with blue info icon
 func Info(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	info := getIcon(SymbolInfo, ASCIIInfo)
-	fmt.Printf("%s%s%s  %s\n", BrightBlue, info, Reset, msg)
+	outf("%s%s%s  %s\n", BrightBlue, info, Reset, msg)
 }
 
 // Step prints a step message with an icon
 func Step(icon, format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	displayIcon := getIcon(icon, "[*]")
-	fmt.Printf("%s%s%s %s\n", Cyan, displayIcon, Reset, msg)
+	outf("%s%s%s %s\n", Cyan, displayIcon, Reset, msg)
 }
 
 // Item prints an indented item
 func Item(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
-	fmt.Printf("   %s\n", msg)
+	outf("   %s\n", msg)
 }
 
 // Bullet prints a bulleted list item
 func Bullet(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	bullet := getIcon(SymbolDot, "*")
-	fmt.Printf("  %s %s\n", bullet, msg)
+	outf("  %s %s\n", bullet, msg)
 }
 
 // ItemSuccess prints an indented success item
 func ItemSuccess(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	check := getIcon(SymbolCheck, ASCIICheck)
-	fmt.Printf("   %s%s%s %s\n", Green, check, Reset, msg)
+	outf("   %s%s%s %s\n", Green, check, Reset, msg)
 }
 
 // ItemError prints an indented error item
 func ItemError(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	cross := getIcon(SymbolCross, ASCIICross)
-	fmt.Printf("   %s%s%s %s\n", Red, cross, Reset, msg)
+	outf("   %s%s%s %s\n", Red, cross, Reset, msg)
 }
 
 // ItemWarning prints an indented warning item
 func ItemWarning(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	warning := getIcon(SymbolWarning, ASCIIWarning)
-	fmt.Printf("   %s%s%s  %s\n", Yellow, warning, Reset, msg)
+	outf("   %s%s%s  %s\n", Yellow, warning, Reset, msg)
 }
 
 // ItemInfo prints an indented info item
 func ItemInfo(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	info := getIcon(SymbolInfo, ASCIIInfo)
-	fmt.Printf("   %s%s%s  %s\n", Cyan, info, Reset, msg)
+	outf("   %s%s%s  %s\n", Cyan, info, Reset, msg)
 }
 
 // Divider prints a horizontal divider
 func Divider() {
-	fmt.Printf("\n%s%s%s\n", Dim, strings.Repeat("─", 50), Reset)
+	outf("\n%s%s%s\n", Dim, strings.Repeat("─", 50), Reset)
 }
 
 // Newline prints a blank line
 func Newline() {
-	fmt.Println()
+	outln()
 }
 
 // Hint prints compact hints on a single line with bullet separators.
@@ -366,17 +410,17 @@ func Hint(hints ...string) {
 	if len(hints) == 0 {
 		return
 	}
-	fmt.Printf("%s%s%s\n", Dim, strings.Join(hints, " • "), Reset)
+	outf("%s%s%s\n", Dim, strings.Join(hints, " • "), Reset)
 }
 
 // Phase prints a phase label like "Installing dependencies..." or "Starting services..."
 func Phase(label string) {
-	fmt.Printf("%s%s%s\n", Dim, label, Reset)
+	outf("%s%s%s\n", Dim, label, Reset)
 }
 
 // Plain prints plain text without any formatting.
 func Plain(format string, args ...any) {
-	fmt.Printf(format+"\n", args...)
+	outf(format+"\n", args...)
 }
 
 // Confirm prompts the user for confirmation and returns true if they confirm.
@@ -386,7 +430,13 @@ func Confirm(message string) bool {
 	if IsJSON() {
 		return true // Non-interactive mode, assume yes
 	}
-	fmt.Printf("%s%s%s [y/N]: ", BrightYellow, message, Reset)
+	// Never block on stdin when there is nobody to answer. DetectInteractive
+	// covers a redirected stdin or stdout, AZD_NO_PROMPT, CI runners, and AI
+	// agent hosts. Declining is the safe default for an unanswered prompt.
+	if !azdext.DetectInteractive().CanPrompt() {
+		return false
+	}
+	outf("%s%s%s [y/N]: ", BrightYellow, message, Reset)
 	var response string
 	if _, err := fmt.Scanln(&response); err != nil {
 		return false // On read error, default to no
@@ -397,12 +447,12 @@ func Confirm(message string) bool {
 
 // Label prints a label and value pair
 func Label(label, value string) {
-	fmt.Printf("   %s%-12s%s %s\n", Dim, label+":", Reset, value)
+	outf("   %s%-12s%s %s\n", Dim, label+":", Reset, value)
 }
 
 // LabelColored prints a label and colored value pair
 func LabelColored(label, value, color string) {
-	fmt.Printf("   %s%-12s%s %s%s%s\n", Dim, label+":", Reset, color, value, Reset)
+	outf("   %s%-12s%s %s%s%s\n", Dim, label+":", Reset, color, value, Reset)
 }
 
 // Highlight prints highlighted text
@@ -469,39 +519,16 @@ func Table(headers []string, rows []TableRow) {
 		return
 	}
 
-	// Calculate column widths
-	widths := make(map[string]int)
-	for _, header := range headers {
-		widths[header] = len(header)
-	}
+	// Flatten the keyed rows into the positional shape the SDK renderer wants,
+	// preserving header order and substituting an empty cell for absent keys.
+	cells := make([][]string, 0, len(rows))
 	for _, row := range rows {
-		for _, header := range headers {
-			if len(row[header]) > widths[header] {
-				widths[header] = len(row[header])
-			}
+		cell := make([]string, len(headers))
+		for i, header := range headers {
+			cell[i] = row[header]
 		}
+		cells = append(cells, cell)
 	}
 
-	// Print header
-	fmt.Print("   ")
-	for _, header := range headers {
-		fmt.Printf("%s%-*s%s  ", Bold, widths[header], header, Reset)
-	}
-	fmt.Println()
-
-	// Print separator
-	fmt.Print("   ")
-	for _, header := range headers {
-		fmt.Print(strings.Repeat("─", widths[header]) + "  ")
-	}
-	fmt.Println()
-
-	// Print rows
-	for _, row := range rows {
-		fmt.Print("   ")
-		for _, header := range headers {
-			fmt.Printf("%-*s  ", widths[header], row[header])
-		}
-		fmt.Println()
-	}
+	newAzdextOutput(GetFormat()).Table(headers, cells)
 }

@@ -168,10 +168,12 @@ Structured CLI output formatting with cross-platform terminal support and multip
 **Key Functions:**
 - `Success` / `Error` / `Warning` / `Info` - Colored status messages with icons
 - `Header` / `Section` - Formatted section headers
-- `Table` - Simple table rendering with automatic column width calculation
+- `Table` - Simple table rendering, delegated to `azdext.Output` (honors JSON mode)
 - `ProgressBar` - Visual progress indicators
-- `Confirm` - Interactive yes/no prompts (non-interactive in JSON mode)
+- `Confirm` - Interactive yes/no prompts. Declines automatically when prompting is impossible (redirected stdin or stdout, `AZD_NO_PROMPT`, CI, AI agent host); assumes yes in JSON mode
 - `Print` - Hybrid output (JSON or formatted text)
+
+**Color:** enabled only when `azdext.DetectInteractive().CanColorize()` reports the terminal can support it, which honors `FORCE_COLOR=1` first, then any non-empty `NO_COLOR`, then whether stdout is a terminal. `ForceColor()` and `NoColor()` override the detection.
 
 **Output Formats:**
 - `FormatDefault` - Human-readable text with ANSI colors and Unicode symbols

@@ -320,6 +320,43 @@ format in effect when it is constructed. Call `SetOutput` or
 `SetupLoggerWithWriter` before creating loggers you intend to capture. This was
 already true and is now documented.
 
+### `cliout` color, table, and prompt behavior
+
+`PrintJSON` and `Table` now render through `azdext.Output`. Three
+long-standing defects are fixed as a result. All 43 exported functions and every
+signature are unchanged.
+
+**Color is now detected instead of assumed.** `noColor` used to be initialized
+to a hardcoded `false`, and the `getNoColor()` accessor was never called by
+anything, so `cliout.NoColor()` had no effect and ANSI escape sequences were
+written even when stdout was redirected to a file or a pipe. Color state is now
+seeded from `azdext.DetectInteractive().CanColorize()` (which honors
+`FORCE_COLOR=1`, then any non-empty `NO_COLOR`, then whether stdout is a
+terminal) and is applied at the single point where the package writes.
+`ForceColor()` and `NoColor()` still override the detection and now actually
+work.
+
+If you were relying on escape codes appearing in captured output, set
+`FORCE_COLOR=1` or call `cliout.ForceColor()`.
+
+**`Table` honors JSON mode.** It previously had no format check, so
+`--output json` printed a human readable table into the JSON stream. It now
+emits a JSON array of objects in JSON mode. In text mode the rendering comes
+from the SDK: the leading three space indent is gone and columns are separated
+by two spaces. `Table` still returns without printing anything when the row
+slice is empty. Rows remain `TableRow` (`map[string]string`); a header with
+no matching key renders as an empty cell rather than a Go map dump.
+
+**`Confirm` no longer blocks where nobody can answer.** It previously checked
+only `IsJSON()` and otherwise called `fmt.Scanln` unconditionally, which
+hung or silently failed under CI, `AZD_NO_PROMPT`, and AI agent hosts. It now
+also consults `azdext.DetectInteractive().CanPrompt()` and returns `false`
+(declines) when prompting is impossible. JSON mode still returns `true`, so
+existing scripted flows are unaffected.
+
+If you need an unattended yes, pass an explicit skip-confirmation flag rather
+than relying on the prompt failing open.
+
 ## Changed signatures in retained packages
 
 | Symbol | Change | Notes |
