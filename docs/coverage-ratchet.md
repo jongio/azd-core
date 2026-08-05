@@ -14,12 +14,12 @@ tested code path and nobody notices until something breaks in the field.
 | azd-core | 86.0% | all packages |
 | azd-rest | 86.3% | `./src/...` |
 | azd-app | 65.0% | `./src/...`, excluding generated protobuf under `src/gen` |
-| azd-copilot | 30.0% | `./src/...` |
+| azd-copilot | 30.0% | `./src/...` (retired, frozen) |
 
 The numbers differ a lot, and that is the point. The gate holds each repository
-to its own history rather than to a number somebody picked. azd-copilot at 30%
-is not acceptable long term, but locking it there stops it sliding to 25% while
-the real work happens.
+to its own history rather than to a number somebody picked. azd-copilot sits at 30%
+and will stay there: the repo is retired and being archived, so its floor is a
+historical record rather than a target to raise.
 
 ## Daily use
 

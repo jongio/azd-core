@@ -47,13 +47,16 @@ fails if a `replace` with a filesystem path reaches a build, and CI runs it. Run
 locally before you push. `azd-core` has no `replace` directives and so has no such
 target; if it ever gains one, it gains the guard at the same time.
 
-### 3. All four repos move together
+### 3. All maintained repos move together
 
-`azd-core`, `azd-app`, `azd-copilot`, and `azd-rest` pin the same SDK version at any
+`azd-core`, `azd-app`, and `azd-rest` pin the same SDK version at any
 given time. An upgrade is a single coordinated change across all repos that depend on
 the SDK, not a per-repo decision.
 
-Current pinned version: **v1.29.0** (azd-app, azd-copilot, azd-rest). `azd-core` does
+`azd-copilot` is retired and being archived. It is frozen at its current pin and is
+exempt from this policy. Do not upgrade it, and do not treat it as a blocker.
+
+Current pinned version: **v1.29.0** (azd-app, azd-rest). `azd-core` does
 not currently depend on the SDK directly; when it starts to, it adopts the same pin.
 
 If you need a newer SDK for one extension, upgrade all of them. If one repo cannot move
@@ -111,7 +114,7 @@ partially, which is the exact situation this policy exists to prevent.
 | --- | --- |
 | azd-core | `go.mod` |
 | azd-app | `cli/go.mod` |
-| azd-copilot | `cli/go.mod` |
+| ~~azd-copilot~~ | ~~`cli/go.mod`~~ (retired, frozen) |
 | azd-rest | `cli/go.mod` |
 
 Nothing else should hardcode an SDK version. If a workflow, script, or doc mentions a

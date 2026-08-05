@@ -1,6 +1,6 @@
 // Package urlutil provides URL validation and parsing utilities with RFC-compliant validation.
 //
-// This package makes it easy for consumers (like azd-app and azd-exec) to validate
+// This package makes it easy for consumers (like azd-app and azd-rest) to validate
 // and parse HTTP/HTTPS URLs with comprehensive validation rules. It uses the standard
 // library's net/url.Parse for robust parsing and adds additional security and validation
 // checks such as protocol restrictions, host validation, and length limits.
