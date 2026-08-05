@@ -2,6 +2,8 @@
 
 Align `azd-core` and every `azd-*` extension with the current Azure Developer CLI extension framework SDK (`github.com/azure/azure-dev/cli/azd/pkg/azdext`).
 
+> **Scope change: azd-copilot is retired.** It is being archived, so it is out of scope for all remaining work and the phase 3 azd-copilot section is closed. Work already merged there stays as a record. Everything below that says "all three extensions" now means azd-app and azd-rest. Open question 1 (`client.Copilot()` versus the subprocess launcher) is moot, and the pack in `jongio/azd-extensions` no longer depends on `jongio.azd.copilot`.
+
 ## Problem
 
 Our extensions were built against an early version of the extension framework. Since then the SDK has absorbed most of the infrastructure we hand-rolled. The result is a parallel SDK (`azd-core`, 27,608 Go LOC across 27 packages) that reimplements auth, HTTP retry, pagination, Key Vault resolution, SSRF guarding, shell detection, tool discovery, atomic file writes, structured logging, process inspection, and azd environment loading. All of these now ship in `azdext`.
@@ -217,7 +219,7 @@ Release `azd-core v0.6.0` as a breaking change with a migration table in `CHANGE
 - Coverage on modified packages at or above the pre-change baseline, minimum 80 percent for new code.
 - `azdext.ValidateNoReservedFlagConflicts` passes in each extension.
 - `azdext.VerifyProvidersMatchManifest` passes wherever providers are declared.
-- End-to-end smoke: `azd app run`, `azd rest get`, `azd copilot -p "..."` against a real azd host on Windows, Linux, and macOS.
+- End-to-end smoke: `azd app run` and `azd rest get` against a real azd host on Windows, Linux, and macOS.
 - Binary size regression under 10 percent per extension.
 
 ## Done definition
