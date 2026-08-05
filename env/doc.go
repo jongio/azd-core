@@ -71,6 +71,7 @@
 // Key Vault resolution uses azidentity.DefaultAzureCredential, which supports:
 //   - Environment variables (AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET)
 //   - Managed identity (Azure VM, App Service, Container Apps)
+//   - Azure Developer CLI (azd auth login)
 //   - Azure CLI (az login)
 //   - Azure PowerShell
 //   - Interactive browser authentication

@@ -552,6 +552,7 @@ if procutil.IsProcessRunning(pid) {
 The `keyvault` package uses `azidentity.DefaultAzureCredential`, supporting:
 - Environment variables (`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`)
 - Managed identity (Azure VM, App Service, Container Apps, etc.)
+- Azure Developer CLI (`azd auth login`)
 - Azure CLI (`az login`)
 - Azure PowerShell
 - Interactive browser authentication
