@@ -130,7 +130,7 @@ Per extension, in this order: azd-rest (smallest, 10.4k LOC), azd-copilot (6.9k)
 - Introduce a per-extension `errors.go` with `const` error codes.
 - Convert user-facing failures at the command-handler layer to `azdext.LocalError` (category `validation`, `auth`, `dependency`, `compatibility`, `user`, `internal`) or `azdext.ServiceError` for Azure API failures. Leave lower-level helpers returning wrapped plain errors.
 - Add `azdext.ValidateNoReservedFlagConflicts(rootCmd)` to a startup test in each repo.
-- Expect that test to fail somewhere. In azd-app it found five subcommands whose local flags shadowed azd reserved globals, which broke `--output` and `-e` silently and would have stopped `azdext.Run` from starting at all. Fixing it is a breaking flag rename, so budget for docs and a CHANGELOG entry.
+- Expect that test to fail somewhere. In azd-app it found five subcommands whose local flags shadowed azd reserved globals, which broke `--output` and `-e` silently and would have stopped `azdext.Run` from starting at all. Fixing it is breaking, so budget for docs and a CHANGELOG entry. Prefer `azdext.RegisterFlagOptions` over renaming: it declares per-subcommand allowed values on azd's own inherited flag, so the collision goes away without taking the flag from users. Rename only when the value is not a format at all.
 - Do not adopt `azdext.NewVersionCommand`. It is a regression against azd-core's `version.NewCommand`, so azd-app and azd-copilot keep the azd-core command and azd-rest moves back onto it in phase 2. See task 2.5.
 
 ### Phase 2: azd-core rebase onto azdext
