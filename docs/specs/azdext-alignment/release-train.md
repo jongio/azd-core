@@ -4,17 +4,27 @@ Spec: [spec.md](./spec.md) | Tasks: [tasks.md](./tasks.md)
 
 This document covers the three things that must be settled around the alignment work
 itself: what happens to the 35 open pull requests, what happens to the pre-existing
-local branches, and the order in which the four repos get released.
+local branches, and the order in which the repos get released. Four repos are covered,
+but only three of them release; see the azd-copilot note below.
 
 Repos: **C** azd-core, **A** azd-app, **P** azd-copilot, **R** azd-rest.
+
+> **azd-copilot is retired and is being archived.** It is out of the release train
+> entirely: nothing merges there, it is not bumped to azd-core `v0.6.0`, and it is
+> not tagged. Every **P** row below is cancelled, including its four open dependabot
+> PRs, which should be closed rather than merged. There is no value in bumping a
+> CodeQL action in a repo that is about to be archived. Read "all three extensions"
+> as azd-app and azd-rest.
 
 ## Current state
 
 Branch `feat/azdext-alignment` is pushed in all four repos and carries the coverage
-ratchet described in [coverage-ratchet.md](../../coverage-ratchet.md). The three
-extensions carry a temporary `replace` directive pointing at a local azd-core
+ratchet described in [coverage-ratchet.md](../../coverage-ratchet.md). azd-app and
+azd-rest carry a temporary `replace` directive pointing at a local azd-core
 worktree, so their CI is expected to be red until azd-core publishes `v0.6.0`.
 `mage verifyNoLocalReplace` is the guard that stops those directives reaching a release.
+azd-copilot's branch is pushed and complete but will not be merged; the repo is being
+archived, so its `replace` directive is left where it is.
 
 ## Wave A: dependency and CI pull requests
 
@@ -28,7 +38,7 @@ does exactly that, so merging this wave completes part of Phase 0 for free.
 | A2 | A | #591 | `modernc.org/sqlite` 1.54.0 to 1.55.0 |
 | A3 | A | #592, #593, #595, #596, #597 | Dashboard npm bumps, all confined to `cli/dashboard` |
 | A4 | A | #594, #598, #599 | CodeQL action bumps, workflow-only |
-| A5 | P | #86, #87, #88, #89 | CodeQL action bumps, workflow-only |
+| A5 | ~~P~~ | ~~#86, #87, #88, #89~~ | **Cancelled.** azd-copilot is retired, so close these instead of merging |
 | A6 | R | #340, #341, #342 | CodeQL action bumps, workflow-only |
 
 ### The two human dependency PRs need a decision
@@ -97,11 +107,11 @@ That has been pushed as-is so it cannot be lost:
 | Repo | Branch | Contents |
 |---|---|---|
 | C | `deps/update-2026-07-29` | 1 commit, Go dependency update |
-| P | `deps/update-2026-07-29` | 1 commit, Go and npm dependency update |
+| ~~P~~ | ~~`deps/update-2026-07-29`~~ | **Cancelled.** azd-copilot is retired; delete rather than merge |
 | R | `deps/update-2026-07-29` | 1 commit, Go and npm dependency update |
 | A | `chore/lint-consolidation-and-hardening` | 7 commits, see below |
 
-The three `deps/update-2026-07-29` branches duplicate Wave A and can be deleted once
+The remaining `deps/update-2026-07-29` branches duplicate Wave A and can be deleted once
 Wave A merges.
 
 azd-app's branch is the one that matters. It carries real fixes, not just dependency
@@ -127,16 +137,16 @@ They need a decision before that worktree is reused for anything.
 
 ## Wave D: the coordinated release
 
-The dependency graph forces the order. The three extensions all consume azd-core, so
+The dependency graph forces the order. Both remaining extensions consume azd-core, so
 azd-core ships first and everything else re-pins to it.
 
 | Step | Repo | Action | Gate |
 |---|---|---|---|
 | D1 | C | Merge `feat/azdext-alignment` to main | Coverage ratchet green, all Phase 2 tasks done |
 | D2 | C | Tag `v0.6.0` | `covergate` and the aligned API are both in the tag |
-| D3 | A P R | Remove the `replace` directive, `go get github.com/jongio/azd-core@v0.6.0`, `go mod tidy` | `mage verifyNoLocalReplace` passes |
-| D4 | A P R | CI goes green for the first time since the branch was cut | Coverage ratchet green in all three |
-| D5 | A P R | Merge to main and tag | Requires explicit approval |
+| D3 | A R | Remove the `replace` directive, `go get github.com/jongio/azd-core@v0.6.0`, `go mod tidy` | `mage verifyNoLocalReplace` passes |
+| D4 | A R | CI goes green for the first time since the branch was cut | Coverage ratchet green in both |
+| D5 | A R | Merge to main and tag | Requires explicit approval |
 
 ### Why one azd-core tag and not an alpha now
 
