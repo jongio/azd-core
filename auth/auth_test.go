@@ -321,11 +321,11 @@ func TestClassifyAuthError(t *testing.T) {
 		{"unauthorized", "Unauthorized access", "insufficient permissions"},
 		{"forbidden", "Forbidden by policy", "insufficient permissions"},
 		{"permission", "permission denied", "insufficient permissions"},
-		{"credential unavailable", "credential unavailable", "not logged in"},
-		{"login required", "please login first", "not logged in"},
-		{"no accounts", "no accounts found", "not logged in"},
-		{"auth required", "authentication required", "not logged in"},
-		{"configure", "configure your credentials", "not logged in"},
+		{"credential unavailable", "credential unavailable", "azd auth login"},
+		{"login required", "please login first", "azd auth login"},
+		{"no accounts", "no accounts found", "azd auth login"},
+		{"auth required", "authentication required", "azd auth login"},
+		{"configure", "configure your credentials", "azd auth login"},
 		{"generic error", "something went wrong", "authentication failed for scope"},
 	}
 

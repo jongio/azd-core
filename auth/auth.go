@@ -265,7 +265,7 @@ type AuthCredentialUnavailableError struct {
 }
 
 func (e *AuthCredentialUnavailableError) Error() string {
-	return fmt.Sprintf("authentication failed: not logged in or credential unavailable. Run 'az login' or configure managed identity/environment credentials: %s", e.Err)
+	return fmt.Sprintf("authentication failed: not signed in or credential unavailable. Run 'azd auth login' or configure managed identity/environment credentials: %s", e.Err)
 }
 
 func (e *AuthCredentialUnavailableError) Unwrap() error { return e.Err }
