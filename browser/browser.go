@@ -9,6 +9,7 @@ package browser
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -93,22 +94,42 @@ func Launch(opts LaunchOptions) error {
 	go func() {
 		done := make(chan error, 1)
 		go func() {
-			done <- pkgbrowser.OpenURL(opts.URL)
+			done <- openURL(opts.URL)
 		}()
 
-		select {
-		case err := <-done:
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "⚠️  Could not open browser automatically: %v\n", err)
-				fmt.Fprintf(os.Stderr, "   Please open this URL manually: %s\n", opts.URL)
-			}
-		case <-time.After(opts.Timeout):
-			fmt.Fprintf(os.Stderr, "⚠️  Browser launch timed out\n")
-			fmt.Fprintf(os.Stderr, "   Please open this URL manually: %s\n", opts.URL)
-		}
+		awaitOpen(done, opts.Timeout, opts.URL, os.Stderr)
 	}()
 
 	return nil
+}
+
+// openURL opens a URL in the system browser.
+//
+// It is a variable so tests can substitute it. Without that, every test that
+// exercises a launching target starts a real browser on the machine running
+// the suite, and the branches below are reachable only by winning a race
+// between the real browser and the timeout. That made this package's coverage
+// depend on host timing: it measured 86.5% without the race detector and 81.1%
+// with it, purely because the slower build lost that race.
+var openURL = pkgbrowser.OpenURL
+
+// awaitOpen reports the outcome of an open attempt, falling back to printing
+// the URL when the attempt fails or outruns the timeout.
+//
+// Split out of the goroutine in Launch so both outcomes can be driven directly
+// from a test by controlling the channel, rather than by hoping a real browser
+// launch lands on the wanted side of a deadline.
+func awaitOpen(done <-chan error, timeout time.Duration, url string, w io.Writer) {
+	select {
+	case err := <-done:
+		if err != nil {
+			fmt.Fprintf(w, "⚠️  Could not open browser automatically: %v\n", err)
+			fmt.Fprintf(w, "   Please open this URL manually: %s\n", url)
+		}
+	case <-time.After(timeout):
+		fmt.Fprintf(w, "⚠️  Browser launch timed out\n")
+		fmt.Fprintf(w, "   Please open this URL manually: %s\n", url)
+	}
 }
 
 // GetTargetDisplayName returns a human-readable name for the browser target.

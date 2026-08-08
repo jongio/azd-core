@@ -4,6 +4,7 @@
 package browser
 
 import (
+	"sync"
 	"testing"
 	"time"
 )
@@ -150,7 +151,24 @@ func TestLaunch(t *testing.T) {
 		},
 	}
 
+	// Stubbing the opener keeps the suite from starting a real browser on the
+	// machine running it, and waiting on wg keeps a launched goroutine from
+	// reading openURL after a later test replaces it, which the race detector
+	// would rightly flag.
+	var wg sync.WaitGroup
+
+	restore := stubOpener(t, func(string) error {
+		wg.Done()
+
+		return nil
+	})
+	defer restore()
+
 	for _, tt := range tests {
+		if !tt.wantErr && ResolveTarget(tt.opts.Target) != TargetNone {
+			wg.Add(1)
+		}
+
 		t.Run(tt.name, func(t *testing.T) {
 			err := Launch(tt.opts)
 			if (err != nil) != tt.wantErr {
@@ -158,6 +176,8 @@ func TestLaunch(t *testing.T) {
 			}
 		})
 	}
+
+	wg.Wait()
 }
 
 func TestFormatValidTargets(t *testing.T) {

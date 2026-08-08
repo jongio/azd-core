@@ -1,8 +1,8 @@
 {
-  "total": 87.8,
+  "total": 87.9,
   "packages": {
     "github.com/jongio/azd-core/auth": 94.2,
-    "github.com/jongio/azd-core/browser": 86.5,
+    "github.com/jongio/azd-core/browser": 94.7,
     "github.com/jongio/azd-core/cache": 87.7,
     "github.com/jongio/azd-core/cliout": 95.4,
     "github.com/jongio/azd-core/cmdutil": 90.1,
@@ -29,5 +29,5 @@
     "github.com/jongio/azd-core/yamlutil": 88.3
   },
   "mode": "atomic",
-  "note": "recorded by mage coverageRecord"
+  "note": "recorded from a -race run, which is what CI measures"
 }

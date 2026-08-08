@@ -44,8 +44,56 @@ var (
 	globalLogger *slog.Logger
 	currentLevel           = LevelInfo
 	isStructured           = false
-	outputWriter io.Writer = os.Stderr
+	outputWriter io.Writer = newSyncWriter(os.Stderr)
 )
+
+// writeMu serializes every write this package makes to its configured writer.
+//
+// It exists because slog's own serialization does not reach across loggers.
+// A slog handler locks its own mutex around the write, so loggers derived from
+// one handler are serialized against each other. But azdext.NewLogger builds a
+// fresh handler each time, so every component logger gets an independent mutex,
+// and two components logging at once write to the shared writer concurrently
+// with nothing in between.
+//
+// That would leave the concurrency safety promised by SetOutput and
+// SetupLoggerWithWriter conditional on the caller supplying a writer that is
+// itself safe for concurrent use. The obvious writer to pass is a bytes.Buffer,
+// which is not, so the promise would fail exactly where callers are most likely
+// to rely on it.
+//
+// One package-level mutex rather than one per writer, so that loggers holding a
+// writer from before a SetOutput call still serialize against loggers holding
+// the current one. Writers can alias, and correctness there is worth more than
+// the contention avoided by splitting the lock.
+var writeMu sync.Mutex
+
+// syncWriter serializes concurrent writes to the wrapped writer.
+//
+// Safe to nest: taking writeMu is the only thing it does beyond delegating, and
+// no code path holds writeMu while calling back into a handler, so there is no
+// lock ordering to invert.
+type syncWriter struct {
+	w io.Writer
+}
+
+// newSyncWriter wraps w so that concurrent writes are serialized. Wrapping an
+// already-wrapped writer is avoided so repeated SetOutput calls do not build a
+// chain of locks around the same underlying writer.
+func newSyncWriter(w io.Writer) io.Writer {
+	if _, ok := w.(*syncWriter); ok {
+		return w
+	}
+
+	return &syncWriter{w: w}
+}
+
+func (s *syncWriter) Write(p []byte) (int, error) {
+	writeMu.Lock()
+	defer writeMu.Unlock()
+
+	return s.w.Write(p)
+}
 
 func init() {
 	SetupLogger(false, false)
@@ -73,7 +121,7 @@ func SetupLogger(debug, structured bool) {
 	}
 
 	isStructured = structured
-	outputWriter = os.Stderr
+	outputWriter = newSyncWriter(os.Stderr)
 
 	applyAzdextLogging(level, structured, outputWriter)
 }
@@ -117,7 +165,7 @@ func SetOutput(w io.Writer) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	outputWriter = w
+	outputWriter = newSyncWriter(w)
 	// Recreate logger with new output (without holding lock again)
 	setupLoggerInternal()
 }
@@ -142,7 +190,7 @@ func SetupLoggerWithWriter(w io.Writer, debug, structured bool) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	outputWriter = w
+	outputWriter = newSyncWriter(w)
 
 	var level slog.Level
 	if debug {
