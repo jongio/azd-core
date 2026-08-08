@@ -29,5 +29,5 @@
     "github.com/jongio/azd-core/yamlutil": 88.3
   },
   "mode": "atomic",
-  "note": "recorded from a -race run, which is what CI measures"
+  "note": "recorded by mage coverageRecord under -race, matching CI"
 }

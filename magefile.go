@@ -61,12 +61,19 @@ func Coverage() error {
 // CoverageRecord re-records the coverage baseline from the current profile.
 // Run this only when a coverage change is deliberate, and say why in the
 // commit message.
+//
+// Records from a race-enabled run because that is what CI gates. The race
+// detector changes which tests run, since tests can skip themselves under it,
+// so a profile recorded without it can record coverage CI is unable to reach
+// and the gate then fails on a drop nobody introduced. Ordinary local checking
+// stays race-free so it does not require a C toolchain; a plain run covers at
+// least as much, so it still clears a baseline recorded under race.
 func CoverageRecord() error {
-	if err := Test(); err != nil {
+	if err := TestRace(); err != nil {
 		return err
 	}
 	fmt.Println("==> Recording a new coverage baseline...")
-	return covergate.Record(coverageConfig(), "recorded by mage coverageRecord")
+	return covergate.Record(coverageConfig(), "recorded by mage coverageRecord under -race, matching CI")
 }
 
 // coveragePreflight gates coverage during preflight. TestRace has already
