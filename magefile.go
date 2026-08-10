@@ -27,6 +27,10 @@ func coverageConfig() covergate.Config {
 		Profile:      profile,
 		BaselineFile: "coverage-baseline.json",
 		Check:        covergate.CheckOptions{Tolerance: 0.5},
+		// Coverage is measured per platform, and CI records and enforces on
+		// ubuntu. A developer on another platform gets the report and a
+		// notice rather than a failure they cannot act on.
+		SkipOnForeignOS: true,
 	}
 }
 
@@ -68,6 +72,11 @@ func Coverage() error {
 // and the gate then fails on a drop nobody introduced. Ordinary local checking
 // stays race-free so it does not require a C toolchain; a plain run covers at
 // least as much, so it still clears a baseline recorded under race.
+//
+// The baseline also belongs to one platform. Platform-specific code is
+// unreachable, and so uncovered, everywhere else, so this target refuses to
+// overwrite a baseline recorded on a different operating system. Record on the
+// platform CI gates, using the container command the refusal prints.
 func CoverageRecord() error {
 	if err := TestRace(); err != nil {
 		return err

@@ -3,6 +3,7 @@ package covergate
 import (
 	"fmt"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 )
@@ -41,6 +42,10 @@ type Report struct {
 	// "atomic". Aggregate leaves it empty; Profile fills it in from the
 	// profile header.
 	Mode string `json:"mode,omitempty"`
+	// OS is the GOOS the profile was measured on. Aggregate leaves it empty;
+	// Profile fills it in from the running process, because a profile is only
+	// ever produced by tests running on the current platform.
+	OS string `json:"os,omitempty"`
 	// Excluded is the number of blocks dropped by the Exclude patterns.
 	Excluded int `json:"-"`
 
@@ -101,7 +106,8 @@ func Aggregate(blocks []Block, opts Options) Report {
 }
 
 // Profile parses a coverage profile file and aggregates it in one step,
-// carrying the profile's counter mode onto the report.
+// carrying the profile's counter mode and the measuring platform onto the
+// report.
 func Profile(profilePath string, opts Options) (Report, error) {
 	data, err := ParseProfileFile(profilePath)
 	if err != nil {
@@ -109,6 +115,7 @@ func Profile(profilePath string, opts Options) (Report, error) {
 	}
 	report := Aggregate(data.Blocks, opts)
 	report.Mode = data.Mode
+	report.OS = runtime.GOOS
 	return report, nil
 }
 

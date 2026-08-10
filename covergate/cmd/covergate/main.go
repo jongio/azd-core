@@ -51,6 +51,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 	ignoreNew := fs.Bool("ignore-new-packages", false, "allow new packages to fall below the baseline total")
 	allowDrift := fs.Bool("allow-exclude-drift", false, "allow exclude patterns to differ from the baseline")
 	allowModeDrift := fs.Bool("allow-mode-drift", false, "allow the profile counter mode to differ from the baseline")
+	allowOSDrift := fs.Bool("allow-os-drift", false, "allow the check to run on a different GOOS than the baseline")
 
 	var excludes excludeFlag
 	fs.Var(&excludes, "exclude", "glob pattern to exclude, repeatable")
@@ -68,6 +69,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 			IgnoreNewPackages: *ignoreNew,
 			AllowExcludeDrift: *allowDrift,
 			AllowModeDrift:    *allowModeDrift,
+			AllowOSDrift:      *allowOSDrift,
 		},
 		Out: stdout,
 	}

@@ -23,6 +23,10 @@ type Baseline struct {
 	// measured with. Percentages are not comparable across modes, so a later
 	// check measured in a different mode is rejected.
 	Mode string `json:"mode,omitempty"`
+	// OS records the GOOS the baseline was measured on. Platform-specific
+	// branches are unreachable, and therefore uncovered, on every other
+	// platform, so percentages are not comparable across operating systems.
+	OS string `json:"os,omitempty"`
 	// Note is free-form context for humans reading the file.
 	Note string `json:"note,omitempty"`
 }
@@ -110,6 +114,7 @@ func BaselineFrom(r Report, exclude []string, note string) Baseline {
 		Packages: pkgs,
 		Exclude:  exclude,
 		Mode:     r.Mode,
+		OS:       r.OS,
 		Note:     note,
 	}
 }
@@ -132,6 +137,10 @@ type CheckOptions struct {
 	// mode the baseline was recorded with. By default a mismatch fails,
 	// because percentages are not comparable across modes.
 	AllowModeDrift bool
+	// AllowOSDrift permits the check to run on a different GOOS than the
+	// baseline was recorded on. By default a mismatch fails, because
+	// platform-specific code is unreachable, and so uncovered, elsewhere.
+	AllowOSDrift bool
 }
 
 // Delta is a change in coverage for one scope, in either direction.
@@ -191,6 +200,11 @@ func Check(r Report, b Baseline, opts CheckOptions) error {
 	}
 	if !opts.AllowModeDrift {
 		if err := compareModes(b.Mode, r.Mode); err != nil {
+			return err
+		}
+	}
+	if !opts.AllowOSDrift {
+		if err := compareOS(b.OS, r.OS); err != nil {
 			return err
 		}
 	}
@@ -284,6 +298,32 @@ func compareModes(baseline, current string) error {
 			"percentages are not comparable across modes, because atomic counters retain\n"+
 			"concurrent updates that set and count mode drop. Measure with the same\n"+
 			"-covermode used to record, or re-record the baseline deliberately",
+		baseline, current)
+}
+
+// compareOS fails when a check runs on a different operating system than the
+// baseline was recorded on.
+//
+// Coverage is measured per platform. Code behind a build tag or a runtime.GOOS
+// branch is unreachable elsewhere, so it reports as uncovered rather than as
+// absent. A baseline recorded on Windows and gated on Linux therefore shows
+// large regressions in any package with platform-specific branches, which look
+// like real drops but are only a measurement mismatch.
+func compareOS(baseline, current string) error {
+	if baseline == current {
+		return nil
+	}
+	if baseline == "" {
+		return fmt.Errorf(
+			"baseline predates GOOS tracking (current run is %q)\n"+
+				"re-record the baseline on the platform that enforces the gate, otherwise\n"+
+				"platform-specific code counts as uncovered and invents regressions",
+			current)
+	}
+	return fmt.Errorf(
+		"coverage baseline was recorded on a different platform\n  baseline: %q\n  current:  %q\n"+
+			"platform-specific code is unreachable, and so uncovered, on other platforms.\n"+
+			"Record the baseline on the same GOOS the gate runs on",
 		baseline, current)
 }
 

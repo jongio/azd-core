@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -249,6 +250,73 @@ func TestCheckRejectsBaselineRecordedBeforeModeTracking(t *testing.T) {
 	}
 }
 
+func TestCheckDetectsPlatformDrift(t *testing.T) {
+	t.Parallel()
+
+	// Windows-only branches are unreachable, and so uncovered, on Linux. A
+	// baseline recorded on one platform and gated on another reports those
+	// gaps as regressions that no amount of new tests can close.
+	report := reportFrom(t, map[string]float64{"m/a": 80})
+	report.OS = "linux"
+	baseline := Baseline{Total: 80, Packages: map[string]float64{"m/a": 80}, OS: "windows"}
+
+	err := Check(report, baseline, CheckOptions{})
+	if err == nil {
+		t.Fatal("expected a platform mismatch to fail the gate")
+	}
+	if !strings.Contains(err.Error(), "recorded on a different platform") {
+		t.Fatalf("error should name the platform drift, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "linux") || !strings.Contains(err.Error(), "windows") {
+		t.Fatalf("error should report both platforms, got: %v", err)
+	}
+}
+
+func TestCheckAllowsPlatformDriftWhenOptedIn(t *testing.T) {
+	t.Parallel()
+
+	report := reportFrom(t, map[string]float64{"m/a": 80})
+	report.OS = "linux"
+	baseline := Baseline{Total: 80, Packages: map[string]float64{"m/a": 80}, OS: "windows"}
+
+	if err := Check(report, baseline, CheckOptions{AllowOSDrift: true}); err != nil {
+		t.Fatalf("AllowOSDrift must bypass the platform check: %v", err)
+	}
+}
+
+func TestCheckRejectsBaselineRecordedBeforePlatformTracking(t *testing.T) {
+	t.Parallel()
+
+	report := reportFrom(t, map[string]float64{"m/a": 80})
+	report.OS = "linux"
+	baseline := Baseline{Total: 80, Packages: map[string]float64{"m/a": 80}}
+
+	err := Check(report, baseline, CheckOptions{})
+	if err == nil {
+		t.Fatal("a baseline with no recorded platform must not silently pass")
+	}
+	if !strings.Contains(err.Error(), "predates GOOS tracking") {
+		t.Fatalf("error should tell the user to re-record, got: %v", err)
+	}
+}
+
+func TestProfileStampsMeasuringPlatform(t *testing.T) {
+	t.Parallel()
+
+	// Without this stamp an unrecorded platform compares empty against empty
+	// and the drift guard passes silently, which is the failure it exists to
+	// prevent.
+	path := writeProfile(t, t.TempDir(), "m/a/f.go:1.1,2.2 1 1")
+
+	report, err := Profile(path, Options{})
+	if err != nil {
+		t.Fatalf("Profile: %v", err)
+	}
+	if report.OS != runtime.GOOS {
+		t.Errorf("OS = %q, want %q", report.OS, runtime.GOOS)
+	}
+}
+
 func TestCheckRegressionsSortedByLargestDrop(t *testing.T) {
 	t.Parallel()
 
@@ -402,6 +470,7 @@ func TestBaselineFromReport(t *testing.T) {
 
 	report := reportFrom(t, map[string]float64{"m/a": 80, "m/b": 60})
 	report.Mode = "atomic"
+	report.OS = "linux"
 	b := BaselineFrom(report, []string{"**/gen/**"}, "why")
 
 	if b.Total != 70 {
@@ -415,6 +484,9 @@ func TestBaselineFromReport(t *testing.T) {
 	}
 	if b.Mode != "atomic" {
 		t.Errorf("Mode = %q, want atomic", b.Mode)
+	}
+	if b.OS != "linux" {
+		t.Errorf("OS = %q, want linux", b.OS)
 	}
 	if b.Note != "why" {
 		t.Errorf("Note = %q", b.Note)
@@ -498,6 +570,103 @@ func writeProfile(t *testing.T, dir string, lines ...string) string {
 		t.Fatalf("writing profile: %v", err)
 	}
 	return path
+}
+
+func TestRecordFailsOnUnreadableBaseline(t *testing.T) {
+	t.Parallel()
+
+	// A corrupt baseline must stop the record, not be quietly replaced. The
+	// existing file is the only record of what coverage used to be, so
+	// overwriting it on a read error would destroy the evidence.
+	dir := t.TempDir()
+	profile := writeProfile(t, dir, "m/a/x.go:1.1,2.2 8 1")
+	baselineFile := filepath.Join(dir, "coverage-baseline.json")
+
+	if err := os.WriteFile(baselineFile, []byte("{not json"), 0o600); err != nil {
+		t.Fatalf("writing corrupt baseline: %v", err)
+	}
+
+	var out bytes.Buffer
+	err := Record(Config{Profile: profile, BaselineFile: baselineFile, Out: &out}, "why")
+	if err == nil {
+		t.Fatal("expected Record to fail on a corrupt baseline")
+	}
+	if !strings.Contains(err.Error(), "parsing baseline") {
+		t.Fatalf("error should name the parse failure, got: %v", err)
+	}
+
+	data, err := os.ReadFile(baselineFile)
+	if err != nil {
+		t.Fatalf("reading baseline: %v", err)
+	}
+	if string(data) != "{not json" {
+		t.Errorf("corrupt baseline was overwritten: %q", data)
+	}
+}
+
+func TestRecordRefusesToOverwriteAnotherPlatformsBaseline(t *testing.T) {
+	t.Parallel()
+
+	// Re-recording on a developer machine would replace the numbers CI can
+	// reach with numbers only that machine can reach, breaking the gate for
+	// everyone.
+	dir := t.TempDir()
+	profile := writeProfile(t, dir, "m/a/x.go:1.1,2.2 8 1")
+	baselineFile := filepath.Join(dir, "coverage-baseline.json")
+
+	foreign := runtime.GOOS + "-not"
+	if err := SaveBaseline(baselineFile, Baseline{Total: 80, OS: foreign}); err != nil {
+		t.Fatalf("SaveBaseline: %v", err)
+	}
+
+	var out bytes.Buffer
+	err := Record(Config{Profile: profile, BaselineFile: baselineFile, Out: &out}, "why")
+	if err == nil {
+		t.Fatal("expected Record to refuse a cross-platform overwrite")
+	}
+	if !strings.Contains(err.Error(), "refusing to re-record") {
+		t.Fatalf("error should explain the refusal, got: %v", err)
+	}
+
+	reloaded, err := LoadBaseline(baselineFile)
+	if err != nil {
+		t.Fatalf("LoadBaseline: %v", err)
+	}
+	if reloaded.OS != foreign {
+		t.Errorf("baseline was overwritten: OS = %q, want %q", reloaded.OS, foreign)
+	}
+}
+
+func TestGateSkipsEnforcementOnForeignPlatformWhenOptedIn(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	profile := writeProfile(t, dir, "m/a/x.go:1.1,2.2 2 0", "m/a/y.go:1.1,2.2 8 0")
+	baselineFile := filepath.Join(dir, "coverage-baseline.json")
+
+	// A floor this run cannot possibly meet, to prove the skip is what let it
+	// pass rather than the coverage itself.
+	if err := SaveBaseline(baselineFile, Baseline{
+		Total: 99, Packages: map[string]float64{"m/a": 99}, Mode: "set", OS: runtime.GOOS + "-not",
+	}); err != nil {
+		t.Fatalf("SaveBaseline: %v", err)
+	}
+
+	var out bytes.Buffer
+	cfg := Config{Profile: profile, BaselineFile: baselineFile, Out: &out, SkipOnForeignOS: true}
+	if err := Gate(cfg); err != nil {
+		t.Fatalf("Gate should skip rather than fail on a foreign platform: %v", err)
+	}
+	if !strings.Contains(out.String(), "coverage gate skipped") {
+		t.Errorf("the skip must be visible, not silent:\n%s", out.String())
+	}
+
+	// Without the opt-in the same run must fail, so CI stays authoritative.
+	out.Reset()
+	cfg.SkipOnForeignOS = false
+	if err := Gate(cfg); err == nil {
+		t.Fatal("expected the gate to fail without SkipOnForeignOS")
+	}
 }
 
 func TestRecordThenGate(t *testing.T) {

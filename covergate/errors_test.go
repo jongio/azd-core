@@ -129,21 +129,30 @@ func TestRecordPropagatesProfileErrors(t *testing.T) {
 }
 
 func TestRecordPropagatesSaveErrors(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("directory permissions are not enforced the same way on Windows")
+	}
 	t.Parallel()
 
 	dir := t.TempDir()
 	profile := writeProfile(t, dir, "m/a/x.go:1.1,2.2 1 1")
 
-	// Pointing the baseline at an existing directory makes the atomic rename
-	// fail without needing permission tricks.
+	// The baseline is absent, so the load succeeds and the write is what
+	// fails. Targeting an existing directory instead would fail earlier, in
+	// the guard that refuses to clobber a baseline it cannot read.
+	readonly := filepath.Join(dir, "readonly")
+	if err := os.Mkdir(readonly, 0o500); err != nil {
+		t.Fatalf("creating fixture: %v", err)
+	}
+
 	err := Record(Config{
 		Profile:      profile,
-		BaselineFile: dir,
+		BaselineFile: filepath.Join(readonly, "b.json"),
 		Out:          &bytes.Buffer{},
 	}, "")
 
 	if err == nil {
-		t.Fatal("expected saving over a directory to fail")
+		t.Fatal("expected saving into an unwritable directory to fail")
 	}
 }
 
