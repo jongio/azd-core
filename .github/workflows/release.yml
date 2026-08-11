@@ -15,14 +15,6 @@ on:
         description: 'azd-app branch to update (leave empty to create new PR)'
         required: false
         type: string
-      azd_copilot_branch:
-        description: 'azd-copilot branch to update (leave empty to create new PR)'
-        required: false
-        type: string
-      azd_exec_branch:
-        description: 'azd-exec branch to update (leave empty to create new PR)'
-        required: false
-        type: string
       azd_rest_branch:
         description: 'azd-rest branch to update (leave empty to create new PR)'
         required: false
@@ -315,7 +307,7 @@ jobs:
           if [ -z "$GH_TOKEN" ]; then
             echo "⚠️  EXTENSIONS_DISPATCH_TOKEN secret is not set."
             echo "   To enable cross-repo dispatch, create a fine-grained PAT with:"
-            echo "     - Repository access: jongio/azd-app, jongio/azd-copilot, jongio/azd-exec, jongio/azd-rest"
+            echo "     - Repository access: jongio/azd-app, jongio/azd-rest"
             echo "     - Permissions: Contents (read+write)"
             echo "   Then add it as EXTENSIONS_DISPATCH_TOKEN in azd-core repo secrets."
             echo ""
@@ -334,8 +326,8 @@ jobs:
           echo "Dispatching azd-core update to extension repos..."
           echo ""
 
-          REPOS=("jongio/azd-app" "jongio/azd-copilot" "jongio/azd-exec" "jongio/azd-rest")
-          BRANCHES=("${{ inputs.azd_app_branch }}" "${{ inputs.azd_copilot_branch }}" "${{ inputs.azd_exec_branch }}" "${{ inputs.azd_rest_branch }}")
+          REPOS=("jongio/azd-app" "jongio/azd-rest")
+          BRANCHES=("${{ inputs.azd_app_branch }}" "${{ inputs.azd_rest_branch }}")
           FAILED=0
 
           for i in "${!REPOS[@]}"; do
@@ -368,7 +360,7 @@ jobs:
             echo ""
             echo "To fix, update the EXTENSIONS_DISPATCH_TOKEN secret with a fine-grained PAT:"
             echo "  1. Go to https://github.com/settings/personal-access-tokens/new"
-            echo "  2. Set repository access to: jongio/azd-app, jongio/azd-copilot, jongio/azd-exec, jongio/azd-rest"
+            echo "  2. Set repository access to: jongio/azd-app, jongio/azd-rest"
             echo "  3. Grant permission: Contents → Read and write"
             echo "  4. Save the token as EXTENSIONS_DISPATCH_TOKEN in https://github.com/jongio/azd-core/settings/secrets/actions"
           else

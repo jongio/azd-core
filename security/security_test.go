@@ -108,7 +108,7 @@ func TestValidatePackageManager(t *testing.T) {
 	}
 }
 
-func TestSanitizeScriptName(t *testing.T) {
+func TestValidateScriptName(t *testing.T) {
 	tests := []struct {
 		name       string
 		scriptName string
@@ -163,12 +163,12 @@ func TestSanitizeScriptName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := SanitizeScriptName(tt.scriptName)
+			err := ValidateScriptName(tt.scriptName)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("SanitizeScriptName() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ValidateScriptName() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if err != nil && !strings.Contains(err.Error(), "dangerous character") {
-				t.Errorf("SanitizeScriptName() error message should mention dangerous character, got: %v", err)
+			if err != nil && !strings.Contains(err.Error(), "metacharacter") {
+				t.Errorf("ValidateScriptName() error message should mention dangerous character, got: %v", err)
 			}
 		})
 	}
@@ -202,6 +202,7 @@ func TestValidateFilePermissions(t *testing.T) {
 		originalK8s := os.Getenv("KUBERNETES_SERVICE_HOST")
 		_ = os.Unsetenv("CODESPACES")
 		_ = os.Unsetenv("REMOTE_CONTAINERS")
+		_ = os.Unsetenv("REMOTE_CONTAINERS_IPC")
 		_ = os.Unsetenv("KUBERNETES_SERVICE_HOST")
 		defer func() {
 			if originalCodespaces != "" {
@@ -310,15 +311,15 @@ func TestValidatePath_EdgeCases(t *testing.T) {
 	}
 }
 
-func TestSanitizeScriptName_AllDangerousChars(t *testing.T) {
+func TestValidateScriptName_AllDangerousChars(t *testing.T) {
 	dangerousChars := []string{";", "&", "|", ">", "<", "`", "$", "(", ")", "{", "}", "[", "]", "\n", "\r"}
 
 	for _, char := range dangerousChars {
 		t.Run("char_"+char, func(t *testing.T) {
 			scriptName := "test" + char + "malicious"
-			err := SanitizeScriptName(scriptName)
+			err := ValidateScriptName(scriptName)
 			if err == nil {
-				t.Errorf("SanitizeScriptName() should reject script with %q", char)
+				t.Errorf("ValidateScriptName() should reject script with %q", char)
 			}
 		})
 	}
@@ -348,9 +349,9 @@ func TestIsContainerEnvironment(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "CODESPACES not true",
+			name:     "CODESPACES set to any value counts as present",
 			envVars:  map[string]string{"CODESPACES": "false"},
-			expected: false,
+			expected: true,
 		},
 		{
 			name:     "VS Code Dev Containers",
@@ -358,9 +359,9 @@ func TestIsContainerEnvironment(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "REMOTE_CONTAINERS not true",
+			name:     "REMOTE_CONTAINERS set to any value counts as present",
 			envVars:  map[string]string{"REMOTE_CONTAINERS": "false"},
-			expected: false,
+			expected: true,
 		},
 		{
 			name:     "Kubernetes",
@@ -384,6 +385,7 @@ func TestIsContainerEnvironment(t *testing.T) {
 			// Clear all container env vars
 			_ = os.Unsetenv("CODESPACES")
 			_ = os.Unsetenv("REMOTE_CONTAINERS")
+			_ = os.Unsetenv("REMOTE_CONTAINERS_IPC")
 			_ = os.Unsetenv("KUBERNETES_SERVICE_HOST")
 
 			// Set test env vars
@@ -395,6 +397,7 @@ func TestIsContainerEnvironment(t *testing.T) {
 			defer func() {
 				_ = os.Unsetenv("CODESPACES")
 				_ = os.Unsetenv("REMOTE_CONTAINERS")
+				_ = os.Unsetenv("REMOTE_CONTAINERS_IPC")
 				_ = os.Unsetenv("KUBERNETES_SERVICE_HOST")
 				if originalCodespaces != "" {
 					_ = os.Setenv("CODESPACES", originalCodespaces)
@@ -474,6 +477,7 @@ func TestValidateFilePermissions_ContainerEnvironment(t *testing.T) {
 			// Clear all container env vars
 			_ = os.Unsetenv("CODESPACES")
 			_ = os.Unsetenv("REMOTE_CONTAINERS")
+			_ = os.Unsetenv("REMOTE_CONTAINERS_IPC")
 			_ = os.Unsetenv("KUBERNETES_SERVICE_HOST")
 
 			// Set test env vars
@@ -485,6 +489,7 @@ func TestValidateFilePermissions_ContainerEnvironment(t *testing.T) {
 			defer func() {
 				_ = os.Unsetenv("CODESPACES")
 				_ = os.Unsetenv("REMOTE_CONTAINERS")
+				_ = os.Unsetenv("REMOTE_CONTAINERS_IPC")
 				_ = os.Unsetenv("KUBERNETES_SERVICE_HOST")
 				if originalCodespaces != "" {
 					_ = os.Setenv("CODESPACES", originalCodespaces)
@@ -795,7 +800,7 @@ func TestValidateFilePermissions_SecurePermissions_ContainerEnvironment(t *testi
 	}
 }
 
-func TestSanitizeScriptName_QuotesBlocked(t *testing.T) {
+func TestValidateScriptName_QuotesBlocked(t *testing.T) {
 	dangerous := []struct {
 		name string
 		char string
@@ -808,18 +813,18 @@ func TestSanitizeScriptName_QuotesBlocked(t *testing.T) {
 
 	for _, tt := range dangerous {
 		t.Run(tt.name, func(t *testing.T) {
-			err := SanitizeScriptName("test" + tt.char + "name")
+			err := ValidateScriptName("test" + tt.char + "name")
 			if err == nil {
-				t.Errorf("SanitizeScriptName() should block %s", tt.name)
+				t.Errorf("ValidateScriptName() should block %s", tt.name)
 			}
-			if err != nil && !strings.Contains(err.Error(), "dangerous character") {
-				t.Errorf("expected 'dangerous character' in error, got: %v", err)
+			if err != nil && !strings.Contains(err.Error(), "metacharacter") {
+				t.Errorf("expected 'metacharacter' in error, got: %v", err)
 			}
 		})
 	}
 }
 
-func TestSanitizeScriptName_ValidNames(t *testing.T) {
+func TestValidateScriptName_ValidNames(t *testing.T) {
 	valid := []string{
 		"build",
 		"test-unit",
@@ -830,8 +835,8 @@ func TestSanitizeScriptName_ValidNames(t *testing.T) {
 	}
 	for _, name := range valid {
 		t.Run(name, func(t *testing.T) {
-			if err := SanitizeScriptName(name); err != nil {
-				t.Errorf("SanitizeScriptName(%q) should pass, got: %v", name, err)
+			if err := ValidateScriptName(name); err != nil {
+				t.Errorf("ValidateScriptName(%q) should pass, got: %v", name, err)
 			}
 		})
 	}

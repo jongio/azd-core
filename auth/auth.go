@@ -15,6 +15,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/azure/azure-dev/cli/azd/pkg/azdext"
 )
 
 // namedCredential pairs a credential with its display name for diagnostics.
@@ -146,6 +147,59 @@ func NewAzureTokenProvider() (*AzureTokenProvider, error) {
 		now:        timeNow,
 		timeout:    defaultAuthTimeout,
 	}, nil
+}
+
+// NewAzureTokenProviderWithCredential creates a provider backed by an explicit
+// credential, keeping the per-scope caching, the request timeout, and the error
+// classification that NewAzureTokenProvider provides.
+//
+// Pass an azdext.TokenProvider here when the extension is running under an azd
+// host. Doing so is what makes token acquisition tenant correct: the SDK
+// provider reads the tenant out of the deployment context, while the credential
+// chain built by NewAzureTokenProvider has no way to know it and will acquire
+// against whichever tenant the local login happens to point at.
+//
+// Note that azdext.TokenProvider is not a replacement for this type. It has no
+// token cache, so every call shells out to azd, and it returns the raw
+// azidentity error rather than an AuthPermissionError or an
+// AuthCredentialUnavailableError. Wrapping it here keeps both.
+func NewAzureTokenProviderWithCredential(cred azcore.TokenCredential) (*AzureTokenProvider, error) {
+	if cred == nil {
+		return nil, errors.New("credential cannot be nil")
+	}
+
+	return &AzureTokenProvider{
+		credential: cred,
+		cache:      make(map[string]azcore.AccessToken),
+		now:        timeNow,
+		timeout:    defaultAuthTimeout,
+	}, nil
+}
+
+// NewAzureTokenProviderForHost selects a credential based on whether the
+// extension is running under an azd host.
+//
+// With a client, tokens come from azdext.TokenProvider, which resolves the
+// tenant from the deployment context. Without one, they come from the resilient
+// credential chain, which tries the azd CLI, the Azure CLI, environment
+// variables, workload identity, and managed identity in that order.
+//
+// Either way the returned provider caches per scope and classifies failures.
+func NewAzureTokenProviderForHost(
+	ctx context.Context,
+	client *azdext.AzdClient,
+	opts *azdext.TokenProviderOptions,
+) (*AzureTokenProvider, error) {
+	if client == nil {
+		return NewAzureTokenProvider()
+	}
+
+	hostProvider, err := azdext.NewTokenProvider(ctx, client, opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create host token provider: %w", err)
+	}
+
+	return NewAzureTokenProviderWithCredential(hostProvider)
 }
 
 // GetAzureToken acquires a bearer token for the supplied scope using the

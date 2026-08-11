@@ -7,8 +7,11 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/azure/azure-dev/cli/azd/pkg/azdext"
 )
 
 // Level represents the logging level.
@@ -29,7 +32,7 @@ const (
 const (
 	// EnvDebug enables debug logging when set to "true".
 	EnvDebug          = "AZD_DEBUG"
-	envValueTrue      = "true"
+	envValueYes       = "yes"
 	logLevelDebugName = "debug"
 	logLevelInfoName  = "info"
 	logLevelWarnName  = "warn"
@@ -41,8 +44,56 @@ var (
 	globalLogger *slog.Logger
 	currentLevel           = LevelInfo
 	isStructured           = false
-	outputWriter io.Writer = os.Stderr
+	outputWriter io.Writer = newSyncWriter(os.Stderr)
 )
+
+// writeMu serializes every write this package makes to its configured writer.
+//
+// It exists because slog's own serialization does not reach across loggers.
+// A slog handler locks its own mutex around the write, so loggers derived from
+// one handler are serialized against each other. But azdext.NewLogger builds a
+// fresh handler each time, so every component logger gets an independent mutex,
+// and two components logging at once write to the shared writer concurrently
+// with nothing in between.
+//
+// That would leave the concurrency safety promised by SetOutput and
+// SetupLoggerWithWriter conditional on the caller supplying a writer that is
+// itself safe for concurrent use. The obvious writer to pass is a bytes.Buffer,
+// which is not, so the promise would fail exactly where callers are most likely
+// to rely on it.
+//
+// One package-level mutex rather than one per writer, so that loggers holding a
+// writer from before a SetOutput call still serialize against loggers holding
+// the current one. Writers can alias, and correctness there is worth more than
+// the contention avoided by splitting the lock.
+var writeMu sync.Mutex
+
+// syncWriter serializes concurrent writes to the wrapped writer.
+//
+// Safe to nest: taking writeMu is the only thing it does beyond delegating, and
+// no code path holds writeMu while calling back into a handler, so there is no
+// lock ordering to invert.
+type syncWriter struct {
+	w io.Writer
+}
+
+// newSyncWriter wraps w so that concurrent writes are serialized. Wrapping an
+// already-wrapped writer is avoided so repeated SetOutput calls do not build a
+// chain of locks around the same underlying writer.
+func newSyncWriter(w io.Writer) io.Writer {
+	if _, ok := w.(*syncWriter); ok {
+		return w
+	}
+
+	return &syncWriter{w: w}
+}
+
+func (s *syncWriter) Write(p []byte) (int, error) {
+	writeMu.Lock()
+	defer writeMu.Unlock()
+
+	return s.w.Write(p)
+}
 
 func init() {
 	SetupLogger(false, false)
@@ -70,17 +121,37 @@ func SetupLogger(debug, structured bool) {
 	}
 
 	isStructured = structured
-	outputWriter = os.Stderr
+	outputWriter = newSyncWriter(os.Stderr)
 
-	var handler slog.Handler
-	opts := &slog.HandlerOptions{
-		Level: level,
+	applyAzdextLogging(level, structured, outputWriter)
+}
+
+// applyAzdextLogging installs the process-wide logger through the SDK and
+// mirrors it into globalLogger.
+//
+// azdext.SetupLogging takes a Debug boolean rather than a level, so it can only
+// express debug and info. Warn and error fall back to constructing the handler
+// here. Caller must hold mu.
+func applyAzdextLogging(level slog.Level, structured bool, w io.Writer) {
+	if level == slog.LevelDebug || level == slog.LevelInfo {
+		azdext.SetupLogging(azdext.LoggerOptions{
+			Debug:      level == slog.LevelDebug,
+			Structured: structured,
+			Writer:     w,
+		})
+
+		globalLogger = slog.Default()
+
+		return
 	}
 
+	opts := &slog.HandlerOptions{Level: level}
+
+	var handler slog.Handler
 	if structured {
-		handler = slog.NewJSONHandler(outputWriter, opts)
+		handler = slog.NewJSONHandler(w, opts)
 	} else {
-		handler = slog.NewTextHandler(outputWriter, opts)
+		handler = slog.NewTextHandler(w, opts)
 	}
 
 	globalLogger = slog.New(handler)
@@ -94,7 +165,7 @@ func SetOutput(w io.Writer) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	outputWriter = w
+	outputWriter = newSyncWriter(w)
 	// Recreate logger with new output (without holding lock again)
 	setupLoggerInternal()
 }
@@ -109,19 +180,7 @@ func setupLoggerInternal() {
 		level = slog.LevelInfo
 	}
 
-	var handler slog.Handler
-	opts := &slog.HandlerOptions{
-		Level: level,
-	}
-
-	if isStructured {
-		handler = slog.NewJSONHandler(outputWriter, opts)
-	} else {
-		handler = slog.NewTextHandler(outputWriter, opts)
-	}
-
-	globalLogger = slog.New(handler)
-	slog.SetDefault(globalLogger)
+	applyAzdextLogging(level, isStructured, outputWriter)
 }
 
 // SetupLoggerWithWriter configures the logger with a custom writer.
@@ -131,7 +190,7 @@ func SetupLoggerWithWriter(w io.Writer, debug, structured bool) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	outputWriter = w
+	outputWriter = newSyncWriter(w)
 
 	var level slog.Level
 	if debug {
@@ -144,19 +203,7 @@ func SetupLoggerWithWriter(w io.Writer, debug, structured bool) {
 
 	isStructured = structured
 
-	var handler slog.Handler
-	opts := &slog.HandlerOptions{
-		Level: level,
-	}
-
-	if structured {
-		handler = slog.NewJSONHandler(outputWriter, opts)
-	} else {
-		handler = slog.NewTextHandler(outputWriter, opts)
-	}
-
-	globalLogger = slog.New(handler)
-	slog.SetDefault(globalLogger)
+	applyAzdextLogging(level, structured, outputWriter)
 }
 
 // IsDebugEnabled returns true if debug logging is enabled.
@@ -166,7 +213,26 @@ func IsDebugEnabled() bool {
 	mu.RLock()
 	level := currentLevel
 	mu.RUnlock()
-	return level == LevelDebug || os.Getenv(EnvDebug) == envValueTrue
+
+	return level == LevelDebug || isDebugEnv()
+}
+
+// isDebugEnv reads AZD_DEBUG using the same rules as the azd extension SDK.
+//
+// This used to compare against the literal string "true", so AZD_DEBUG=1 and
+// AZD_DEBUG=yes silently did nothing even though the framework honors them.
+func isDebugEnv() bool {
+	v := os.Getenv(EnvDebug)
+	if v == "" {
+		return false
+	}
+
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		return strings.EqualFold(v, envValueYes)
+	}
+
+	return b
 }
 
 // getLogger returns the global logger under read lock for safe concurrent access.
@@ -262,19 +328,7 @@ func SetLevel(level Level) {
 		slogLevel = slog.LevelInfo
 	}
 
-	var handler slog.Handler
-	opts := &slog.HandlerOptions{
-		Level: slogLevel,
-	}
-
-	if isStructured {
-		handler = slog.NewJSONHandler(outputWriter, opts)
-	} else {
-		handler = slog.NewTextHandler(outputWriter, opts)
-	}
-
-	globalLogger = slog.New(handler)
-	slog.SetDefault(globalLogger)
+	applyAzdextLogging(slogLevel, isStructured, outputWriter)
 }
 
 // Logger returns the underlying slog.Logger for advanced usage.

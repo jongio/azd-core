@@ -9,7 +9,36 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/jongio/azd-core/covergate"
 )
+
+// coverageConfig is the repository's coverage ratchet. Coverage may rise
+// freely but may not fall below the recorded baseline.
+//
+// COVERAGE_PROFILE overrides the profile path so CI can gate the profile it
+// already produced instead of running the suite a second time.
+func coverageConfig() covergate.Config {
+	profile := os.Getenv("COVERAGE_PROFILE")
+	if profile == "" {
+		profile = "coverage.out"
+	}
+	return covergate.Config{
+		Profile:      profile,
+		BaselineFile: "coverage-baseline.json",
+		Check:        covergate.CheckOptions{Tolerance: 0.5},
+		// Coverage is measured per platform, and CI records and enforces on
+		// ubuntu. A developer on another platform gets the report and a
+		// notice rather than a failure they cannot act on.
+		SkipOnForeignOS: true,
+	}
+}
+
+// CoverageGate checks an existing coverage profile against the baseline without
+// running the tests. CI uses this after its own test step.
+func CoverageGate() error {
+	return covergate.Gate(coverageConfig())
+}
 
 var Default = All
 
@@ -22,6 +51,44 @@ func All() error {
 		return err
 	}
 	return Test()
+}
+
+// Coverage runs the tests and fails if coverage dropped below the baseline.
+func Coverage() error {
+	if err := Test(); err != nil {
+		return err
+	}
+	fmt.Println("==> Checking coverage against the baseline...")
+	return covergate.Gate(coverageConfig())
+}
+
+// CoverageRecord re-records the coverage baseline from the current profile.
+// Run this only when a coverage change is deliberate, and say why in the
+// commit message.
+//
+// Records from a race-enabled run because that is what CI gates. The race
+// detector changes which tests run, since tests can skip themselves under it,
+// so a profile recorded without it can record coverage CI is unable to reach
+// and the gate then fails on a drop nobody introduced. Ordinary local checking
+// stays race-free so it does not require a C toolchain; a plain run covers at
+// least as much, so it still clears a baseline recorded under race.
+//
+// The baseline also belongs to one platform. Platform-specific code is
+// unreachable, and so uncovered, everywhere else, so this target refuses to
+// overwrite a baseline recorded on a different operating system. Record on the
+// platform CI gates, using the container command the refusal prints.
+func CoverageRecord() error {
+	if err := TestRace(); err != nil {
+		return err
+	}
+	fmt.Println("==> Recording a new coverage baseline...")
+	return covergate.Record(coverageConfig(), "recorded by mage coverageRecord under -race, matching CI")
+}
+
+// coveragePreflight gates coverage during preflight. TestRace has already
+// written the profile by this point, so it does not re-run the tests.
+func coveragePreflight() error {
+	return covergate.Gate(coverageConfig())
 }
 
 // Preflight runs all quality checks before release — mirrors dispatch's preflight pattern.
@@ -52,6 +119,7 @@ func Preflight() error {
 
 		// Tests
 		{"Running tests with race detector", TestRace},
+		{"Checking coverage against the baseline", coveragePreflight},
 	}
 
 	for i, check := range checks {
@@ -70,13 +138,13 @@ func Preflight() error {
 // Test runs all tests with coverage.
 func Test() error {
 	fmt.Println("==> Testing...")
-	return sh("go", "test", "-coverprofile=coverage.out", "./...")
+	return sh("go", "test", "-covermode=atomic", "-coverprofile=coverage.out", "./...")
 }
 
 // TestRace runs all tests with the race detector enabled.
 func TestRace() error {
 	fmt.Println("==> Testing with race detector...")
-	return sh("go", "test", "-race", "-coverprofile=coverage.out", "./...")
+	return sh("go", "test", "-race", "-covermode=atomic", "-coverprofile=coverage.out", "./...")
 }
 
 // Lint runs golangci-lint.

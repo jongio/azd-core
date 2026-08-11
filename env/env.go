@@ -1,6 +1,6 @@
 // Package env provides environment variable resolution utilities with Azure Key Vault integration.
 //
-// This package makes it easy for consumers (like azd-app and azd-exec) to resolve
+// This package makes it easy for consumers (like azd-app and azd-rest) to resolve
 // Azure Key Vault references in environment variables. It provides adapter functions
 // to work with both map[string]string and []string representations of environment variables.
 //

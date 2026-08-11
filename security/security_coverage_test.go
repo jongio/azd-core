@@ -21,7 +21,7 @@ func TestValidatePackageManager_EmptyString(t *testing.T) {
 	}
 }
 
-func TestSanitizeScriptName_AllDangerousCharacters(t *testing.T) {
+func TestValidateScriptName_AllDangerousCharacters(t *testing.T) {
 	tests := []struct {
 		name       string
 		scriptName string
@@ -46,18 +46,18 @@ func TestSanitizeScriptName_AllDangerousCharacters(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := SanitizeScriptName(tt.scriptName)
+			err := ValidateScriptName(tt.scriptName)
 			if err == nil {
-				t.Errorf("SanitizeScriptName() should reject %q character", tt.char)
+				t.Errorf("ValidateScriptName() should reject %q character", tt.char)
 			}
-			if !strings.Contains(err.Error(), "dangerous character") {
-				t.Errorf("Expected error about dangerous character, got: %v", err)
+			if !strings.Contains(err.Error(), "metacharacter") {
+				t.Errorf("Expected error about a shell metacharacter, got: %v", err)
 			}
 		})
 	}
 }
 
-func TestSanitizeScriptName_SafeNames(t *testing.T) {
+func TestValidateScriptName_SafeNames(t *testing.T) {
 	safeNames := []string{
 		"dev",
 		"build",
@@ -70,9 +70,9 @@ func TestSanitizeScriptName_SafeNames(t *testing.T) {
 
 	for _, name := range safeNames {
 		t.Run(name, func(t *testing.T) {
-			err := SanitizeScriptName(name)
+			err := ValidateScriptName(name)
 			if err != nil {
-				t.Errorf("SanitizeScriptName(%q) should be safe, got error: %v", name, err)
+				t.Errorf("ValidateScriptName(%q) should be safe, got error: %v", name, err)
 			}
 		})
 	}
@@ -224,6 +224,7 @@ func TestIsContainerEnvironment_AllEnvironments(t *testing.T) {
 	defer func() {
 		_ = os.Unsetenv("CODESPACES")
 		_ = os.Unsetenv("REMOTE_CONTAINERS")
+		_ = os.Unsetenv("REMOTE_CONTAINERS_IPC")
 		_ = os.Unsetenv("KUBERNETES_SERVICE_HOST")
 		if originalCodespaces != "" {
 			_ = os.Setenv("CODESPACES", originalCodespaces)
@@ -252,9 +253,12 @@ func TestIsContainerEnvironment_AllEnvironments(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "Codespaces=false",
+			// azdext.IsContainerEnvironment treats any non-empty value as
+			// present. GitHub only ever sets CODESPACES to "true", so a
+			// literal "false" is not a case that occurs in practice.
+			name:     "Codespaces=false is still treated as present",
 			envVars:  map[string]string{"CODESPACES": "false"},
-			expected: false,
+			expected: true,
 		},
 		{
 			name:     "Remote Containers=true",
@@ -262,9 +266,9 @@ func TestIsContainerEnvironment_AllEnvironments(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "Remote Containers=false",
+			name:     "Remote Containers=false is still treated as present",
 			envVars:  map[string]string{"REMOTE_CONTAINERS": "false"},
-			expected: false,
+			expected: true,
 		},
 		{
 			name:     "Kubernetes host set",
@@ -291,6 +295,7 @@ func TestIsContainerEnvironment_AllEnvironments(t *testing.T) {
 			// Clear all env vars
 			_ = os.Unsetenv("CODESPACES")
 			_ = os.Unsetenv("REMOTE_CONTAINERS")
+			_ = os.Unsetenv("REMOTE_CONTAINERS_IPC")
 			_ = os.Unsetenv("KUBERNETES_SERVICE_HOST")
 
 			// Set test env vars
@@ -492,6 +497,7 @@ func TestValidateFilePermissions_ContainerWarnings(t *testing.T) {
 	defer func() {
 		_ = os.Unsetenv("CODESPACES")
 		_ = os.Unsetenv("REMOTE_CONTAINERS")
+		_ = os.Unsetenv("REMOTE_CONTAINERS_IPC")
 		_ = os.Unsetenv("KUBERNETES_SERVICE_HOST")
 		if originalCodespaces != "" {
 			_ = os.Setenv("CODESPACES", originalCodespaces)
@@ -506,6 +512,7 @@ func TestValidateFilePermissions_ContainerWarnings(t *testing.T) {
 
 	// Clear all container env vars first
 	_ = os.Unsetenv("REMOTE_CONTAINERS")
+	_ = os.Unsetenv("REMOTE_CONTAINERS_IPC")
 	_ = os.Unsetenv("KUBERNETES_SERVICE_HOST")
 
 	// Test in container environment
@@ -711,5 +718,51 @@ func TestValidatePath_WithRealFiles(t *testing.T) {
 		t.Logf("ValidatePath() with .. returned nil (path may be normalized by filepath.Join on Windows)")
 	} else if !errors.Is(err, ErrPathTraversal) {
 		t.Logf("ValidatePath() with .. returned error: %v", err)
+	}
+}
+
+// TestValidatePathWithinBases_NonexistentParent covers the branch where the
+// target file does not exist and neither does its parent directory, so the
+// parent symlink resolution also fails and the cleaned absolute path is used
+// as-is. This is the normal shape of a "path I am about to create" check.
+func TestValidatePathWithinBases_NonexistentParent(t *testing.T) {
+	base, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatalf("EvalSymlinks(base): %v", err)
+	}
+
+	target := filepath.Join(base, "does-not-exist", "leaf.txt")
+
+	got, err := ValidatePathWithinBases(target, base)
+	if err != nil {
+		t.Fatalf("ValidatePathWithinBases() error = %v, want nil", err)
+	}
+	if got != target {
+		t.Errorf("ValidatePathWithinBases() = %q, want %q", got, target)
+	}
+}
+
+// TestValidatePathWithinBases_SkipsUnresolvableBase covers the loop branch that
+// skips an allowed base which cannot be resolved, and confirms a later valid
+// base still matches.
+func TestValidatePathWithinBases_SkipsUnresolvableBase(t *testing.T) {
+	base, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatalf("EvalSymlinks(base): %v", err)
+	}
+
+	target := filepath.Join(base, "leaf.txt")
+	if err := os.WriteFile(target, []byte("x"), 0o600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	missingBase := filepath.Join(base, "no-such-base")
+
+	got, err := ValidatePathWithinBases(target, missingBase, base)
+	if err != nil {
+		t.Fatalf("ValidatePathWithinBases() error = %v, want nil", err)
+	}
+	if got != target {
+		t.Errorf("ValidatePathWithinBases() = %q, want %q", got, target)
 	}
 }

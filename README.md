@@ -27,6 +27,7 @@ This library includes:
 - **Copilot Skill Installation**: Version-aware installation of agentskills.io SKILL.md files
 - **Browser Launching**: Secure cross-platform URL opening
 - **Security Validation**: Path traversal prevention, input sanitization, permission checks
+- **Extension Manifests**: Checks that catch extension.yaml keys azd silently ignores
 
 ## Installation
 
@@ -38,7 +39,6 @@ Or add specific packages to your `go.mod`:
 
 ```bash
 go get github.com/jongio/azd-core/auth
-go get github.com/jongio/azd-core/azdextutil
 go get github.com/jongio/azd-core/browser
 go get github.com/jongio/azd-core/cache
 go get github.com/jongio/azd-core/cliout
@@ -51,14 +51,13 @@ go get github.com/jongio/azd-core/healthcheck
 go get github.com/jongio/azd-core/httpclient
 go get github.com/jongio/azd-core/keyvault
 go get github.com/jongio/azd-core/logutil
+go get github.com/jongio/azd-core/manifest
 go get github.com/jongio/azd-core/notify
 go get github.com/jongio/azd-core/pathutil
-go get github.com/jongio/azd-core/procutil
 go get github.com/jongio/azd-core/progress
 go get github.com/jongio/azd-core/projecttype
 go get github.com/jongio/azd-core/registry
 go get github.com/jongio/azd-core/security
-go get github.com/jongio/azd-core/shellutil
 go get github.com/jongio/azd-core/testutil
 go get github.com/jongio/azd-core/urlutil
 go get github.com/jongio/azd-core/version
@@ -73,6 +72,7 @@ Full API documentation is available at [pkg.go.dev/github.com/jongio/azd-core](h
 - [Extension Patterns Guide](docs/extension-patterns.md) - Comprehensive patterns and best practices for building azd extensions
 
 **Migration Guides:**
+- [Migrating to azd-core v0.6.0](docs/migration-v0.6.0.md) - The `azdext` SDK rebase: removed packages, changed signatures, and behavior changes
 - [URL Validation and Environment Patterns Migration](docs/migration-urlutil-env.md) - Migrate from custom validation to azd-core utilities
 
 ## Packages
@@ -171,10 +171,12 @@ Structured CLI output formatting with cross-platform terminal support and multip
 **Key Functions:**
 - `Success` / `Error` / `Warning` / `Info` - Colored status messages with icons
 - `Header` / `Section` - Formatted section headers
-- `Table` - Simple table rendering with automatic column width calculation
+- `Table` - Simple table rendering, delegated to `azdext.Output` (honors JSON mode)
 - `ProgressBar` - Visual progress indicators
-- `Confirm` - Interactive yes/no prompts (non-interactive in JSON mode)
+- `Confirm` - Interactive yes/no prompts. Declines automatically when prompting is impossible (redirected stdin or stdout, `AZD_NO_PROMPT`, CI, AI agent host); assumes yes in JSON mode
 - `Print` - Hybrid output (JSON or formatted text)
+
+**Color:** enabled only when `azdext.DetectInteractive().CanColorize()` reports the terminal can support it, which honors `FORCE_COLOR=1` first, then any non-empty `NO_COLOR`, then whether stdout is a terminal. `ForceColor()` and `NoColor()` override the detection.
 
 **Output Formats:**
 - `FormatDefault` - Human-readable text with ANSI colors and Unicode symbols
@@ -276,11 +278,22 @@ Azure Key Vault reference detection and resolution for environment variables.
 - `@Microsoft.KeyVault(VaultName=...;SecretName=...;SecretVersion=...)`
 - `akvs://<subscription-id>/<vault-name>/<secret-name>[/<version>]`
 
+Reference parsing, client construction, per-vault client caching, and secret
+retrieval come from `azdext.KeyVaultResolver`. This package adds the KEY=VALUE
+environment slice API and support for the versioned `akvs://` form, which
+`azdext` does not parse on its own.
+
 **Features:**
-- Uses `azidentity.DefaultAzureCredential` for authentication
-- Thread-safe client caching
+- `NewKeyVaultResolver` uses `azidentity.DefaultAzureCredential`
+- `NewKeyVaultResolverWithCredential` accepts an `azdext.TokenProvider`, a
+  sovereign cloud vault suffix, or an injected secret client for tests
+- Thread-safe per-vault client caching
 - Configurable error handling (fail-fast or graceful degradation)
-- SSRF protection and validation
+- Vault host allowlist covering the public, China, US Government, Germany, and
+  Managed HSM endpoints, so a `SecretUri` cannot point at an arbitrary host
+- Failures are `*azdext.KeyVaultResolveError`, carrying a `Reason` that
+  separates a malformed reference from a missing secret, an access denial, or a
+  service error
 
 ### `fileutil`
 File system utilities with atomic operations, JSON handling, and secure file detection.
@@ -302,15 +315,17 @@ File system utilities with atomic operations, JSON handling, and secure file det
 ### `pathutil`
 PATH environment variable management and tool discovery utilities.
 
+> PATH lookup itself lives in ``azdext.LookupTool``, which honors ``PATHEXT`` on Windows
+> and therefore resolves ``.cmd`` shims such as ``npm``, ``pnpm``, ``az``, and ``func``.
+> ``pathutil`` keeps only the parts the SDK has no equivalent for.
+
 **Key Functions:**
 - `RefreshPATH` - Refresh PATH from system (Windows registry, Unix environment)
-- `FindToolInPath` - Search PATH for executables (auto .exe handling on Windows)
 - `SearchToolInSystemPath` - Search common installation directories
 - `GetInstallSuggestion` - Get installation URLs for 22+ popular tools
 
 **Features:**
 - Cross-platform PATH refresh (Windows PowerShell registry read, Unix environment)
-- Automatic .exe extension handling on Windows
 - Common install directory search (Program Files, /usr/local/bin, Homebrew, etc.)
 - Installation suggestions for npm, python, docker, azd, and more
 
@@ -337,7 +352,7 @@ Security validation utilities for path traversal prevention, input sanitization,
 - `ValidatePath` - Prevent path traversal attacks (detects `..`, resolves symlinks)
 - `ValidateServiceName` - Validate service names (DNS-safe, container-safe)
 - `ValidatePackageManager` - Allowlist-based package manager validation
-- `SanitizeScriptName` - Detect shell metacharacters
+- `ValidateScriptName` - Reject shell metacharacters and path traversal
 - `IsContainerEnvironment` - Detect Codespaces, Dev Containers, Docker, Kubernetes
 - `ValidateFilePermissions` - Detect world-writable files (Unix only)
 
@@ -348,21 +363,6 @@ Security validation utilities for path traversal prevention, input sanitization,
 - Shell metacharacter detection
 - Container environment detection
 - World-writable file detection (security warning)
-
-### `procutil`
-Cross-platform process detection utilities using gopsutil for reliable cross-platform behavior.
-
-**Key Functions:**
-- `IsProcessRunning` - Check if process with given PID is running
-
-**Features:**
-- Cross-platform support (Windows, Linux, macOS, BSD, Solaris, AIX)
-- Reliable Windows process detection (no stale PID issues)
-- Uses platform-native APIs (Windows: OpenProcess, Linux: /proc, macOS: sysctl)
-- Powered by github.com/shirou/gopsutil/v4
-- Uses Signal(0) on Unix for accurate detection
-- Windows fallback with documented limitations (stale PID may return true)
-- Invalid PID handling (≤0 returns false)
 
 ### `copilotskills`
 Installs agentskills.io-compliant SKILL.md files from an embedded filesystem to `~/.copilot/skills/{name}/`.
@@ -387,24 +387,6 @@ func installSkills(version string) error {
     return copilotskills.Install("my-extension", version, skillFS, "skills/my-extension")
 }
 ```
-
-### `shellutil`
-Shell detection from file extensions, shebangs, and OS defaults.
-
-**Key Functions:**
-- `DetectShell` - Auto-detect shell from extension, shebang, or OS default
-- `ReadShebang` - Parse shebang line to extract interpreter
-
-**Shell Constants:**
-- `ShellBash`, `ShellSh`, `ShellZsh` - Unix shells
-- `ShellPwsh`, `ShellPowerShell` - PowerShell variants
-- `ShellCmd` - Windows Command Prompt
-
-**Features:**
-- Extension detection (.ps1 → pwsh, .sh → bash, .cmd → cmd, etc.)
-- Shebang parsing (#!/bin/bash, #!/usr/bin/env python3, etc.)
-- OS-specific defaults (Windows: cmd, Unix: bash)
-- Graceful error handling (falls back to OS default)
 
 ## Usage Examples
 
@@ -472,12 +454,13 @@ err := fileutil.AtomicWriteJSON("config.json", data)
 ```go
 import (
     "fmt"
+    "github.com/azure/azure-dev/cli/azd/pkg/azdext"
     "github.com/jongio/azd-core/pathutil"
 )
 
 // Find a tool in PATH
-if nodePath := pathutil.FindToolInPath("node"); nodePath != "" {
-    fmt.Printf("Node.js found at: %s\n", nodePath)
+if node := azdext.LookupTool("node"); node.Found {
+    fmt.Printf("Node.js found at: %s\n", node.Path)
 } else {
     fmt.Println(pathutil.GetInstallSuggestion("node"))
 }
@@ -504,22 +487,6 @@ if err := security.ValidateServiceName(name, false); err != nil {
 }
 ```
 
-### Shell Detection
-
-```go
-import "github.com/jongio/azd-core/shellutil"
-
-// Auto-detect shell from script
-shell := shellutil.DetectShell("deploy.sh")  // Returns "bash"
-shell = shellutil.DetectShell("setup.ps1")   // Returns "pwsh" or "powershell"
-shell = shellutil.DetectShell("build.cmd")   // Returns "cmd"
-
-// Read shebang to detect interpreter
-if shebang := shellutil.ReadShebang("script.py"); shebang != "" {
-    fmt.Printf("Interpreter: %s\n", shebang)  // "python3"
-}
-```
-
 ### Browser Launch
 
 ```go
@@ -539,10 +506,10 @@ err := browser.Launch(browser.LaunchOptions{
 ### Process Detection
 
 ```go
-import "github.com/jongio/azd-core/procutil"
+import "github.com/azure/azure-dev/cli/azd/pkg/azdext"
 
 // Check if process is running
-if procutil.IsProcessRunning(pid) {
+if azdext.IsProcessRunning(pid) {
     fmt.Println("Process is running")
 }
 ```
@@ -558,6 +525,33 @@ The `keyvault` package uses `azidentity.DefaultAzureCredential`, supporting:
 - Interactive browser authentication
 
 No global state is maintained, and client caching is thread-safe.
+
+The `auth` package acquires Azure OAuth tokens for arbitrary REST calls.
+
+`DetectScope(url)` maps a request URL to the OAuth scope its service expects,
+returning an empty scope for a host it does not recognize so the request is sent
+unauthenticated. Most of the mapping comes from `azdext.ScopeDetector`, extended
+with the services the SDK does not cover. Two services are resolved locally
+because a static host to scope map cannot describe them: Azure Data Explorer
+needs a scope derived from the cluster host, and Service Bus and Event Hubs share
+a DNS suffix and are told apart by the request path.
+
+`IsAzureHost(url)` is the broader question of whether to authenticate at all. A
+host can be recognizably Azure without `azd-core` knowing its scope.
+
+Token acquisition goes through `AzureTokenProvider`, which caches per scope,
+applies a request timeout, and classifies failures into `AuthPermissionError`,
+`AuthCredentialUnavailableError`, or `AuthError`. Three constructors:
+
+- `NewAzureTokenProvider()` builds a resilient credential chain that tries the
+  azd CLI, the Azure CLI, environment variables, workload identity, and managed
+  identity in that order, continuing past a hard failure rather than stopping at
+  the first one the way `DefaultAzureCredential` does.
+- `NewAzureTokenProviderForHost(ctx, client, opts)` uses `azdext.TokenProvider`
+  when an azd host client is supplied, so the tenant comes from the deployment
+  context, and falls back to the chain when it is not.
+- `NewAzureTokenProviderWithCredential(cred)` wraps any
+  `azcore.TokenCredential`.
 
 ## Testing
 

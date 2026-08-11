@@ -8,16 +8,13 @@
 // # Key Features
 //
 //   - Refresh PATH from system sources (Windows registry, Unix environment)
-//   - Find executables in PATH with cross-platform executable detection
 //   - Search common system directories for tools not in PATH
 //   - Installation suggestions for popular development tools
-//   - Automatic handling of Windows executable extensions (.exe)
 //
 // # Cross-Platform Behavior
 //
 // On Windows:
 //   - Reads PATH from both Machine and User registry variables via PowerShell
-//   - Automatically appends .exe extension when searching for executables
 //   - Searches common installation directories (Program Files, AppData, etc.)
 //   - Combines Machine and User PATH variables in proper order
 //
@@ -29,8 +26,9 @@
 //
 // # Example: Finding a Tool
 //
-//	// Find a tool in the current PATH
-//	toolPath := pathutil.FindToolInPath("node")
+//	// PATH lookup itself lives in azdext.LookupTool, which honors PATHEXT on
+//	// Windows and so resolves .cmd shims such as npm and az.
+//	toolPath := azdext.LookupTool("node").Path
 //	if toolPath == "" {
 //	    // Not found in PATH, try common system directories
 //	    toolPath = pathutil.SearchToolInSystemPath("node")
@@ -59,14 +57,14 @@
 //
 //	func ensureTool(toolName string) (string, error) {
 //	    // First check PATH
-//	    if path := pathutil.FindToolInPath(toolName); path != "" {
-//	        return path, nil
+//	    if info := azdext.LookupTool(toolName); info.Found {
+//	        return info.Path, nil
 //	    }
 //
 //	    // Refresh PATH and try again (especially useful on Windows after install)
 //	    if _, err := pathutil.RefreshPATH(); err == nil {
-//	        if path := pathutil.FindToolInPath(toolName); path != "" {
-//	            return path, nil
+//	        if info := azdext.LookupTool(toolName); info.Found {
+//	            return info.Path, nil
 //	        }
 //	    }
 //
@@ -106,6 +104,5 @@
 //
 //   - On Unix systems, RefreshPATH cannot source shell profiles (inherent Go limitation)
 //   - SearchToolInSystemPath only checks predefined common directories
-//   - Windows .exe extension is added automatically; other extensions (.cmd, .bat) are not
 //   - Installation suggestions are URLs only, not automated installation
 package pathutil

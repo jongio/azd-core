@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/azure/azure-dev/cli/azd/pkg/azdext"
 	"github.com/jongio/azd-core/security"
 )
 
@@ -24,62 +25,6 @@ const (
 	FilePermission = 0644
 )
 
-// atomicWrite writes data to a file atomically via a temp file in the same
-// directory, followed by a rename. perm controls the final file permissions.
-func atomicWrite(path string, data []byte, perm os.FileMode) error {
-	dir := filepath.Dir(path)
-	tmpFile, err := os.CreateTemp(dir, filepath.Base(path)+".tmp.*")
-	if err != nil {
-		return fmt.Errorf("failed to create temp file: %w", err)
-	}
-	tmpPath := tmpFile.Name()
-	defer func() { _ = tmpFile.Close() }()
-
-	if _, err := tmpFile.Write(data); err != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("failed to write temp file: %w", err)
-	}
-
-	if err := tmpFile.Sync(); err != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("failed to sync temp file: %w", err)
-	}
-
-	if err := tmpFile.Close(); err != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("failed to close temp file: %w", err)
-	}
-
-	if err := os.Chmod(tmpPath, perm); err != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("failed to set file permissions: %w", err)
-	}
-
-	if err := renameWithRetry(tmpPath, path); err != nil {
-		_ = os.Remove(tmpPath)
-		return err
-	}
-
-	return nil
-}
-
-// renameWithRetry performs os.Rename with retries and linear backoff to
-// mitigate transient rename races on Windows and CI environments.
-func renameWithRetry(src, dst string) error {
-	var err error
-	for attempt := 0; attempt < 5; attempt++ {
-		err = os.Rename(src, dst)
-		if err == nil {
-			return nil
-		}
-		if attempt < 4 {
-			delay := time.Duration(20*(attempt+1)) * time.Millisecond // 20ms, 40ms, 60ms, 80ms
-			time.Sleep(delay)
-		}
-	}
-	return fmt.Errorf("failed to rename temp file: %w", err)
-}
-
 // AtomicWriteJSON writes data as JSON to a file atomically.
 // It writes to a temporary file first, then renames it to the target path.
 // This ensures the file is never left in a partial/corrupt state.
@@ -89,14 +34,16 @@ func AtomicWriteJSON(path string, data any) error {
 		return fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
-	return atomicWrite(path, jsonData, FilePermission)
+	return azdext.WriteFileAtomic(path, jsonData, FilePermission)
 }
 
 // AtomicWriteFile writes raw bytes to a file atomically.
 // It writes to a temporary file first, then renames it to the target path.
 // This ensures the file is never left in a partial/corrupt state.
+// A perm of 0 preserves the existing file's permissions, or uses 0644 when
+// the file does not yet exist.
 func AtomicWriteFile(path string, data []byte, perm os.FileMode) error {
-	return atomicWrite(path, data, perm)
+	return azdext.WriteFileAtomic(path, data, perm)
 }
 
 // ReadJSON reads JSON from a file into the target interface.
@@ -118,11 +65,12 @@ func ReadJSON(path string, target any) error {
 }
 
 // EnsureDir creates a directory if it doesn't exist.
+// It uses [DirPermission] (0750), which is tighter than the 0755 that
+// azdext.EnsureDir falls back to when passed a zero permission. Call this
+// rather than azdext.EnsureDir directly so azd-core's permission policy stays
+// in one place.
 func EnsureDir(path string) error {
-	if err := os.MkdirAll(path, DirPermission); err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
-	}
-	return nil
+	return azdext.EnsureDir(path, DirPermission)
 }
 
 // FileExists checks if a file exists in a directory.

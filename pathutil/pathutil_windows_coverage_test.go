@@ -72,65 +72,6 @@ func TestRefreshWindowsPATH_PathCombination(t *testing.T) {
 	}
 }
 
-func TestFindToolInPath_WindowsExecutables(t *testing.T) {
-	tests := []struct {
-		name     string
-		toolName string
-		wantFind bool
-	}{
-		{
-			name:     "cmd without extension",
-			toolName: "cmd",
-			wantFind: true,
-		},
-		{
-			name:     "cmd with extension",
-			toolName: "cmd.exe",
-			wantFind: true,
-		},
-		{
-			name:     "CMD uppercase",
-			toolName: "CMD",
-			wantFind: true,
-		},
-		{
-			name:     "powershell",
-			toolName: "powershell",
-			wantFind: true,
-		},
-		{
-			name:     "nonexistent",
-			toolName: "nonexistent-tool-12345",
-			wantFind: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := FindToolInPath(tt.toolName)
-			found := result != ""
-			if found != tt.wantFind {
-				t.Logf("FindToolInPath(%q) found=%v, want=%v (path: %s)", tt.toolName, found, tt.wantFind, result)
-			}
-		})
-	}
-}
-
-func TestFindToolInPath_ExeExtensionAdded(t *testing.T) {
-	// Verify .exe is added automatically on Windows
-	result1 := FindToolInPath("cmd")
-	result2 := FindToolInPath("cmd.exe")
-
-	if result1 == "" || result2 == "" {
-		t.Fatal("cmd should be found in PATH")
-	}
-
-	// Both should find the same executable
-	if !strings.EqualFold(result1, result2) {
-		t.Logf("cmd and cmd.exe resolved to different paths: %q vs %q", result1, result2)
-	}
-}
-
 func TestSearchToolInSystemPath_WindowsPaths(t *testing.T) {
 	// Test searching in common Windows locations
 	tests := []struct {
@@ -326,29 +267,6 @@ func TestRefreshPATH_SetEnvironment(t *testing.T) {
 	}
 }
 
-func TestFindToolInPath_CaseSensitivity(t *testing.T) {
-	// Windows is case-insensitive for executables
-	tests := []struct {
-		name string
-		tool string
-	}{
-		{"lowercase", "cmd"},
-		{"uppercase", "CMD"},
-		{"mixed case", "Cmd"},
-		{"with exe lowercase", "cmd.exe"},
-		{"with exe uppercase", "CMD.EXE"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := FindToolInPath(tt.tool)
-			if result == "" {
-				t.Errorf("FindToolInPath(%q) should find cmd", tt.tool)
-			}
-		})
-	}
-}
-
 func TestSearchToolInSystemPath_AllCommonLocations(t *testing.T) {
 	// Test that we search all common Windows locations
 	// This exercises all the search paths in the function
@@ -409,24 +327,6 @@ func TestSearchToolInSystemPath_GoPath(t *testing.T) {
 			result := SearchToolInSystemPath("go")
 			t.Logf("Go found at: %s", result)
 		}
-	}
-}
-
-func TestFindToolInPath_ExtensionPriority(t *testing.T) {
-	// Test that tools without .exe are found correctly
-	// Windows should add .exe automatically
-	tools := []string{"cmd", "powershell", "where"}
-
-	for _, tool := range tools {
-		t.Run(tool, func(t *testing.T) {
-			result := FindToolInPath(tool)
-			if result != "" {
-				// Result should have .exe extension
-				if !strings.HasSuffix(strings.ToLower(result), ".exe") {
-					t.Errorf("Windows executable should end with .exe: %s", result)
-				}
-			}
-		})
 	}
 }
 
@@ -497,18 +397,5 @@ func TestRefreshWindowsPATH_BothPathsPresent(t *testing.T) {
 	parts := strings.Split(newPath, ";")
 	if len(parts) < 2 {
 		t.Logf("Warning: PATH has only %d entries", len(parts))
-	}
-}
-
-func TestFindToolInPath_AlreadyHasExe(t *testing.T) {
-	// Test finding tools that already have .exe in the search name
-	result := FindToolInPath("cmd.exe")
-	if result == "" {
-		t.Error("FindToolInPath(\"cmd.exe\") should find cmd")
-	}
-
-	// Should not add double .exe
-	if strings.HasSuffix(result, ".exe.exe") {
-		t.Error("Should not double-add .exe extension")
 	}
 }

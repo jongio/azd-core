@@ -6,29 +6,31 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"sync"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azsecrets"
+	"github.com/azure/azure-dev/cli/azd/pkg/azdext"
 )
 
-const (
-	// Azure Key Vault naming constraints
-	minVaultNameLength = 3
-	maxVaultNameLength = 24
-)
-
-var (
-	kvRefSecretURIPattern = regexp.MustCompile(`^@Microsoft\.KeyVault\(SecretUri=(.+)\)$`)
-	kvRefVaultNamePattern = regexp.MustCompile(`^@Microsoft\.KeyVault\(VaultName=([^;]+);SecretName=([^;)]+)(?:;SecretVersion=([^;)]+))?\)$`)
-	kvRefAzdAkvsPattern   = regexp.MustCompile(`^akvs://([^/]+)/([^/]+)/([^/]+)(?:/([^/]+))?$`)
-)
+// kvRefAkvsVersionedPattern matches the four segment akvs form that carries an
+// explicit secret version:
+//
+//	akvs://<subscription-id>/<vault-name>/<secret-name>/<version>
+//
+// azdext.ParseSecretReference accepts only the three segment form, so this
+// package rewrites the four segment form into the equivalent
+// @Microsoft.KeyVault(VaultName=...;SecretName=...;SecretVersion=...) reference,
+// which azdext does understand. See normalizeReference.
+var kvRefAkvsVersionedPattern = regexp.MustCompile(`^akvs://([^/]+)/([^/]+)/([^/]+)/([^/]+)$`)
 
 // KeyVaultResolver resolves Azure Key Vault references to secret values.
+//
+// Reference parsing, client construction, per-vault client caching, and secret
+// retrieval are all provided by azdext.KeyVaultResolver. This type adds the
+// KEY=VALUE environment slice API that azd extensions use, and support for the
+// versioned akvs form.
 type KeyVaultResolver struct {
-	credential *azidentity.DefaultAzureCredential
-	clients    map[string]*azsecrets.Client
-	mu         sync.RWMutex
+	inner *azdext.KeyVaultResolver
 }
 
 // KeyVaultResolutionWarning captures non-fatal resolution failures.
@@ -49,70 +51,76 @@ func NewKeyVaultResolver() (*KeyVaultResolver, error) {
 		return nil, fmt.Errorf("failed to create DefaultAzureCredential: %w", err)
 	}
 
-	return &KeyVaultResolver{
-		credential: cred,
-		clients:    make(map[string]*azsecrets.Client),
-	}, nil
+	return NewKeyVaultResolverWithCredential(cred, nil)
+}
+
+// NewKeyVaultResolverWithCredential builds a resolver from an explicit credential.
+//
+// Use this to supply an azdext.TokenProvider so secret resolution rides the
+// extension's own azd issued token rather than a separate credential chain, to
+// target a sovereign cloud through KeyVaultResolverOptions.VaultSuffix, or to
+// inject a secret client in tests through KeyVaultResolverOptions.ClientFactory.
+//
+// Passing nil opts selects the Azure public cloud and the real secret client.
+func NewKeyVaultResolverWithCredential(
+	credential azcore.TokenCredential,
+	opts *azdext.KeyVaultResolverOptions,
+) (*KeyVaultResolver, error) {
+	inner, err := azdext.NewKeyVaultResolver(credential, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return &KeyVaultResolver{inner: inner}, nil
 }
 
 // IsKeyVaultReference reports whether the value matches a supported reference format.
+//
+// Surrounding whitespace and a single layer of matching quotes are ignored, so a
+// value read straight out of a .env file is recognized.
 func IsKeyVaultReference(value string) bool {
-	normalized := normalizeKeyVaultReferenceValue(value)
-
-	if kvRefSecretURIPattern.MatchString(normalized) {
-		return true
-	}
-
-	if kvRefVaultNamePattern.MatchString(normalized) {
-		return true
-	}
-
-	if strings.HasPrefix(normalized, "akvs://") {
-		return kvRefAzdAkvsPattern.MatchString(normalized)
-	}
-
-	return false
+	return azdext.IsSecretReference(value)
 }
 
 // ResolveReference resolves a single Key Vault reference to its secret value.
+//
+// Failures are returned as *azdext.KeyVaultResolveError, so callers can inspect
+// Reason to distinguish a malformed reference from a missing secret, an access
+// denial, or a service error.
 func (r *KeyVaultResolver) ResolveReference(ctx context.Context, reference string) (string, error) {
-	reference = normalizeKeyVaultReferenceValue(reference)
-
-	if matches := kvRefSecretURIPattern.FindStringSubmatch(reference); matches != nil {
-		secretURI := strings.TrimSpace(matches[1])
-		return r.resolveBySecretURI(ctx, secretURI)
-	}
-
-	if matches := kvRefVaultNamePattern.FindStringSubmatch(reference); matches != nil {
-		vaultName := matches[1]
-		secretName := matches[2]
-		version := ""
-		if len(matches) > 3 && matches[3] != "" {
-			version = matches[3]
-		}
-		return r.resolveByVaultNameAndSecret(ctx, vaultName, secretName, version)
-	}
-
-	if strings.HasPrefix(reference, "akvs://") {
-		if !kvRefAzdAkvsPattern.MatchString(reference) {
-			return "", fmt.Errorf("invalid akvs URI format")
-		}
-
-		guid, vaultName, secretName, version, err := parseAzdAkvsURI(reference)
-		_ = guid
-		if err != nil {
-			return "", err
-		}
-		return r.resolveByVaultNameAndSecret(ctx, vaultName, secretName, version)
-	}
-
-	return "", fmt.Errorf("invalid Key Vault reference format")
+	return r.inner.Resolve(ctx, normalizeReference(reference))
 }
 
 // ResolveEnvironmentVariables resolves references in KEY=VALUE entries.
-func (r *KeyVaultResolver) ResolveEnvironmentVariables(ctx context.Context, envVars []string, options ResolveEnvironmentOptions) ([]string, []KeyVaultResolutionWarning, error) {
+//
+// Entries that are not KEY=VALUE, and values that are not Key Vault references,
+// are passed through untouched. When a reference fails to resolve, the original
+// entry is preserved and a warning is recorded. Set StopOnError to abort on the
+// first failure instead.
+func (r *KeyVaultResolver) ResolveEnvironmentVariables(
+	ctx context.Context,
+	envVars []string,
+	options ResolveEnvironmentOptions,
+) ([]string, []KeyVaultResolutionWarning, error) {
+	return resolveEnvVars(ctx, r, envVars, options.StopOnError, func(key string, err error) KeyVaultResolutionWarning {
+		return KeyVaultResolutionWarning{Key: key, Err: err}
+	})
+}
+
+// resolveEnvVars implements the KEY=VALUE resolution loop shared by
+// KeyVaultResolver.ResolveEnvironmentVariables and EnvResolverAdapter. The
+// warning type is a parameter because the adapter deliberately declares its own
+// so the env package does not have to import this one.
+func resolveEnvVars[W any](
+	ctx context.Context,
+	r *KeyVaultResolver,
+	envVars []string,
+	stopOnError bool,
+	newWarning func(key string, err error) W,
+) ([]string, []W, error) {
 	resolved := make([]string, 0, len(envVars))
-	var warnings []KeyVaultResolutionWarning
+
+	var warnings []W
 
 	for _, envVar := range envVars {
 		// Check for context cancellation to allow early termination
@@ -122,29 +130,17 @@ func (r *KeyVaultResolver) ResolveEnvironmentVariables(ctx context.Context, envV
 		default:
 		}
 
-		parts := strings.SplitN(envVar, "=", 2)
-		if len(parts) != 2 {
-			resolved = append(resolved, envVar)
-			continue
-		}
-
-		key := parts[0]
-		value := parts[1]
-
-		if !IsKeyVaultReference(value) {
+		key, value, ok := strings.Cut(envVar, "=")
+		if !ok || !IsKeyVaultReference(value) {
 			resolved = append(resolved, envVar)
 			continue
 		}
 
 		secretValue, err := r.ResolveReference(ctx, value)
 		if err != nil {
-			warning := KeyVaultResolutionWarning{
-				Key: key,
-				Err: err,
-			}
-			warnings = append(warnings, warning)
+			warnings = append(warnings, newWarning(key, err))
 
-			if options.StopOnError {
+			if stopOnError {
 				return nil, warnings, fmt.Errorf("failed to resolve Key Vault reference for %s: %w", key, err)
 			}
 
@@ -152,131 +148,31 @@ func (r *KeyVaultResolver) ResolveEnvironmentVariables(ctx context.Context, envV
 			continue
 		}
 
-		resolved = append(resolved, fmt.Sprintf("%s=%s", key, secretValue))
+		resolved = append(resolved, key+"="+secretValue)
 	}
 
 	return resolved, warnings, nil
 }
 
-func (r *KeyVaultResolver) getClient(vaultURL string) (*azsecrets.Client, error) {
-	// Double-checked locking pattern: check without lock first for performance,
-	// then acquire write lock only if client doesn't exist
-	r.mu.RLock()
-	if client, ok := r.clients[vaultURL]; ok {
-		r.mu.RUnlock()
-		return client, nil
-	}
-	r.mu.RUnlock()
-
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	// Re-check after acquiring write lock in case another goroutine created it
-	if client, ok := r.clients[vaultURL]; ok {
-		return client, nil
-	}
-
-	client, err := azsecrets.NewClient(vaultURL, r.credential, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Key Vault client: %w", err)
-	}
-
-	r.clients[vaultURL] = client
-	return client, nil
-}
-
-func (r *KeyVaultResolver) resolveBySecretURI(ctx context.Context, secretURI string) (string, error) {
-	parts := strings.Split(secretURI, "/secrets/")
-	if len(parts) != 2 {
-		return "", fmt.Errorf("invalid secret URI format")
-	}
-
-	vaultURL := parts[0]
-	secretPath := parts[1]
-
-	if err := validateVaultURL(vaultURL); err != nil {
-		return "", err
-	}
-
-	client, err := r.getClient(vaultURL)
-	if err != nil {
-		return "", err
-	}
-
-	secretParts := strings.Split(secretPath, "/")
-	secretName := secretParts[0]
-	version := ""
-	if len(secretParts) > 1 {
-		version = secretParts[1]
-	}
-
-	var resp azsecrets.GetSecretResponse
-	if version != "" {
-		resp, err = client.GetSecret(ctx, secretName, version, nil)
-	} else {
-		resp, err = client.GetSecret(ctx, secretName, "", nil)
-	}
-
-	if err != nil {
-		// Don't include vault URL in error to avoid information disclosure in logs
-		return "", fmt.Errorf("failed to get secret from Key Vault: %w", err)
-	}
-
-	if resp.Value == nil {
-		return "", fmt.Errorf("secret has no value")
-	}
-
-	return *resp.Value, nil
-}
-
-func (r *KeyVaultResolver) resolveByVaultNameAndSecret(ctx context.Context, vaultName, secretName, version string) (string, error) {
-	if err := validateVaultName(vaultName); err != nil {
-		return "", err
-	}
-
-	vaultURL := fmt.Sprintf("https://%s.vault.azure.net", vaultName)
-
-	client, err := r.getClient(vaultURL)
-	if err != nil {
-		return "", err
-	}
-
-	var resp azsecrets.GetSecretResponse
-	if version != "" {
-		resp, err = client.GetSecret(ctx, secretName, version, nil)
-	} else {
-		resp, err = client.GetSecret(ctx, secretName, "", nil)
-	}
-
-	if err != nil {
-		// Don't include vault name or secret name in error to avoid information disclosure
-		return "", fmt.Errorf("failed to get secret from Key Vault: %w", err)
-	}
-
-	if resp.Value == nil {
-		return "", fmt.Errorf("secret has no value")
-	}
-
-	return *resp.Value, nil
-}
-
-func parseAzdAkvsURI(uri string) (guid, vaultName, secretName, version string, err error) {
-	matches := kvRefAzdAkvsPattern.FindStringSubmatch(uri)
+// normalizeReference rewrites the versioned akvs form into the equivalent
+// @Microsoft.KeyVault(VaultName=...;SecretName=...;SecretVersion=...) reference.
+// Every other input is returned unchanged for azdext to parse.
+func normalizeReference(reference string) string {
+	matches := kvRefAkvsVersionedPattern.FindStringSubmatch(stripQuotes(reference))
 	if matches == nil {
-		return "", "", "", "", fmt.Errorf("invalid akvs URI format: %s", uri)
+		return reference
 	}
 
-	guid = matches[1]
-	vaultName = matches[2]
-	secretName = matches[3]
-	if len(matches) > 4 {
-		version = matches[4]
-	}
-
-	return guid, vaultName, secretName, version, nil
+	return fmt.Sprintf(
+		"@Microsoft.KeyVault(VaultName=%s;SecretName=%s;SecretVersion=%s)",
+		matches[2], matches[3], matches[4],
+	)
 }
 
-func normalizeKeyVaultReferenceValue(value string) string {
+// stripQuotes removes surrounding whitespace and a single layer of matching
+// single or double quotes. It mirrors what azdext does to every reference it is
+// given, so the versioned akvs check sees the same string azdext would.
+func stripQuotes(value string) string {
 	normalized := strings.TrimSpace(value)
 	if len(normalized) < 2 {
 		return normalized
@@ -290,36 +186,4 @@ func normalizeKeyVaultReferenceValue(value string) string {
 	}
 
 	return normalized
-}
-
-func validateVaultURL(vaultURL string) error {
-	if !strings.HasPrefix(vaultURL, "https://") {
-		return fmt.Errorf("vault URI must use https scheme")
-	}
-
-	if !strings.HasSuffix(vaultURL, ".vault.azure.net") {
-		return fmt.Errorf("vault URI must be in *.vault.azure.net domain")
-	}
-
-	vaultName := strings.TrimPrefix(vaultURL, "https://")
-	vaultName = strings.TrimSuffix(vaultName, ".vault.azure.net")
-
-	return validateVaultName(vaultName)
-}
-
-func validateVaultName(vaultName string) error {
-	if len(vaultName) < minVaultNameLength || len(vaultName) > maxVaultNameLength {
-		return fmt.Errorf("vault name must be %d-%d characters, got %d", minVaultNameLength, maxVaultNameLength, len(vaultName))
-	}
-
-	for i, ch := range vaultName {
-		if (ch < 'a' || ch > 'z') && (ch < 'A' || ch > 'Z') && (ch < '0' || ch > '9') && ch != '-' {
-			return fmt.Errorf("vault name contains invalid character: %c", ch)
-		}
-		if i == 0 && ch >= '0' && ch <= '9' {
-			return fmt.Errorf("vault name cannot start with a number")
-		}
-	}
-
-	return nil
 }

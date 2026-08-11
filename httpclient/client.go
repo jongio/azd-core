@@ -4,18 +4,24 @@ package httpclient
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/tls"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/azure/azure-dev/cli/azd/pkg/azdext"
 )
 
 const (
@@ -37,6 +43,19 @@ const (
 
 	// BinaryDetectionBytes is the number of leading bytes inspected when detecting binary content.
 	BinaryDetectionBytes = 512
+
+	// MaxRetryAfterDuration caps how long a Retry-After header can delay a retry.
+	// Without a cap, a misconfigured or hostile server could stall the client
+	// indefinitely by returning 503 with Retry-After: 86400.
+	MaxRetryAfterDuration = 120 * time.Second
+
+	// MaxDrainBytes bounds how much of a retryable response body is read and
+	// discarded before the next attempt. Draining lets the connection be reused;
+	// the bound stops a large body from stalling the retry.
+	MaxDrainBytes = 1 << 20 // 1 MiB
+
+	// MaxRetryBackoff caps the computed exponential backoff delay.
+	MaxRetryBackoff = 30 * time.Second
 
 	contentTypeOctetStream = "application/octet-stream"
 	jsonValueKey           = "value"
@@ -130,21 +149,54 @@ func NewClient(tokenProvider TokenProvider, insecure bool, timeout time.Duration
 
 	return &Client{
 		httpClient: &http.Client{
-			Transport: transport,
-			Timeout:   timeout,
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				cfg, _ := req.Context().Value(redirectContextKey).(redirectConfig)
-				if !cfg.followRedirects {
-					return http.ErrUseLastResponse
-				}
-				if cfg.maxRedirects > 0 && len(via) >= cfg.maxRedirects {
-					return fmt.Errorf("stopped after %d redirects", cfg.maxRedirects)
-				}
-				return nil
-			},
+			Transport:     transport,
+			Timeout:       timeout,
+			CheckRedirect: checkRedirect,
 		},
 		tokenProvider: tokenProvider,
 	}
+}
+
+// checkRedirect applies the caller's redirect policy and then the azdext SSRF
+// policy to the redirect target.
+//
+// The caller controls whether redirects are followed at all and how many are
+// allowed, because those are product decisions. The target of a redirect is
+// chosen by the server, not the caller, so it also goes through
+// azdext.SSRFSafeRedirect, which blocks HTTPS to HTTP downgrades, cloud
+// metadata endpoints, and loopback targets.
+//
+// The one exception is a request the caller aimed at localhost to begin with.
+// Running an extension against a local API server is a first-class azd
+// workflow, and azdext.SSRFSafeRedirect blocks loopback unconditionally, so
+// applying it there would break local development for no security gain: the
+// caller already chose localhost.
+func checkRedirect(req *http.Request, via []*http.Request) error {
+	cfg, _ := req.Context().Value(redirectContextKey).(redirectConfig)
+	if !cfg.followRedirects {
+		return http.ErrUseLastResponse
+	}
+
+	if cfg.maxRedirects > 0 && len(via) >= cfg.maxRedirects {
+		return fmt.Errorf("stopped after %d redirects", cfg.maxRedirects)
+	}
+
+	if len(via) > 0 && isLoopbackHost(via[0].URL.Hostname()) {
+		return nil
+	}
+
+	return azdext.SSRFSafeRedirect(req, via)
+}
+
+// isLoopbackHost reports whether host names the local machine.
+func isLoopbackHost(host string) bool {
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+
+	ip := net.ParseIP(host)
+
+	return ip != nil && ip.IsLoopback()
 }
 
 // Execute performs an HTTP request with the given options
@@ -281,11 +333,18 @@ func (c *Client) executeWithRetry(ctx context.Context, req *http.Request, client
 		}
 	}
 
+	var retryAfterOverride time.Duration
+
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		if attempt > 0 {
-			// Exponential backoff: 1s, 2s, 4s, etc.
-			shift := min(attempt-1, 30) // cap to prevent overflow
-			backoff := time.Duration(1<<shift) * time.Second
+			// Prefer the server's own Retry-After over computed backoff. Waiting
+			// both would double the delay on every throttled request.
+			backoff := retryAfterOverride
+			if backoff == 0 {
+				backoff = retryBackoff(attempt)
+			}
+			retryAfterOverride = 0
+
 			select {
 			case <-ctx.Done():
 				return nil, fmt.Errorf("request canceled: %w", ctx.Err())
@@ -320,12 +379,22 @@ func (c *Client) executeWithRetry(ctx context.Context, req *http.Request, client
 		var resp *http.Response
 		resp, lastErr = client.Do(req)
 		if lastErr == nil {
-			// Check if response status is retryable (5xx errors)
-			if resp.StatusCode >= 500 && resp.StatusCode < 600 && attempt < maxRetries {
-				_ = resp.Body.Close()
-				continue
+			if !isRetryableStatus(resp.StatusCode) || attempt == maxRetries {
+				return resp, nil
 			}
-			return resp, nil
+
+			// Drain before discarding so the connection can be reused. The
+			// bound stops an unbounded body from stalling the retry.
+			_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, MaxDrainBytes))
+			_ = resp.Body.Close()
+
+			if ra := retryAfterFromResponse(resp); ra > 0 {
+				retryAfterOverride = min(ra, MaxRetryAfterDuration)
+			}
+
+			lastErr = fmt.Errorf("retryable HTTP status %d (%s)", resp.StatusCode, resp.Status)
+
+			continue
 		}
 
 		// Check if error is retryable
@@ -389,6 +458,86 @@ func ShouldSkipAuth(url string, headers map[string]string, skipAuth bool) bool {
 	}
 
 	return false
+}
+
+// isRetryableStatus reports whether a status code indicates a transient failure
+// worth retrying.
+//
+// This matches the set azdext.ResilientClient retries. Note that 429 and 408
+// were previously not retried at all, so a throttled Azure Resource Manager or
+// Microsoft Graph call failed on the first response. Note also that the other
+// 5xx codes are no longer retried: 501 Not Implemented and 505 HTTP Version Not
+// Supported describe a permanent property of the server, so retrying them only
+// spends the caller's time.
+func isRetryableStatus(statusCode int) bool {
+	switch statusCode {
+	case http.StatusRequestTimeout,
+		http.StatusTooManyRequests,
+		http.StatusInternalServerError,
+		http.StatusBadGateway,
+		http.StatusServiceUnavailable,
+		http.StatusGatewayTimeout:
+		return true
+	default:
+		return false
+	}
+}
+
+// retryBackoff computes the delay before the given attempt.
+//
+// The delay doubles per attempt starting at one second, is capped at
+// MaxRetryBackoff, and is then jittered to somewhere in [80%, 120%). The jitter
+// keeps many clients that were throttled by the same server from retrying in
+// lockstep.
+func retryBackoff(attempt int) time.Duration {
+	shift := min(attempt-1, 30) // cap the shift so the constant cannot overflow
+	delay := min(time.Duration(1<<shift)*time.Second, MaxRetryBackoff)
+
+	jitter := 1.0
+
+	var b [8]byte
+	if _, err := rand.Read(b[:]); err == nil {
+		jitter = 0.8 + (float64(binary.BigEndian.Uint64(b[:]))/(float64(math.MaxUint64)+1))*0.4
+	}
+
+	return time.Duration(float64(delay) * jitter)
+}
+
+// retryAfterFromResponse reads the delay a server asked the client to wait.
+//
+// Azure services answer with retry-after-ms or x-ms-retry-after-ms; the
+// standard retry-after header carries either a count of seconds or an HTTP
+// date. A zero return means the server did not ask for a specific delay.
+func retryAfterFromResponse(resp *http.Response) time.Duration {
+	if resp == nil {
+		return 0
+	}
+
+	for _, h := range []struct {
+		name  string
+		units time.Duration
+	}{
+		{"retry-after-ms", time.Millisecond},
+		{"x-ms-retry-after-ms", time.Millisecond},
+		{"retry-after", time.Second},
+	} {
+		v := resp.Header.Get(h.name)
+		if v == "" {
+			continue
+		}
+
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return time.Duration(n) * h.units
+		}
+
+		if t, err := http.ParseTime(v); err == nil {
+			if d := time.Until(t); d > 0 {
+				return d
+			}
+		}
+	}
+
+	return 0
 }
 
 // isRetryableError determines if an error is retryable using typed error checks.

@@ -71,6 +71,7 @@ func captureStdout(t *testing.T, fn func()) string {
 func TestNewCommand_HumanReadable(t *testing.T) {
 	info := New("jongio.azd.exec", "azd exec")
 	cmd := NewCommand(info, nil)
+	cmd.SetArgs([]string{})
 	output := captureStdout(t, func() {
 		if err := cmd.Execute(); err != nil {
 			t.Fatal(err)
@@ -87,6 +88,7 @@ func TestNewCommand_JSON(t *testing.T) {
 	info := New("jongio.azd.exec", "azd exec")
 	format := "json"
 	cmd := NewCommand(info, &format)
+	cmd.SetArgs([]string{})
 	output := captureStdout(t, func() {
 		if err := cmd.Execute(); err != nil {
 			t.Fatal(err)

@@ -366,7 +366,6 @@ Import from azd-core instead of duplicating:
 - `azd-core/cliout` - CLI output formatting
 - `azd-core/env` - Environment variable resolution
 - `azd-core/keyvault` - Key Vault integration
-- `azd-core/shellutil` - Shell detection
 - And more...
 
 ### Example main.go Structure
@@ -1041,7 +1040,6 @@ func TestValidateConfig(t *testing.T) {
 - [cliout](https://github.com/jongio/azd-core/tree/main/cliout) - CLI output formatting
 - [env](https://github.com/jongio/azd-core/tree/main/env) - Environment variable resolution
 - [keyvault](https://github.com/jongio/azd-core/tree/main/keyvault) - Azure Key Vault integration
-- [shellutil](https://github.com/jongio/azd-core/tree/main/shellutil) - Shell detection
 - [fileutil](https://github.com/jongio/azd-core/tree/main/fileutil) - File system utilities
 - [pathutil](https://github.com/jongio/azd-core/tree/main/pathutil) - PATH management
 - [security](https://github.com/jongio/azd-core/tree/main/security) - Security validation

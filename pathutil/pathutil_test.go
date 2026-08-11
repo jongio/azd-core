@@ -5,6 +5,7 @@ package pathutil
 
 import (
 	"os"
+	"os/exec"
 	"runtime"
 	"testing"
 )
@@ -34,36 +35,6 @@ func TestRefreshPATH(t *testing.T) {
 
 	if newPath == "" {
 		t.Error("RefreshPATH returned empty PATH")
-	}
-}
-
-func TestFindToolInPath(t *testing.T) {
-	tests := []struct {
-		name     string
-		toolName string
-		expected bool // whether we expect to find it
-	}{
-		{
-			name:     "find go",
-			toolName: "go",
-			expected: true, // Go should be available in test environment
-		},
-		{
-			name:     "nonexistent tool",
-			toolName: "nonexistent-tool-xyz-12345",
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := FindToolInPath(tt.toolName)
-			found := result != ""
-			if found != tt.expected {
-				t.Logf("FindToolInPath(%s) found=%v, expected=%v (path=%s)", tt.toolName, found, tt.expected, result)
-				// Don't fail the test, just log, as availability may vary
-			}
-		})
 	}
 }
 
@@ -114,37 +85,6 @@ func TestGetInstallSuggestion(t *testing.T) {
 	}
 }
 
-func TestFindToolInPath_WithExtension(t *testing.T) {
-	if runtime.GOOS != "windows" {
-		t.Skip("Skipping Windows-specific test")
-	}
-
-	// Test that we can find tools with or without .exe extension
-	tests := []struct {
-		name     string
-		toolName string
-	}{
-		{
-			name:     "without extension",
-			toolName: "cmd",
-		},
-		{
-			name:     "with extension",
-			toolName: "cmd.exe",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := FindToolInPath(tt.toolName)
-			if result == "" {
-				t.Errorf("FindToolInPath(%s) returned empty, expected to find cmd", tt.toolName)
-			}
-			t.Logf("Found %s at: %s", tt.toolName, result)
-		})
-	}
-}
-
 func TestSearchToolInSystemPath_KnownTools(t *testing.T) {
 	// This test verifies the function works correctly even if tools aren't found
 	tests := []struct {
@@ -173,40 +113,6 @@ func TestSearchToolInSystemPath_KnownTools(t *testing.T) {
 				t.Logf("SearchToolInSystemPath(%s) found: %s", tt.toolName, result)
 			} else {
 				t.Logf("SearchToolInSystemPath(%s) not found in common locations", tt.toolName)
-			}
-		})
-	}
-}
-
-func TestFindToolInPath_EdgeCases(t *testing.T) {
-	tests := []struct {
-		name     string
-		toolName string
-		wantFind bool
-	}{
-		{
-			name:     "empty string",
-			toolName: "",
-			wantFind: false,
-		},
-		{
-			name:     "tool with spaces",
-			toolName: "tool with spaces",
-			wantFind: false,
-		},
-		{
-			name:     "tool with path separators",
-			toolName: "tool/with/slashes",
-			wantFind: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := FindToolInPath(tt.toolName)
-			found := result != ""
-			if found != tt.wantFind {
-				t.Logf("FindToolInPath(%q) found=%v, want=%v (result: %s)", tt.toolName, found, tt.wantFind, result)
 			}
 		})
 	}
@@ -256,22 +162,6 @@ func TestSearchToolInSystemPath_UnixPaths(t *testing.T) {
 		t.Logf("Found sh at: %s", result)
 	} else {
 		t.Log("sh not found in common Unix paths (unusual but not a failure)")
-	}
-}
-
-func TestFindToolInPath_ActualTools(t *testing.T) {
-	// Test with a tool that should definitely exist in test environment
-	goPath := FindToolInPath("go")
-	if goPath == "" {
-		t.Error("Expected to find 'go' in PATH during tests")
-	}
-
-	if runtime.GOOS == "windows" {
-		// On Windows, verify .exe is added
-		goWithExe := FindToolInPath("go.exe")
-		if goWithExe == "" {
-			t.Error("Expected to find 'go.exe' in PATH on Windows")
-		}
 	}
 }
 
@@ -457,18 +347,6 @@ func TestSearchToolInSystemPath_Coverage(t *testing.T) {
 	}
 }
 
-func TestFindToolInPath_NonExistentExtension(t *testing.T) {
-	if runtime.GOOS != "windows" {
-		t.Skip("Skipping Windows-specific test")
-	}
-
-	// Test finding tool that already has .exe
-	result := FindToolInPath("nonexistent.exe")
-	if result != "" {
-		t.Logf("Unexpectedly found: %s", result)
-	}
-}
-
 func TestGetInstallSuggestion_MoreTools(t *testing.T) {
 	// Test additional tools to ensure all mappings work
 	additionalTools := []string{
@@ -543,8 +421,10 @@ func TestToolDiscovery_E2E(t *testing.T) {
 	// Test the complete tool discovery workflow
 	testTool := "go" // Should exist in test environment
 
-	// Step 1: Try to find in PATH
-	path1 := FindToolInPath(testTool)
+	// Step 1: Try to find in PATH.
+	// PATH lookup itself now lives in azdext.LookupTool, so this step uses the
+	// stdlib directly rather than reaching across packages from a unit test.
+	path1, _ := exec.LookPath(testTool)
 	if path1 != "" {
 		t.Logf("Step 1: Found %s in PATH: %s", testTool, path1)
 	}
@@ -565,7 +445,7 @@ func TestToolDiscovery_E2E(t *testing.T) {
 	}
 
 	// Step 3: Try to find again after refresh
-	path2 := FindToolInPath(testTool)
+	path2, _ := exec.LookPath(testTool)
 	if path2 != "" {
 		t.Logf("Step 3: Found %s after refresh: %s", testTool, path2)
 	}

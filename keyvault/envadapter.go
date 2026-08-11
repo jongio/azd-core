@@ -7,8 +7,6 @@ package keyvault
 
 import (
 	"context"
-	"fmt"
-	"strings"
 )
 
 // EnvResolveOptions configures environment resolution behavior for the adapter.
@@ -50,48 +48,7 @@ func (a *EnvResolverAdapter) IsSecretReference(value string) bool {
 // the method signature matches. The env package defines its own ResolveOptions
 // and ResolutionWarning types that this adapter is compatible with.
 func (a *EnvResolverAdapter) ResolveEnvironmentVariables(ctx context.Context, envVars []string, opts EnvResolveOptions) ([]string, []EnvResolutionWarning, error) {
-	resolved := make([]string, 0, len(envVars))
-	var warnings []EnvResolutionWarning
-
-	for _, envVar := range envVars {
-		select {
-		case <-ctx.Done():
-			return nil, warnings, ctx.Err()
-		default:
-		}
-
-		parts := strings.SplitN(envVar, "=", 2)
-		if len(parts) != 2 {
-			resolved = append(resolved, envVar)
-			continue
-		}
-
-		key := parts[0]
-		value := parts[1]
-
-		if !IsKeyVaultReference(value) {
-			resolved = append(resolved, envVar)
-			continue
-		}
-
-		secretValue, err := a.resolver.ResolveReference(ctx, value)
-		if err != nil {
-			warning := EnvResolutionWarning{
-				Key: key,
-				Err: err,
-			}
-			warnings = append(warnings, warning)
-
-			if opts.StopOnError {
-				return nil, warnings, fmt.Errorf("failed to resolve Key Vault reference for %s: %w", key, err)
-			}
-
-			resolved = append(resolved, envVar)
-			continue
-		}
-
-		resolved = append(resolved, fmt.Sprintf("%s=%s", key, secretValue))
-	}
-
-	return resolved, warnings, nil
+	return resolveEnvVars(ctx, a.resolver, envVars, opts.StopOnError, func(key string, err error) EnvResolutionWarning {
+		return EnvResolutionWarning{Key: key, Err: err}
+	})
 }

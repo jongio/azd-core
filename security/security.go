@@ -11,9 +11,10 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
+
+	"github.com/azure/azure-dev/cli/azd/pkg/azdext"
 )
 
 const (
@@ -22,7 +23,6 @@ const (
 	packageManagerYarn   = "yarn"
 	packageManagerPip    = "pip"
 	packageManagerPoetry = "poetry"
-	envValueTrue         = "true"
 )
 
 var (
@@ -32,10 +32,6 @@ var (
 	ErrPathTraversal = errors.New("path traversal detected")
 	// ErrInvalidServiceName indicates an invalid service name.
 	ErrInvalidServiceName = errors.New("invalid service name")
-
-	// serviceNamePattern validates service names - alphanumeric start, then alphanumeric, underscore, hyphen, or dot.
-	// Max 63 characters to align with DNS label limits and container naming conventions.
-	serviceNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]{0,62}$`)
 )
 
 // ValidatePath checks if a path is safe to use.
@@ -104,11 +100,15 @@ func ValidateServiceName(name string, allowEmpty bool) error {
 		return fmt.Errorf("%w: exceeds maximum length of 63 characters", ErrInvalidServiceName)
 	}
 
-	if !serviceNamePattern.MatchString(name) {
+	// Delegate the format rule to azdext so the two cannot drift. The pattern
+	// is the same DNS-label rule azd itself applies to service names.
+	if err := azdext.ValidateServiceName(name); err != nil {
 		return fmt.Errorf("%w: must start with alphanumeric and contain only alphanumeric, underscore, hyphen, or dot", ErrInvalidServiceName)
 	}
 
-	// Extra check for path traversal attempts
+	// Extra check for path traversal attempts. azdext.ValidateServiceName
+	// accepts names such as "a..b" because they match the DNS-label pattern;
+	// azd-core service names reach the filesystem, so reject them here.
 	if strings.Contains(name, "..") || strings.Contains(name, "/") || strings.Contains(name, "\\") {
 		return fmt.Errorf("%w: contains invalid path characters", ErrInvalidServiceName)
 	}
@@ -135,48 +135,33 @@ func ValidatePackageManager(pm string) error {
 	return nil
 }
 
-// SanitizeScriptName ensures a script name doesn't contain shell metacharacters.
-func SanitizeScriptName(name string) error {
-	// Disallow shell metacharacters
-	dangerous := []string{";", "&", "|", ">", "<", "`", "$", "(", ")", "{", "}", "[", "]", "\n", "\r", "\"", "'", "\\", "#"}
-
-	for _, char := range dangerous {
-		if strings.Contains(name, char) {
-			return fmt.Errorf("script name contains dangerous character: %s", char)
-		}
+// ValidateScriptName ensures a script name is safe to pass to a package
+// manager as an argument. It rejects shell metacharacters, path traversal
+// sequences, and empty names.
+//
+// This delegates to [azdext.ValidateScriptName], whose metacharacter set is a
+// strict superset of the one azd-core used before v0.6.0: it additionally
+// rejects ! ~ * ? % and the null byte, along with ".." and the empty string.
+func ValidateScriptName(name string) error {
+	if err := azdext.ValidateScriptName(name); err != nil {
+		return fmt.Errorf("invalid script name: %w", err)
 	}
-
 	return nil
 }
 
 // IsContainerEnvironment detects if the code is running in a containerized environment.
 // It checks for:
-// - GitHub Codespaces (CODESPACES=true)
-// - VS Code Dev Containers (REMOTE_CONTAINERS=true)
-// - Docker containers (/.dockerenv file exists)
-// - Kubernetes pods (KUBERNETES_SERVICE_HOST set)
+//   - GitHub Codespaces (CODESPACES)
+//   - VS Code Dev Containers (REMOTE_CONTAINERS, REMOTE_CONTAINERS_IPC)
+//   - Kubernetes pods (KUBERNETES_SERVICE_HOST)
+//   - Docker containers (/.dockerenv file exists)
+//
+// This delegates to [azdext.IsContainerEnvironment]. Note that it treats any
+// non-empty value as present, where azd-core previously required the literal
+// string "true" for CODESPACES and REMOTE_CONTAINERS. Use
+// [azdext.ContainerRuntime] when you need to know which one was detected.
 func IsContainerEnvironment() bool {
-	// Check for GitHub Codespaces
-	if os.Getenv("CODESPACES") == envValueTrue {
-		return true
-	}
-
-	// Check for VS Code Dev Containers
-	if os.Getenv("REMOTE_CONTAINERS") == envValueTrue {
-		return true
-	}
-
-	// Check for Kubernetes
-	if os.Getenv("KUBERNETES_SERVICE_HOST") != "" {
-		return true
-	}
-
-	// Check for Docker container (/.dockerenv file exists)
-	if _, err := os.Stat("/.dockerenv"); err == nil {
-		return true
-	}
-
-	return false
+	return azdext.IsContainerEnvironment()
 }
 
 // ErrInsecureFilePermissions indicates a file has insecure (world-writable) permissions.
