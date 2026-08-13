@@ -125,7 +125,7 @@ func findOrCreateLogsSection(lines *[]string, serviceInfo *serviceInfo) logsSect
 		}
 	}
 
-	// Not found — insert after the last property
+	// Not found, so insert after the last property
 	insertIdx := lastPropertyIdx + 1
 	logsLine := logsIndent + "logs:"
 
@@ -161,7 +161,7 @@ func findOrCreateAnalyticsSection(lines *[]string, logs logsSection) analyticsSe
 		}
 	}
 
-	// Not found — insert after logs:
+	// Not found, so insert after logs:
 	insertIdx := logs.idx + 1
 	analyticsLine := logs.indent + "    analytics:"
 

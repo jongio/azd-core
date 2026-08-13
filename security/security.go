@@ -187,7 +187,7 @@ func ValidatePathWithinBases(path string, allowedBases ...string) (string, error
 		if !errors.Is(err, fs.ErrNotExist) {
 			return "", fmt.Errorf("%w: cannot resolve symbolic links: %w", ErrInvalidPath, err)
 		}
-		// File doesn't exist yet — resolve symlinks on parent directory
+		// File doesn't exist yet, so resolve symlinks on parent directory
 		// to handle platforms where temp dirs are symlinked (e.g., macOS /var → /private/var)
 		parentDir := filepath.Dir(absPath)
 		realParent, parentErr := filepath.EvalSymlinks(parentDir)

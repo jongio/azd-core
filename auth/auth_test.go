@@ -420,7 +420,7 @@ func TestAzureTokenProvider_InvalidScope(t *testing.T) {
 
 	require.NotNil(t, provider)
 
-	// Try to get token with invalid scope — should fail with either a scope error
+	// Try to get token with invalid scope; should fail with either a scope error
 	// or an authentication error depending on the environment's credential state.
 	_, err = provider.GetToken(context.Background(), "invalid-scope")
 	assert.Error(t, err)

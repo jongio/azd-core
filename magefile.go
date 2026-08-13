@@ -91,7 +91,7 @@ func coveragePreflight() error {
 	return covergate.Gate(coverageConfig())
 }
 
-// Preflight runs all quality checks before release — mirrors dispatch's preflight pattern.
+// Preflight runs all quality checks before release, mirrors dispatch's preflight pattern.
 func Preflight() error {
 	fmt.Println("🚀 Running preflight checks...")
 	fmt.Println()
@@ -192,7 +192,7 @@ func preflightCheckGitIgnore() error {
 
 func preflightCheckGitAttributes() error {
 	if _, err := os.Stat(".gitattributes"); errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf(".gitattributes file not found — required for proper line ending configuration")
+		return fmt.Errorf(".gitattributes file not found; required for proper line ending configuration")
 	}
 	fmt.Println("   ✅ .gitattributes exists")
 	return nil
@@ -218,7 +218,7 @@ func preflightModTidy() error {
 	goSumAfter, _ := os.ReadFile("go.sum")
 
 	if string(goModBefore) != string(goModAfter) || string(goSumBefore) != string(goSumAfter) {
-		return fmt.Errorf("go.mod or go.sum changed after 'go mod tidy' — commit the changes")
+		return fmt.Errorf("go.mod or go.sum changed after 'go mod tidy'; commit the changes")
 	}
 	fmt.Println("   ✅ go.mod and go.sum are tidy")
 	return nil
@@ -244,7 +244,7 @@ func preflightFmtCheck() error {
 
 func preflightGofumpt() error {
 	if _, err := exec.LookPath("gofumpt"); err != nil {
-		fmt.Println("   ⚠️  gofumpt not installed — skipping strict format check")
+		fmt.Println("   ⚠️  gofumpt not installed, skipping strict format check")
 		fmt.Println("      Install with: go install mvdan.cc/gofumpt@latest")
 		return nil
 	}
@@ -267,7 +267,7 @@ func preflightGofumpt() error {
 
 func preflightVulncheck() error {
 	if _, err := exec.LookPath("govulncheck"); err != nil {
-		fmt.Println("   ⚠️  govulncheck not installed — skipping vulnerability check")
+		fmt.Println("   ⚠️  govulncheck not installed, skipping vulnerability check")
 		fmt.Println("      Install with: go install golang.org/x/vuln/cmd/govulncheck@latest")
 		return nil
 	}
@@ -281,7 +281,7 @@ func preflightVulncheck() error {
 
 func preflightDeadcode() error {
 	if _, err := exec.LookPath("deadcode"); err != nil {
-		fmt.Println("   ⚠️  deadcode not installed — skipping dead code check")
+		fmt.Println("   ⚠️  deadcode not installed, skipping dead code check")
 		fmt.Println("      Install with: go install golang.org/x/tools/cmd/deadcode@latest")
 		return nil
 	}

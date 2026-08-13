@@ -77,7 +77,7 @@ func updateServicePortsInText(content, serviceName string, port int) (string, er
 	portValueLine := fmt.Sprintf("%s  - \"%d\"", portsIndent, port)
 
 	if portsLineIdx >= 0 {
-		// Inline array format (ports: ["3000"]) — replace entire line
+		// Inline array format (ports: ["3000"]), so replace entire line
 		currentPortsLine := lines[portsLineIdx]
 		if strings.Contains(currentPortsLine, "[") {
 			lineIndent := getIndentation(currentPortsLine)
@@ -85,7 +85,7 @@ func updateServicePortsInText(content, serviceName string, port int) (string, er
 			return strings.Join(lines, "\n"), nil
 		}
 
-		// Multi-line ports array — replace first port value
+		// Multi-line ports array, so replace first port value
 		for i := portsLineIdx + 1; i < len(lines); i++ {
 			line := lines[i]
 			trimmed := strings.TrimSpace(line)
@@ -112,7 +112,7 @@ func updateServicePortsInText(content, serviceName string, port int) (string, er
 		result = append(result, lines[portsLineIdx+1:]...)
 		lines = result
 	} else {
-		// No existing ports field — insert after service name
+		// No existing ports field, so insert after service name
 		insertIdx := serviceInfo.lineIdx + 1
 
 		result := make([]string, 0, len(lines)+2)
@@ -149,7 +149,7 @@ func FindServiceInSection(lines []string, servicesInfo *sectionInfo, serviceName
 
 		lineIndent := getIndentation(line)
 
-		// Check indentation — if at or before services indent, we've left the section
+		// Check indentation, and if at or before services indent, we've left the section
 		if len(lineIndent) <= len(servicesInfo.indent) {
 			break
 		}

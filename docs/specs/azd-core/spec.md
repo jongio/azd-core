@@ -14,7 +14,7 @@ Provide a shared Go module (`github.com/jongio/azd-core`) for reusable azd CLI/e
 - Minimal module scaffolding: go.mod, package docs, README for usage.
 
 ## Non-goals (now)
-- Broader azd runtime helpers (logs, telemetry, config) — add later.
+- Broader azd runtime helpers (logs, telemetry, config): add later.
 - Cross-language bindings.
 - Release automation; manual tagging is fine for the first drop.
 
