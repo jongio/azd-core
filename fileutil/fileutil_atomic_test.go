@@ -13,7 +13,7 @@ import (
 
 func TestAtomicWriteFile_NonExistentDir(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "nodir", "deep", "file.txt")
-	err := AtomicWriteFile(path, []byte("hello"), 0644)
+	err := AtomicWriteFile(path, []byte("hello"), 0o644)
 	if err == nil {
 		t.Fatal("expected error writing to non-existent directory, got nil")
 	}
@@ -25,7 +25,7 @@ func TestAtomicWriteFile_LargePayload(t *testing.T) {
 	for i := range data {
 		data[i] = byte(i % 256)
 	}
-	if err := AtomicWriteFile(path, data, 0644); err != nil {
+	if err := AtomicWriteFile(path, data, 0o644); err != nil {
 		t.Fatalf("AtomicWriteFile() large payload error: %v", err)
 	}
 	got, err := os.ReadFile(path)
@@ -39,10 +39,10 @@ func TestAtomicWriteFile_LargePayload(t *testing.T) {
 
 func TestAtomicWriteFile_Overwrite(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "overwrite.txt")
-	if err := AtomicWriteFile(path, []byte("first"), 0644); err != nil {
+	if err := AtomicWriteFile(path, []byte("first"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := AtomicWriteFile(path, []byte("second"), 0644); err != nil {
+	if err := AtomicWriteFile(path, []byte("second"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	got, _ := os.ReadFile(path)
@@ -53,7 +53,7 @@ func TestAtomicWriteFile_Overwrite(t *testing.T) {
 
 func TestAtomicWriteFile_EmptyData(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "empty.txt")
-	if err := AtomicWriteFile(path, []byte{}, 0644); err != nil {
+	if err := AtomicWriteFile(path, []byte{}, 0o644); err != nil {
 		t.Fatalf("AtomicWriteFile() empty data error: %v", err)
 	}
 	got, _ := os.ReadFile(path)
@@ -105,7 +105,7 @@ func TestAtomicWriteFile_ConcurrentWrites(t *testing.T) {
 			defer wg.Done()
 			path := filepath.Join(dir, "concurrent.txt")
 			data := []byte("writer-" + string(rune('A'+n)))
-			_ = AtomicWriteFile(path, data, 0644)
+			_ = AtomicWriteFile(path, data, 0o644)
 		}(i)
 	}
 	wg.Wait()
@@ -121,7 +121,7 @@ func TestAtomicWriteFile_ConcurrentWrites(t *testing.T) {
 func TestAtomicWriteFile_TempFileCleanup(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "cleanup.txt")
-	if err := AtomicWriteFile(path, []byte("data"), 0644); err != nil {
+	if err := AtomicWriteFile(path, []byte("data"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	entries, _ := os.ReadDir(dir)

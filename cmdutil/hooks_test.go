@@ -47,7 +47,7 @@ func TestPrepareHookCommand_ShellSelection(t *testing.T) {
 	}
 	tmpDir := t.TempDir()
 	script := filepath.Join(tmpDir, "test.sh")
-	os.WriteFile(script, []byte("#!/bin/bash\necho hello"), 0755)
+	os.WriteFile(script, []byte("#!/bin/bash\necho hello"), 0o755)
 
 	cmd := prepareHookCommand(context.Background(), "bash", script, tmpDir, nil)
 	if cmd == nil {
@@ -63,10 +63,10 @@ func TestPrepareHookCommand_EnvVars(t *testing.T) {
 	var script string
 	if runtime.GOOS == "windows" {
 		script = filepath.Join(tmpDir, "test.cmd")
-		os.WriteFile(script, []byte("@echo off\r\necho hello"), 0644)
+		os.WriteFile(script, []byte("@echo off\r\necho hello"), 0o644)
 	} else {
 		script = filepath.Join(tmpDir, "test.sh")
-		os.WriteFile(script, []byte("#!/bin/sh\necho hello"), 0755)
+		os.WriteFile(script, []byte("#!/bin/sh\necho hello"), 0o755)
 	}
 
 	shell := "bash"
@@ -94,10 +94,10 @@ func TestConfigureCommandIO_Interactive(t *testing.T) {
 	var script string
 	if runtime.GOOS == "windows" {
 		script = filepath.Join(tmpDir, "test.cmd")
-		os.WriteFile(script, []byte("@echo off"), 0644)
+		os.WriteFile(script, []byte("@echo off"), 0o644)
 	} else {
 		script = filepath.Join(tmpDir, "test.sh")
-		os.WriteFile(script, []byte("#!/bin/sh"), 0755)
+		os.WriteFile(script, []byte("#!/bin/sh"), 0o755)
 	}
 
 	shell := "bash"

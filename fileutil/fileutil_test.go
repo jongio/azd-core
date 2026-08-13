@@ -18,7 +18,7 @@ func TestFileExists(t *testing.T) {
 
 	// Create test file
 	testFile := "test.txt"
-	if err := os.WriteFile(filepath.Join(tmpDir, testFile), []byte("test"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, testFile), []byte("test"), 0o600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -46,7 +46,7 @@ func TestHasFileWithExt(t *testing.T) {
 	// Create test files
 	files := []string{"test.csproj", "another.txt"}
 	for _, file := range files {
-		if err := os.WriteFile(filepath.Join(tmpDir, file), []byte("test"), 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpDir, file), []byte("test"), 0o600); err != nil {
 			t.Fatalf("Failed to create test file: %v", err)
 		}
 	}
@@ -75,7 +75,7 @@ func TestContainsText(t *testing.T) {
 
 	testFile := filepath.Join(tmpDir, "test.txt")
 	content := "This is a test file with specific content"
-	if err := os.WriteFile(testFile, []byte(content), 0600); err != nil {
+	if err := os.WriteFile(testFile, []byte(content), 0o600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -103,7 +103,7 @@ func TestFileExistsAny(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create one file
-	if err := os.WriteFile(filepath.Join(tmpDir, "exists.txt"), []byte("test"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "exists.txt"), []byte("test"), 0o600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -132,7 +132,7 @@ func TestFilesExistAll(t *testing.T) {
 	// Create files
 	files := []string{"file1.txt", "file2.txt"}
 	for _, file := range files {
-		if err := os.WriteFile(filepath.Join(tmpDir, file), []byte("test"), 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(tmpDir, file), []byte("test"), 0o600); err != nil {
 			t.Fatalf("Failed to create test file: %v", err)
 		}
 	}
@@ -161,7 +161,7 @@ func TestContainsTextInFile(t *testing.T) {
 
 	filename := "config.json"
 	content := `{"name": "test-package"}`
-	if err := os.WriteFile(filepath.Join(tmpDir, filename), []byte(content), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, filename), []byte(content), 0o600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -191,7 +191,7 @@ func TestHasAnyFileWithExts(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create test files
-	if err := os.WriteFile(filepath.Join(tmpDir, "test.csproj"), []byte("test"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "test.csproj"), []byte("test"), 0o600); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -316,35 +316,35 @@ func TestAtomicWriteFile(t *testing.T) {
 			name:    "simple write",
 			path:    filepath.Join(tmpDir, "simple.txt"),
 			data:    []byte("Hello, World!"),
-			perm:    0644,
+			perm:    0o644,
 			wantErr: false,
 		},
 		{
 			name:    "binary data",
 			path:    filepath.Join(tmpDir, "binary.dat"),
 			data:    []byte{0x00, 0xFF, 0xAB, 0xCD},
-			perm:    0600,
+			perm:    0o600,
 			wantErr: false,
 		},
 		{
 			name:    "empty file",
 			path:    filepath.Join(tmpDir, "empty.txt"),
 			data:    []byte{},
-			perm:    0644,
+			perm:    0o644,
 			wantErr: false,
 		},
 		{
 			name:    "overwrite existing",
 			path:    filepath.Join(tmpDir, "overwrite.txt"),
 			data:    []byte("new content"),
-			perm:    0644,
+			perm:    0o644,
 			wantErr: false,
 		},
 		{
 			name:    "invalid directory",
 			path:    filepath.Join(tmpDir, "nonexistent", "file.txt"),
 			data:    []byte("data"),
-			perm:    0644,
+			perm:    0o644,
 			wantErr: true,
 		},
 	}
@@ -391,12 +391,12 @@ func TestReadJSON(t *testing.T) {
 	invalidJSON := `{"name": "incomplete"`
 
 	validFile := filepath.Join(tmpDir, "valid.json")
-	if err := os.WriteFile(validFile, []byte(validJSON), 0644); err != nil {
+	if err := os.WriteFile(validFile, []byte(validJSON), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
 	invalidFile := filepath.Join(tmpDir, "invalid.json")
-	if err := os.WriteFile(invalidFile, []byte(invalidJSON), 0644); err != nil {
+	if err := os.WriteFile(invalidFile, []byte(invalidJSON), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -447,7 +447,7 @@ func TestReadJSON(t *testing.T) {
 func TestReadJSON_EmptyFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	emptyFile := filepath.Join(tmpDir, "empty.json")
-	if err := os.WriteFile(emptyFile, []byte{}, 0644); err != nil {
+	if err := os.WriteFile(emptyFile, []byte{}, 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -521,7 +521,7 @@ func TestAtomicWrite_Concurrency(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		go func(n int) {
 			data := []byte("data-" + string(rune('0'+n)))
-			err := AtomicWriteFile(path, data, 0644)
+			err := AtomicWriteFile(path, data, 0o644)
 			if err != nil {
 				t.Logf("AtomicWriteFile error for goroutine %d: %v", n, err)
 			}
@@ -566,7 +566,7 @@ func TestFileExists_EdgeCases(t *testing.T) {
 			name: "directory not file",
 			setup: func() string {
 				subdir := filepath.Join(tmpDir, "subdir")
-				_ = os.Mkdir(subdir, 0755)
+				_ = os.Mkdir(subdir, 0o755)
 				return tmpDir
 			},
 			filename: "subdir",
@@ -592,10 +592,10 @@ func TestAtomicWriteJSON_WriteError(t *testing.T) {
 	tmpDir := t.TempDir()
 	// Create a directory with no write permissions
 	readOnlyDir := filepath.Join(tmpDir, "readonly")
-	if err := os.Mkdir(readOnlyDir, 0555); err != nil {
+	if err := os.Mkdir(readOnlyDir, 0o555); err != nil {
 		t.Fatalf("Failed to create read-only directory: %v", err)
 	}
-	defer func() { _ = os.Chmod(readOnlyDir, 0755) }() // Restore permissions for cleanup
+	defer func() { _ = os.Chmod(readOnlyDir, 0o755) }() // Restore permissions for cleanup
 
 	path := filepath.Join(readOnlyDir, "test.json")
 	data := map[string]string{"key": "value"}
@@ -615,7 +615,7 @@ func TestAtomicWriteFile_PermissionSetting(t *testing.T) {
 	path := filepath.Join(tmpDir, "perm-test.txt")
 
 	// Write with specific permissions
-	err := AtomicWriteFile(path, []byte("test"), 0600)
+	err := AtomicWriteFile(path, []byte("test"), 0o600)
 	if err != nil {
 		t.Fatalf("AtomicWriteFile() error = %v", err)
 	}
@@ -628,17 +628,17 @@ func TestAtomicWriteFile_PermissionSetting(t *testing.T) {
 
 	// Check that permissions match (note: umask may affect this)
 	perm := info.Mode().Perm()
-	if perm != 0600 {
+	if perm != 0o600 {
 		t.Logf("File permissions are %o, expected 0600 (may be affected by umask)", perm)
 	}
 }
 
 func TestConstants(t *testing.T) {
 	// Verify constants are set correctly
-	if DirPermission != 0750 {
+	if DirPermission != 0o750 {
 		t.Errorf("DirPermission = %o, want 0750", DirPermission)
 	}
-	if FilePermission != 0644 {
+	if FilePermission != 0o644 {
 		t.Errorf("FilePermission = %o, want 0644", FilePermission)
 	}
 }

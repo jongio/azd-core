@@ -178,7 +178,7 @@ func TestValidateFilePermissions(t *testing.T) {
 	tmpFile := t.TempDir() + "/test.txt"
 
 	// Create a test file
-	if err := os.WriteFile(tmpFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(tmpFile, []byte("test"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -191,7 +191,7 @@ func TestValidateFilePermissions(t *testing.T) {
 	// Skip world-writable test on Windows (uses ACLs)
 	if runtime.GOOS != "windows" {
 		// Make file world-writable
-		if err := os.Chmod(tmpFile, 0666); err != nil {
+		if err := os.Chmod(tmpFile, 0o666); err != nil {
 			t.Fatalf("Failed to chmod file: %v", err)
 		}
 
@@ -238,7 +238,7 @@ func TestValidatePathWithinBases(t *testing.T) {
 	// Create a temp directory structure
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test"), 0o644); err != nil {
 		t.Fatalf("failed to write test file: %v", err)
 	}
 
@@ -428,10 +428,10 @@ func TestValidateFilePermissions_ContainerEnvironment(t *testing.T) {
 
 	// Create a test file and explicitly set world-writable permissions
 	// (os.WriteFile respects umask, so we need os.Chmod to ensure exact permissions)
-	if err := os.WriteFile(tmpFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(tmpFile, []byte("test"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
-	if err := os.Chmod(tmpFile, 0666); err != nil {
+	if err := os.Chmod(tmpFile, 0o666); err != nil {
 		t.Fatalf("Failed to set permissions: %v", err)
 	}
 
@@ -666,7 +666,7 @@ func TestValidatePath_WithSymlink(t *testing.T) {
 	symlinkPath := tmpDir + "/link.txt"
 
 	// Create target file
-	if err := os.WriteFile(targetFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(targetFile, []byte("test"), 0o644); err != nil {
 		t.Fatalf("Failed to create target file: %v", err)
 	}
 
@@ -779,7 +779,7 @@ func TestValidateFilePermissions_SecurePermissions_ContainerEnvironment(t *testi
 	tmpFile := t.TempDir() + "/test.txt"
 
 	// Create a test file with secure permissions
-	if err := os.WriteFile(tmpFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(tmpFile, []byte("test"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -849,12 +849,12 @@ func TestValidatePathWithinBases_SymlinkedBase(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	realBase := filepath.Join(tmpDir, "realbase")
-	if err := os.MkdirAll(realBase, 0755); err != nil {
+	if err := os.MkdirAll(realBase, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
 	testFile := filepath.Join(realBase, "file.txt")
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -877,7 +877,7 @@ func TestValidatePathWithinBases_SymlinkedBase(t *testing.T) {
 func TestValidatePathWithinBases_UnresolvableBase(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "file.txt")
-	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -921,7 +921,7 @@ func TestValidateFilePermissions_WindowsSkip(t *testing.T) {
 		t.Skip("Windows-specific test")
 	}
 	tmpFile := filepath.Join(t.TempDir(), "win-test.txt")
-	if err := os.WriteFile(tmpFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(tmpFile, []byte("test"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	// On Windows, always returns nil regardless of permissions
@@ -949,12 +949,12 @@ func TestValidatePath_ResolvedPathWithDots(t *testing.T) {
 
 	// Create a directory structure: tmpDir/safe/target.txt
 	safeDir := tmpDir + "/safe"
-	if err := os.MkdirAll(safeDir, 0755); err != nil {
+	if err := os.MkdirAll(safeDir, 0o755); err != nil {
 		t.Fatalf("Failed to create safe dir: %v", err)
 	}
 
 	targetFile := safeDir + "/target.txt"
-	if err := os.WriteFile(targetFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(targetFile, []byte("test"), 0o644); err != nil {
 		t.Fatalf("Failed to create target file: %v", err)
 	}
 

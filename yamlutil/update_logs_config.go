@@ -50,7 +50,7 @@ func UpdateServiceLogsConfig(azureYamlPath, serviceName string, tables []string,
 	}
 
 	// #nosec G703 -- Path validated by security.ValidatePath.
-	if err := os.WriteFile(azureYamlPath, []byte(updatedContent), 0600); err != nil {
+	if err := os.WriteFile(azureYamlPath, []byte(updatedContent), 0o600); err != nil {
 		return fmt.Errorf("failed to write azure.yaml: %w", err)
 	}
 

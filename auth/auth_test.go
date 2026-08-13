@@ -386,7 +386,6 @@ func TestAzureTokenProvider_NewProvider(t *testing.T) {
 	// Test that we can create a provider
 	// This will fail if credentials are not available, but that's expected behavior
 	provider, err := NewAzureTokenProvider()
-
 	// If credentials are available, provider should be created successfully
 	// If not, we get an error which is also valid behavior
 	if err != nil {

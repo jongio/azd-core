@@ -638,7 +638,6 @@ func TestSpinnerWriter(t *testing.T) {
 	// Write some data
 	data := []byte("test data")
 	n, err := writer.Write(data)
-
 	if err != nil {
 		t.Errorf("Write() error = %v, want nil", err)
 	}
@@ -654,7 +653,6 @@ func TestSpinnerWriter(t *testing.T) {
 	// Write more data
 	moreData := []byte("more data")
 	n2, err := writer.Write(moreData)
-
 	if err != nil {
 		t.Errorf("Write() error = %v, want nil", err)
 	}
@@ -677,7 +675,6 @@ func TestSpinnerWriterEmptyWrite(t *testing.T) {
 	writer := NewSpinnerWriter(bar)
 
 	n, err := writer.Write([]byte{})
-
 	if err != nil {
 		t.Errorf("Write() with empty data error = %v, want nil", err)
 	}

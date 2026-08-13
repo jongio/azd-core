@@ -354,7 +354,6 @@ func (mp *MultiProgress) calculateBarWidth() int {
 
 // getStatusIconAndColor returns the appropriate icon and color for a task status
 func (mp *MultiProgress) getStatusIconAndColor(status TaskStatus, t time.Time) (string, string) {
-
 	switch status {
 	case TaskStatusPending:
 		return iconPending, cliout.Dim

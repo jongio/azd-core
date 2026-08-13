@@ -808,7 +808,6 @@ func TestPrint(t *testing.T) {
 	err := Print(data, func() {
 		formatterCalled = true
 	})
-
 	if err != nil {
 		t.Errorf("Print failed: %v", err)
 	}

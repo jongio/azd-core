@@ -118,7 +118,7 @@ func TestLoadCacheJSON(t *testing.T) {
 			Data:  "test data",
 		}
 		data, _ := json.Marshal(cacheData)
-		if err := os.WriteFile(path, data, 0644); err != nil {
+		if err := os.WriteFile(path, data, 0o644); err != nil {
 			t.Fatalf("Failed to create test file: %v", err)
 		}
 
@@ -152,7 +152,7 @@ func TestLoadCacheJSON(t *testing.T) {
 			Data:  "test data",
 		}
 		data, _ := json.Marshal(cacheData)
-		if err := os.WriteFile(path, data, 0644); err != nil {
+		if err := os.WriteFile(path, data, 0o644); err != nil {
 			t.Fatalf("Failed to create test file: %v", err)
 		}
 
@@ -182,7 +182,7 @@ func TestLoadCacheJSON(t *testing.T) {
 			Data:  "test data",
 		}
 		data, _ := json.Marshal(cacheData)
-		if err := os.WriteFile(path, data, 0644); err != nil {
+		if err := os.WriteFile(path, data, 0o644); err != nil {
 			t.Fatalf("Failed to create test file: %v", err)
 		}
 
@@ -204,7 +204,7 @@ func TestLoadCacheJSON(t *testing.T) {
 		tmpDir := t.TempDir()
 		path := filepath.Join(tmpDir, "cache.json")
 
-		if err := os.WriteFile(path, []byte("not json"), 0644); err != nil {
+		if err := os.WriteFile(path, []byte("not json"), 0o644); err != nil {
 			t.Fatalf("Failed to create test file: %v", err)
 		}
 
@@ -289,7 +289,7 @@ func TestClearCache(t *testing.T) {
 		path := filepath.Join(tmpDir, "cache.json")
 
 		// Create file
-		if err := os.WriteFile(path, []byte("{}"), 0644); err != nil {
+		if err := os.WriteFile(path, []byte("{}"), 0o644); err != nil {
 			t.Fatalf("Failed to create test file: %v", err)
 		}
 

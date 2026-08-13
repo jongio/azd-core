@@ -692,9 +692,9 @@ func extractNextLinkFromBody(body []byte) (string, bool) {
 // It also enforces aggregate size and page count limits to prevent unbounded memory growth.
 func handlePagination(ctx context.Context, client *http.Client, opts RequestOptions, firstResponse *Response) ([]byte, error) {
 	var allResults []any
-	var currentBody = firstResponse.Body
+	currentBody := firstResponse.Body
 	var nextURL string
-	var hasMore = true
+	hasMore := true
 
 	// Parse original URL to enforce same-origin on pagination links
 	originalURL, err := url.Parse(opts.URL)

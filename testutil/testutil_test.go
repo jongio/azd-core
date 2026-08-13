@@ -147,7 +147,7 @@ func TestFindTestData(t *testing.T) {
 
 		// Create nested structure: tmpDir/tests/fixtures/data
 		nestedPath := filepath.Join(tmpDir, "tests", "fixtures", "data")
-		if err := os.MkdirAll(nestedPath, 0750); err != nil {
+		if err := os.MkdirAll(nestedPath, 0o750); err != nil {
 			t.Fatalf("failed to create nested structure: %v", err)
 		}
 
@@ -177,10 +177,10 @@ func TestFindTestData(t *testing.T) {
 		// Create structure: tmpDir/tests/data and tmpDir/src/cmd/test
 		dataPath := filepath.Join(tmpDir, "tests", "data")
 		testPath := filepath.Join(tmpDir, "src", "cmd", "test")
-		if err := os.MkdirAll(dataPath, 0750); err != nil {
+		if err := os.MkdirAll(dataPath, 0o750); err != nil {
 			t.Fatalf("failed to create data path: %v", err)
 		}
-		if err := os.MkdirAll(testPath, 0750); err != nil {
+		if err := os.MkdirAll(testPath, 0o750); err != nil {
 			t.Fatalf("failed to create test path: %v", err)
 		}
 
@@ -215,10 +215,10 @@ func TestFindTestData(t *testing.T) {
 		// Create structure: tmpDir/data and tmpDir/a/b/c/d/e (deeply nested)
 		dataPath := filepath.Join(tmpDir, "data")
 		deepPath := filepath.Join(tmpDir, "a", "b", "c", "d", "e")
-		if err := os.MkdirAll(dataPath, 0750); err != nil {
+		if err := os.MkdirAll(dataPath, 0o750); err != nil {
 			t.Fatalf("failed to create data path: %v", err)
 		}
-		if err := os.MkdirAll(deepPath, 0750); err != nil {
+		if err := os.MkdirAll(deepPath, 0o750); err != nil {
 			t.Fatalf("failed to create deep path: %v", err)
 		}
 
@@ -249,7 +249,7 @@ func TestFindTestData(t *testing.T) {
 
 		// Create single directory: tmpDir/tests
 		testsPath := filepath.Join(tmpDir, "tests")
-		if err := os.MkdirAll(testsPath, 0750); err != nil {
+		if err := os.MkdirAll(testsPath, 0o750); err != nil {
 			t.Fatalf("failed to create tests path: %v", err)
 		}
 
@@ -314,7 +314,7 @@ func TestTempDir(t *testing.T) {
 
 		// Try to create a file in the directory
 		testFile := filepath.Join(tmpDir, "test.txt")
-		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+		if err := os.WriteFile(testFile, []byte("test"), 0o644); err != nil {
 			t.Fatalf("failed to write to temp directory: %v", err)
 		}
 
@@ -349,11 +349,11 @@ func TestTempDir(t *testing.T) {
 
 		// Create nested content to verify cleanup handles complex structures
 		nestedPath := filepath.Join(tmpDir, "a", "b", "c")
-		if err := os.MkdirAll(nestedPath, 0750); err != nil {
+		if err := os.MkdirAll(nestedPath, 0o750); err != nil {
 			t.Fatalf("failed to create nested structure: %v", err)
 		}
 		testFile := filepath.Join(nestedPath, "test.txt")
-		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+		if err := os.WriteFile(testFile, []byte("test"), 0o644); err != nil {
 			t.Fatalf("failed to write test file: %v", err)
 		}
 	})
@@ -364,7 +364,7 @@ func TestTempDir(t *testing.T) {
 		// Create multiple files
 		for i := 0; i < 5; i++ {
 			fileName := filepath.Join(tmpDir, fmt.Sprintf("file%d.txt", i))
-			if err := os.WriteFile(fileName, []byte(fmt.Sprintf("content%d", i)), 0644); err != nil {
+			if err := os.WriteFile(fileName, []byte(fmt.Sprintf("content%d", i)), 0o644); err != nil {
 				t.Fatalf("failed to write file %d: %v", i, err)
 			}
 		}
@@ -383,7 +383,7 @@ func TestTempDir(t *testing.T) {
 
 		// Create nested structure
 		nestedPath := filepath.Join(tmpDir, "a", "b", "c")
-		if err := os.MkdirAll(nestedPath, 0750); err != nil {
+		if err := os.MkdirAll(nestedPath, 0o750); err != nil {
 			t.Fatalf("failed to create nested structure: %v", err)
 		}
 
@@ -469,7 +469,7 @@ func TestIntegration(t *testing.T) {
 
 		// Write to temp file
 		outputFile := filepath.Join(tmpDir, "output.txt")
-		if err := os.WriteFile(outputFile, []byte(output), 0644); err != nil {
+		if err := os.WriteFile(outputFile, []byte(output), 0o644); err != nil {
 			t.Fatalf("failed to write output file: %v", err)
 		}
 
