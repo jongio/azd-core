@@ -112,8 +112,7 @@ func Preflight() error {
 		{"Checking code format (gofmt)", preflightFmtCheck},
 		{"Checking strict format (gofumpt)", preflightGofumpt},
 		{"Running vet", Vet},
-		{"Running linter", Lint},
-		{"Running security scan (gosec)", preflightGosec},
+		{"Running linter (includes the gosec security scan)", Lint},
 		{"Checking for known vulnerabilities", preflightVulncheck},
 		{"Checking for dead code", preflightDeadcode},
 
@@ -263,20 +262,6 @@ func preflightGofumpt() error {
 		return fmt.Errorf("code is not gofumpt-formatted. Run 'mage fmtstrict' to fix")
 	}
 	fmt.Println("   ✅ Code is gofumpt-formatted")
-	return nil
-}
-
-func preflightGosec() error {
-	if _, err := exec.LookPath("gosec"); err != nil {
-		fmt.Println("   ⚠️  gosec not installed — skipping security scan")
-		fmt.Println("      Install with: go install github.com/securego/gosec/v2/cmd/gosec@latest")
-		return nil
-	}
-	if err := sh("gosec", "-quiet", "./..."); err != nil {
-		fmt.Println("   ⚠️  Security scan found issues (non-fatal)")
-	} else {
-		fmt.Println("   ✅ Security scan passed")
-	}
 	return nil
 }
 
