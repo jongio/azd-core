@@ -91,7 +91,7 @@ func TestAtomicWriteFile_SyncError_Windows(t *testing.T) {
 	path := filepath.Join(tmpDir, "test.bin")
 
 	data := []byte{0x00, 0x01, 0x02, 0x03, 0xFF, 0xFE}
-	err := AtomicWriteFile(path, data, 0644)
+	err := AtomicWriteFile(path, data, 0o644)
 	if err != nil {
 		t.Errorf("AtomicWriteFile() should succeed: %v", err)
 	}
@@ -111,7 +111,7 @@ func TestAtomicWriteFile_CloseError_Windows(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "close-test.txt")
 
-	err := AtomicWriteFile(path, []byte("test data"), 0600)
+	err := AtomicWriteFile(path, []byte("test data"), 0o600)
 	if err != nil {
 		t.Errorf("AtomicWriteFile() should succeed: %v", err)
 	}
@@ -129,7 +129,7 @@ func TestAtomicWriteFile_ChmodError_Windows(t *testing.T) {
 	path := filepath.Join(tmpDir, "chmod-test.txt")
 
 	// Windows doesn't have Unix-style permissions, so this should succeed
-	err := AtomicWriteFile(path, []byte("test"), 0600)
+	err := AtomicWriteFile(path, []byte("test"), 0o600)
 	if err != nil {
 		t.Errorf("AtomicWriteFile() should succeed on Windows: %v", err)
 	}
@@ -143,7 +143,7 @@ func TestAtomicWriteFile_RenameRetry_Windows(t *testing.T) {
 	// Write multiple times to exercise retry codepath
 	for i := 0; i < 5; i++ {
 		data := []byte("iteration-" + string(rune('0'+i)))
-		err := AtomicWriteFile(path, data, 0644)
+		err := AtomicWriteFile(path, data, 0o644)
 		if err != nil {
 			t.Errorf("AtomicWriteFile() iteration %d failed: %v", i, err)
 		}
@@ -155,7 +155,7 @@ func TestAtomicWriteFile_FinalChmod_Windows(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "final-chmod.txt")
 
-	err := AtomicWriteFile(path, []byte("test"), 0600)
+	err := AtomicWriteFile(path, []byte("test"), 0o600)
 	if err != nil {
 		t.Errorf("AtomicWriteFile() failed: %v", err)
 	}
@@ -172,7 +172,7 @@ func TestReadJSON_ReadError_Windows(t *testing.T) {
 
 	// Create a directory, not a file, to trigger read error
 	dirPath := filepath.Join(tmpDir, "notafile")
-	if err := os.Mkdir(dirPath, 0755); err != nil {
+	if err := os.Mkdir(dirPath, 0o755); err != nil {
 		t.Fatalf("Failed to create directory: %v", err)
 	}
 
@@ -189,7 +189,7 @@ func TestAtomicWriteJSON_WriteError_Windows(t *testing.T) {
 
 	// Create a file, then try to write to a path using it as a directory
 	existingFile := filepath.Join(tmpDir, "existing")
-	if err := os.WriteFile(existingFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(existingFile, []byte("test"), 0o644); err != nil {
 		t.Fatalf("Failed to create file: %v", err)
 	}
 
@@ -206,12 +206,12 @@ func TestAtomicWriteFile_WriteError_Windows(t *testing.T) {
 
 	// Create a file, then try to use it as a directory
 	existingFile := filepath.Join(tmpDir, "existing")
-	if err := os.WriteFile(existingFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(existingFile, []byte("test"), 0o644); err != nil {
 		t.Fatalf("Failed to create file: %v", err)
 	}
 
 	badPath := filepath.Join(existingFile, "test.txt")
-	err := AtomicWriteFile(badPath, []byte("data"), 0644)
+	err := AtomicWriteFile(badPath, []byte("data"), 0o644)
 	if err == nil {
 		t.Error("AtomicWriteFile() should error when parent is a file")
 	}
@@ -222,7 +222,7 @@ func TestAtomicWrite_TempFileCleanup_Windows(t *testing.T) {
 
 	// Test that temp files are cleaned up even on error
 	existingFile := filepath.Join(tmpDir, "blocker")
-	if err := os.WriteFile(existingFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(existingFile, []byte("test"), 0o644); err != nil {
 		t.Fatalf("Failed to create file: %v", err)
 	}
 
@@ -269,7 +269,7 @@ func TestAtomicWriteFile_LargeData_Windows(t *testing.T) {
 		largeData[i] = byte(i % 256)
 	}
 
-	err := AtomicWriteFile(path, largeData, 0644)
+	err := AtomicWriteFile(path, largeData, 0o644)
 	if err != nil {
 		t.Errorf("AtomicWriteFile() with large data failed: %v", err)
 	}
@@ -353,7 +353,7 @@ func TestContainsText_SecurityValidation_Windows(t *testing.T) {
 	// Test that ContainsText properly validates paths on Windows
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
-	if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
+	if err := os.WriteFile(testFile, []byte("test content"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -402,7 +402,7 @@ func TestReadJSON_EmptyFileError_Windows(t *testing.T) {
 	emptyFile := filepath.Join(tmpDir, "empty.json")
 
 	// Create empty file
-	if err := os.WriteFile(emptyFile, []byte{}, 0644); err != nil {
+	if err := os.WriteFile(emptyFile, []byte{}, 0o644); err != nil {
 		t.Fatalf("Failed to create empty file: %v", err)
 	}
 
@@ -418,7 +418,7 @@ func TestReadJSON_InvalidJSONError_Windows(t *testing.T) {
 	invalidFile := filepath.Join(tmpDir, "invalid.json")
 
 	// Create file with invalid JSON
-	if err := os.WriteFile(invalidFile, []byte("{invalid json}"), 0644); err != nil {
+	if err := os.WriteFile(invalidFile, []byte("{invalid json}"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -434,13 +434,13 @@ func TestFileExists_DirectoryVsFile_Windows(t *testing.T) {
 
 	// Create a file
 	fileName := "test.txt"
-	if err := os.WriteFile(filepath.Join(tmpDir, fileName), []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, fileName), []byte("test"), 0o644); err != nil {
 		t.Fatalf("Failed to create file: %v", err)
 	}
 
 	// Create a subdirectory
 	dirName := "subdir"
-	if err := os.Mkdir(filepath.Join(tmpDir, dirName), 0755); err != nil {
+	if err := os.Mkdir(filepath.Join(tmpDir, dirName), 0o755); err != nil {
 		t.Fatalf("Failed to create directory: %v", err)
 	}
 
@@ -458,7 +458,7 @@ func TestHasFileWithExt_CaseInsensitive_Windows(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create file with uppercase extension
-	if err := os.WriteFile(filepath.Join(tmpDir, "test.TXT"), []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmpDir, "test.TXT"), []byte("test"), 0o644); err != nil {
 		t.Fatalf("Failed to create file: %v", err)
 	}
 
@@ -473,7 +473,7 @@ func TestAtomicWriteFile_PermissionPreservation_Windows(t *testing.T) {
 	path := filepath.Join(tmpDir, "perm-test.txt")
 
 	// On Windows, permissions work differently, but test the codepath
-	err := AtomicWriteFile(path, []byte("test"), 0600)
+	err := AtomicWriteFile(path, []byte("test"), 0o600)
 	if err != nil {
 		t.Errorf("AtomicWriteFile() failed: %v", err)
 	}
@@ -489,7 +489,7 @@ func TestEnsureDir_AlreadyExists_Windows(t *testing.T) {
 
 	// Create directory
 	path := filepath.Join(tmpDir, "existing")
-	if err := os.Mkdir(path, 0755); err != nil {
+	if err := os.Mkdir(path, 0o755); err != nil {
 		t.Fatalf("Failed to create directory: %v", err)
 	}
 

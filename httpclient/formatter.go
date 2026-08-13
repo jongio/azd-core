@@ -109,7 +109,7 @@ func (f *Formatter) formatJSON(data []byte) (string, error) {
 // WriteOutput writes the formatted output to the appropriate destination
 func (f *Formatter) WriteOutput(output string, outputFile string) error {
 	if outputFile != "" {
-		return os.WriteFile(outputFile, []byte(output), 0600)
+		return os.WriteFile(outputFile, []byte(output), 0o600)
 	}
 
 	fmt.Print(output)
@@ -119,7 +119,7 @@ func (f *Formatter) WriteOutput(output string, outputFile string) error {
 // WriteRawOutput writes raw bytes to a file or stdout
 func (f *Formatter) WriteRawOutput(data []byte, outputFile string) error {
 	if outputFile != "" {
-		return os.WriteFile(outputFile, data, 0600)
+		return os.WriteFile(outputFile, data, 0o600)
 	}
 
 	_, err := io.Copy(os.Stdout, bytes.NewReader(data))

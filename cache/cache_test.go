@@ -227,7 +227,7 @@ func TestGetStats(t *testing.T) {
 func TestHashFile(t *testing.T) {
 	dir := t.TempDir()
 	f := filepath.Join(dir, "test.txt")
-	if err := os.WriteFile(f, []byte("hello world"), 0644); err != nil {
+	if err := os.WriteFile(f, []byte("hello world"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -254,7 +254,7 @@ func TestHashFile(t *testing.T) {
 
 	// Different content -> different hash
 	f2 := filepath.Join(dir, "test2.txt")
-	if err := os.WriteFile(f2, []byte("different"), 0644); err != nil {
+	if err := os.WriteFile(f2, []byte("different"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	hash3, err := HashFile(f2)
@@ -313,10 +313,10 @@ func TestGetInvalidJSON(t *testing.T) {
 
 	// Write a file with invalid JSON content
 	keyPath := m.keyPath("bad-json")
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
 	}
-	if err := os.WriteFile(keyPath, []byte("not valid json!!!"), 0644); err != nil {
+	if err := os.WriteFile(keyPath, []byte("not valid json!!!"), 0o644); err != nil {
 		t.Fatalf("failed to write bad json: %v", err)
 	}
 
@@ -341,11 +341,11 @@ func TestGetInvalidDataField(t *testing.T) {
 
 	// Write a valid envelope but with data that can't unmarshal to the target type
 	keyPath := m.keyPath("bad-data")
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("failed to create dir: %v", err)
 	}
 	envelope := `{"_cache":{"cachedAt":"` + time.Now().Format(time.RFC3339) + `","version":""},"data":"not-an-object"}`
-	if err := os.WriteFile(keyPath, []byte(envelope), 0644); err != nil {
+	if err := os.WriteFile(keyPath, []byte(envelope), 0o644); err != nil {
 		t.Fatalf("failed to write bad data: %v", err)
 	}
 

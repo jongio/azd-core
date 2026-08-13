@@ -319,7 +319,7 @@ func TestValidateFilePermissions_Windows(t *testing.T) {
 	}
 
 	tmpFile := filepath.Join(t.TempDir(), "test.txt")
-	if err := os.WriteFile(tmpFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(tmpFile, []byte("test"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -342,19 +342,19 @@ func TestValidateFilePermissions_UnixPermissions(t *testing.T) {
 		perm    os.FileMode
 		wantErr bool
 	}{
-		{"secure 0600", 0600, false},
-		{"secure 0644", 0644, false},
-		{"secure 0400", 0400, false},
-		{"group-writable 0664", 0664, true},
-		{"world-writable 0666", 0666, true},
-		{"world-writable 0646", 0646, true},
-		{"all-writable 0777", 0777, true},
+		{"secure 0600", 0o600, false},
+		{"secure 0644", 0o644, false},
+		{"secure 0400", 0o400, false},
+		{"group-writable 0664", 0o664, true},
+		{"world-writable 0666", 0o666, true},
+		{"world-writable 0646", 0o646, true},
+		{"all-writable 0777", 0o777, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tmpFile := filepath.Join(tmpDir, tt.name+".txt")
-			if err := os.WriteFile(tmpFile, []byte("test"), 0644); err != nil {
+			if err := os.WriteFile(tmpFile, []byte("test"), 0o644); err != nil {
 				t.Fatalf("Failed to create test file: %v", err)
 			}
 
@@ -481,12 +481,12 @@ func TestValidateFilePermissions_ContainerWarnings(t *testing.T) {
 	}
 
 	tmpFile := filepath.Join(t.TempDir(), "test.txt")
-	if err := os.WriteFile(tmpFile, []byte("test"), 0666); err != nil {
+	if err := os.WriteFile(tmpFile, []byte("test"), 0o666); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
 	// Explicitly set insecure permissions (bypassing umask)
-	if err := os.Chmod(tmpFile, 0666); err != nil {
+	if err := os.Chmod(tmpFile, 0o666); err != nil {
 		t.Fatalf("Failed to set file permissions: %v", err)
 	}
 
@@ -690,7 +690,7 @@ func TestValidatePath_WithRealFiles(t *testing.T) {
 
 	// Create a real file
 	realFile := filepath.Join(tmpDir, "real.txt")
-	if err := os.WriteFile(realFile, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(realFile, []byte("test"), 0o644); err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
 
@@ -701,7 +701,7 @@ func TestValidatePath_WithRealFiles(t *testing.T) {
 
 	// Create subdirectory
 	subDir := filepath.Join(tmpDir, "subdir")
-	if err := os.Mkdir(subDir, 0755); err != nil {
+	if err := os.Mkdir(subDir, 0o755); err != nil {
 		t.Fatalf("Failed to create subdir: %v", err)
 	}
 

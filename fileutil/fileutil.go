@@ -20,9 +20,9 @@ import (
 // File permissions
 const (
 	// DirPermission is the default permission for creating directories (rwxr-x---)
-	DirPermission = 0750
+	DirPermission = 0o750
 	// FilePermission is the default permission for creating files (rw-r--r--)
-	FilePermission = 0644
+	FilePermission = 0o644
 )
 
 // AtomicWriteJSON writes data as JSON to a file atomically.

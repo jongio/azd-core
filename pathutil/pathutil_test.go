@@ -168,7 +168,6 @@ func TestSearchToolInSystemPath_UnixPaths(t *testing.T) {
 func TestRefreshPATH_ErrorHandling(t *testing.T) {
 	// This test just verifies RefreshPATH handles errors gracefully
 	newPath, err := RefreshPATH()
-
 	if err != nil {
 		t.Logf("RefreshPATH returned error (may be expected): %v", err)
 		// On some systems this might fail, which is okay for the test

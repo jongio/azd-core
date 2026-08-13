@@ -19,10 +19,10 @@ func TestAtomicWriteJSON_CreateTempFailure(t *testing.T) {
 
 	// Create a read-only directory
 	readOnlyDir := filepath.Join(t.TempDir(), "readonly")
-	if err := os.Mkdir(readOnlyDir, 0555); err != nil {
+	if err := os.Mkdir(readOnlyDir, 0o555); err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = os.Chmod(readOnlyDir, 0755) }() // Restore for cleanup
+	defer func() { _ = os.Chmod(readOnlyDir, 0o755) }() // Restore for cleanup
 
 	path := filepath.Join(readOnlyDir, "test.json")
 	data := map[string]string{"key": "value"}
@@ -55,15 +55,15 @@ func TestAtomicWriteFile_CreateTempFailure(t *testing.T) {
 
 	// Create a read-only directory
 	readOnlyDir := filepath.Join(t.TempDir(), "readonly")
-	if err := os.Mkdir(readOnlyDir, 0555); err != nil {
+	if err := os.Mkdir(readOnlyDir, 0o555); err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = os.Chmod(readOnlyDir, 0755) }() // Restore for cleanup
+	defer func() { _ = os.Chmod(readOnlyDir, 0o755) }() // Restore for cleanup
 
 	path := filepath.Join(readOnlyDir, "test.txt")
 	data := []byte("test")
 
-	err := AtomicWriteFile(path, data, 0644)
+	err := AtomicWriteFile(path, data, 0o644)
 	if err == nil {
 		t.Error("AtomicWriteFile() expected error for read-only directory, got nil")
 	}
@@ -74,7 +74,7 @@ func TestAtomicWriteFile_ChmodAfterRename(t *testing.T) {
 	path := filepath.Join(tmpDir, "test.txt")
 	data := []byte("test content")
 
-	err := AtomicWriteFile(path, data, 0600)
+	err := AtomicWriteFile(path, data, 0o600)
 	if err != nil {
 		t.Fatalf("AtomicWriteFile() error = %v", err)
 	}
@@ -121,7 +121,7 @@ func TestAtomicWriteFile_Sync(t *testing.T) {
 	data := []byte("test data with sync")
 
 	// Write data
-	if err := AtomicWriteFile(path, data, 0644); err != nil {
+	if err := AtomicWriteFile(path, data, 0o644); err != nil {
 		t.Fatalf("AtomicWriteFile() error = %v", err)
 	}
 
@@ -162,7 +162,7 @@ func TestReadJSON_ErrorCases(t *testing.T) {
 
 	// Test with invalid JSON
 	invalidFile := filepath.Join(tmpDir, "invalid.json")
-	if err := os.WriteFile(invalidFile, []byte("{invalid json"), 0644); err != nil {
+	if err := os.WriteFile(invalidFile, []byte("{invalid json"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -185,7 +185,7 @@ func TestEnsureDir_ExistingFile(t *testing.T) {
 
 	// Create a file, then try to create a directory with the same path
 	filePath := filepath.Join(tmpDir, "file-not-dir")
-	if err := os.WriteFile(filePath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(filePath, []byte("test"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -206,7 +206,7 @@ func TestFileExists_SymlinkToFile(t *testing.T) {
 	// Create a file
 	targetFile := "target.txt"
 	targetPath := filepath.Join(tmpDir, targetFile)
-	if err := os.WriteFile(targetPath, []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(targetPath, []byte("test"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -253,7 +253,7 @@ func TestAtomicWriteFile_RetryLogic(t *testing.T) {
 	// This tests the retry logic in atomic write
 	// Write multiple times quickly to potentially trigger retries
 	for i := 0; i < 3; i++ {
-		if err := AtomicWriteFile(path, data, 0644); err != nil {
+		if err := AtomicWriteFile(path, data, 0o644); err != nil {
 			t.Errorf("AtomicWriteFile() iteration %d error = %v", i, err)
 		}
 	}
@@ -325,7 +325,7 @@ func TestReadJSON_EmptyTarget(t *testing.T) {
 
 	// Create a valid JSON file
 	jsonFile := filepath.Join(tmpDir, "data.json")
-	if err := os.WriteFile(jsonFile, []byte(`{"key":"value"}`), 0644); err != nil {
+	if err := os.WriteFile(jsonFile, []byte(`{"key":"value"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -346,7 +346,7 @@ func TestAtomicWriteFile_LargeData(t *testing.T) {
 		data[i] = byte(i % 256)
 	}
 
-	if err := AtomicWriteFile(path, data, 0644); err != nil {
+	if err := AtomicWriteFile(path, data, 0o644); err != nil {
 		t.Fatalf("AtomicWriteFile() with large data error = %v", err)
 	}
 

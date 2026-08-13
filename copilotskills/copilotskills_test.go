@@ -255,7 +255,7 @@ func TestInstall_VersionCacheHit(t *testing.T) {
 
 	// Modify SKILL.md to detect if reinstall happens
 	sentinel := filepath.Join(destDir, "SKILL.md")
-	if err := os.WriteFile(sentinel, []byte("modified"), 0644); err != nil {
+	if err := os.WriteFile(sentinel, []byte("modified"), 0o644); err != nil {
 		t.Fatalf("failed to write sentinel: %v", err)
 	}
 

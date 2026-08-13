@@ -24,7 +24,7 @@ services:
 `
 
 	// Write initial file
-	if err := os.WriteFile(azureYamlPath, []byte(initialYaml), 0600); err != nil {
+	if err := os.WriteFile(azureYamlPath, []byte(initialYaml), 0o600); err != nil {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
 
@@ -98,7 +98,7 @@ services:
           - OldTable2
 `
 
-	if err := os.WriteFile(azureYamlPath, []byte(initialYaml), 0600); err != nil {
+	if err := os.WriteFile(azureYamlPath, []byte(initialYaml), 0o600); err != nil {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
 
@@ -153,7 +153,7 @@ services:
     language: js
 `
 
-	if err := os.WriteFile(azureYamlPath, []byte(initialYaml), 0600); err != nil {
+	if err := os.WriteFile(azureYamlPath, []byte(initialYaml), 0o600); err != nil {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
 
@@ -212,7 +212,7 @@ services:
     ports: ["3000"]
 `
 
-	if err := os.WriteFile(azureYamlPath, []byte(initialYaml), 0600); err != nil {
+	if err := os.WriteFile(azureYamlPath, []byte(initialYaml), 0o600); err != nil {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
 
