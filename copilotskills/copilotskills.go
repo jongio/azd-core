@@ -40,7 +40,7 @@ func installTo(destDir, name, version string, skillFS embed.FS, root string) err
 		return fmt.Errorf("invalid skill name %q: must be lowercase letters, digits, and hyphens only (agentskills.io spec)", name)
 	}
 
-	// Check .version file, skip if it matches
+	// Check .version file; skip if it matches.
 	versionFile := filepath.Join(destDir, ".version")
 	existing, err := os.ReadFile(versionFile)
 	if err == nil && strings.TrimSpace(string(existing)) == version {

@@ -91,7 +91,7 @@ func coveragePreflight() error {
 	return covergate.Gate(coverageConfig())
 }
 
-// Preflight runs all quality checks before release, mirrors dispatch's preflight pattern.
+// Preflight runs all quality checks before release and mirrors dispatch's preflight pattern.
 func Preflight() error {
 	fmt.Println("🚀 Running preflight checks...")
 	fmt.Println()

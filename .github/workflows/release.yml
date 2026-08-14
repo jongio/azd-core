@@ -347,7 +347,7 @@ jobs:
               if echo "$RESPONSE" | grep -q "403"; then
                 echo "   ❌ Permission denied. The EXTENSIONS_DISPATCH_TOKEN needs Contents (read+write) on ${REPO}."
               elif echo "$RESPONSE" | grep -q "404"; then
-                echo "   ⏭️  Skipped, repo not found or no repository_dispatch workflow configured."
+                echo "   ⏭️  Skipped: repo not found or no repository_dispatch workflow configured."
               else
                 echo "   ⚠️  Failed: $RESPONSE"
               fi
