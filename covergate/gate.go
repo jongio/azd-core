@@ -121,7 +121,7 @@ func Record(c Config, note string) error {
 		return fmt.Errorf(
 			"refusing to re-record: the baseline was recorded on %s and this run is %s\n"+
 				"Record on %s so the numbers match what the gate enforces, for example:\n"+
-				"  docker run --rm --user 1000:1000 -v \"$PWD:/src\" -w /src golang:1.26.5 \\\n"+
+				"  docker run --rm --user 1000:1000 -v \"$PWD:/src\" -w /src golang:1.26.6 \\\n"+
 				"    bash -c 'go test -race -coverprofile=coverage.out -covermode=atomic ./... && \\\n"+
 				"             go run ./covergate/cmd/covergate -profile coverage.out -record -note \"why\"'",
 			existing.OS, report.OS, existing.OS)
