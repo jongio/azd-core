@@ -68,7 +68,7 @@ func TestInstall_SameVersion(t *testing.T) {
 	_ = os.Chtimes(filepath.Join(destDir, "SKILL.md"), past, past)
 	modTime = past
 
-	// Second install with same version — should skip
+	// Second install with same version; should skip
 	if err := installTo(destDir, "test-skill", "1.0.0", testSkillFS, "testdata/skills/test-skill"); err != nil {
 		t.Fatalf("second install failed: %v", err)
 	}
@@ -103,7 +103,7 @@ func TestInstall_DifferentVersion(t *testing.T) {
 	_ = os.Chtimes(filepath.Join(destDir, "SKILL.md"), past2, past2)
 	modTime = past2
 
-	// Second install with different version — should overwrite
+	// Second install with different version; should overwrite
 	if err := installTo(destDir, "test-skill", "2.0.0", testSkillFS, "testdata/skills/test-skill"); err != nil {
 		t.Fatalf("second install failed: %v", err)
 	}
@@ -259,7 +259,7 @@ func TestInstall_VersionCacheHit(t *testing.T) {
 		t.Fatalf("failed to write sentinel: %v", err)
 	}
 
-	// Install again with same version — should skip (cache hit)
+	// Install again with same version; should skip (cache hit)
 	if err := installTo(destDir, "cache-hit-skill", "1.0.0", testSkillFS, "testdata/skills/test-skill"); err != nil {
 		t.Fatalf("second install failed: %v", err)
 	}

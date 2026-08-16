@@ -21,7 +21,7 @@ import (
 var namePattern = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
 
 // Install writes embedded skill files to ~/.copilot/skills/{name}/.
-// It checks a .version file — if it matches the given version, it skips (no I/O).
+// It checks a .version file, and if it matches the given version, it skips (no I/O).
 // If the version differs or .version doesn't exist, it overwrites all files and writes .version.
 func Install(name, version string, skillFS embed.FS, root string) error {
 	home, err := os.UserHomeDir()
@@ -40,7 +40,7 @@ func installTo(destDir, name, version string, skillFS embed.FS, root string) err
 		return fmt.Errorf("invalid skill name %q: must be lowercase letters, digits, and hyphens only (agentskills.io spec)", name)
 	}
 
-	// Check .version file — skip if it matches
+	// Check .version file; skip if it matches.
 	versionFile := filepath.Join(destDir, ".version")
 	existing, err := os.ReadFile(versionFile)
 	if err == nil && strings.TrimSpace(string(existing)) == version {

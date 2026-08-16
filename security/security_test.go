@@ -257,7 +257,7 @@ func TestValidatePathWithinBases(t *testing.T) {
 		t.Fatal("expected error for path outside base")
 	}
 
-	// No bases provided — should still validate
+	// No bases provided; should still validate
 	result, err = ValidatePathWithinBases(testFile)
 	if err != nil {
 		t.Fatalf("expected no error without bases, got: %v", err)
