@@ -113,7 +113,8 @@ func (m *Manifest) UnknownKeys(allowed ...string) []string {
 }
 
 var azdModuleVersion = regexp.MustCompile(
-	`(?m)^\s*github\.com/azure/azure-dev/cli/azd\s+v([0-9]+\.[0-9]+\.[0-9]+)\s*$`)
+	`(?m)^\s*github\.com/azure/azure-dev/cli/azd\s+v([0-9]+\.[0-9]+\.[0-9]+)\s*$`,
+)
 
 // AzdModuleVersion returns the azure-dev module version a go.mod requires.
 //
@@ -129,7 +130,8 @@ func AzdModuleVersion(goModPath string) (string, error) {
 	match := azdModuleVersion.FindStringSubmatch(string(content))
 	if match == nil {
 		return "", fmt.Errorf(
-			"no plain github.com/azure/azure-dev/cli/azd version found in %s", goModPath)
+			"no plain github.com/azure/azure-dev/cli/azd version found in %s", goModPath,
+		)
 	}
 
 	return match[1], nil
@@ -164,13 +166,15 @@ func CheckRequiredAzdVersion(manifestPath, goModPath string) error {
 	if parsed.RequiredAzdVersion == "" {
 		return fmt.Errorf(
 			"%s declares no requiredAzdVersion; it is built against azd %s, so it should say %q",
-			manifestPath, moduleVersion, expected)
+			manifestPath, moduleVersion, expected,
+		)
 	}
 
 	if normalizeConstraint(parsed.RequiredAzdVersion) != normalizeConstraint(expected) {
 		return fmt.Errorf(
 			"%s declares requiredAzdVersion %q but is built against azd %s; expected %q",
-			manifestPath, parsed.RequiredAzdVersion, moduleVersion, expected)
+			manifestPath, parsed.RequiredAzdVersion, moduleVersion, expected,
+		)
 	}
 
 	return nil

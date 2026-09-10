@@ -673,7 +673,8 @@ func TestRecordThenGate(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	profile := writeProfile(t, dir,
+	profile := writeProfile(
+		t, dir,
 		"m/a/x.go:1.1,2.2 8 1",
 		"m/a/y.go:1.1,2.2 2 0",
 	)
@@ -745,7 +746,8 @@ func TestGateReportsImprovements(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	profile := writeProfile(t, dir,
+	profile := writeProfile(
+		t, dir,
 		"m/a/x.go:1.1,2.2 5 1",
 		"m/a/y.go:1.1,2.2 5 0",
 	)

@@ -115,7 +115,8 @@ func (c *HealthChecker) CheckService(ctx context.Context, svc ServiceInfo) Healt
 					stackTrace := captureStackTrace()
 					panicValue := fmt.Sprint(r)
 
-					slog.Error("panic during health check",
+					slog.Error(
+						"panic during health check",
 						"service", serviceName,
 						detailKeyPanic, panicValue,
 						"stack", stackTrace,
