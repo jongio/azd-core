@@ -182,7 +182,8 @@ func TestGateQuietWhenImprovementIsSmall(t *testing.T) {
 	dir := t.TempDir()
 	// 500 statements so a single covered block moves the needle by 0.2 points,
 	// which is below the one-point reporting threshold.
-	profile := writeProfile(t, dir,
+	profile := writeProfile(
+		t, dir,
 		"m/a/x.go:1.1,2.2 400 1",
 		"m/a/y.go:1.1,2.2 100 0",
 	)
@@ -194,7 +195,8 @@ func TestGateQuietWhenImprovementIsSmall(t *testing.T) {
 		t.Fatalf("Record: %v", err)
 	}
 
-	writeProfile(t, dir,
+	writeProfile(
+		t, dir,
 		"m/a/x.go:1.1,2.2 401 1",
 		"m/a/y.go:1.1,2.2 99 0",
 	)

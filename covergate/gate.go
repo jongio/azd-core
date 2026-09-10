@@ -70,7 +70,8 @@ func Gate(c Config) error {
 	if errors.Is(err, ErrNoBaseline) {
 		return fmt.Errorf(
 			"no coverage baseline recorded at %s\nRun the coverage record target to create one",
-			c.baselineFile())
+			c.baselineFile(),
+		)
 	}
 	if err != nil {
 		return err
@@ -124,7 +125,8 @@ func Record(c Config, note string) error {
 				"  docker run --rm --user 1000:1000 -v \"$PWD:/src\" -w /src golang:1.26.6 \\\n"+
 				"    bash -c 'go test -race -coverprofile=coverage.out -covermode=atomic ./... && \\\n"+
 				"             go run ./covergate/cmd/covergate -profile coverage.out -record -note \"why\"'",
-			existing.OS, report.OS, existing.OS)
+			existing.OS, report.OS, existing.OS,
+		)
 	case err != nil && !errors.Is(err, ErrNoBaseline):
 		return err
 	}

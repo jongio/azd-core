@@ -271,7 +271,8 @@ func compareExcludes(baseline []string, r Report) error {
 	return fmt.Errorf(
 		"exclude patterns changed since the baseline was recorded\n  baseline: %v\n  current:  %v\n"+
 			"widening exclusions hides regressions, so re-record the baseline deliberately if this is intended",
-		baseline, current)
+		baseline, current,
+	)
 }
 
 // compareModes fails when a profile was measured with a different counter mode
@@ -291,14 +292,16 @@ func compareModes(baseline, current string) error {
 			"baseline predates counter-mode tracking (current profile is %q)\n"+
 				"re-record the baseline so the mode is captured, otherwise percentages\n"+
 				"cannot be compared reliably across different -covermode settings",
-			current)
+			current,
+		)
 	}
 	return fmt.Errorf(
 		"coverage counter mode changed since the baseline was recorded\n  baseline: %q\n  current:  %q\n"+
 			"percentages are not comparable across modes, because atomic counters retain\n"+
 			"concurrent updates that set and count mode drop. Measure with the same\n"+
 			"-covermode used to record, or re-record the baseline deliberately",
-		baseline, current)
+		baseline, current,
+	)
 }
 
 // compareOS fails when a check runs on a different operating system than the
@@ -318,13 +321,15 @@ func compareOS(baseline, current string) error {
 			"baseline predates GOOS tracking (current run is %q)\n"+
 				"re-record the baseline on the platform that enforces the gate, otherwise\n"+
 				"platform-specific code counts as uncovered and invents regressions",
-			current)
+			current,
+		)
 	}
 	return fmt.Errorf(
 		"coverage baseline was recorded on a different platform\n  baseline: %q\n  current:  %q\n"+
 			"platform-specific code is unreachable, and so uncovered, on other platforms.\n"+
 			"Record the baseline on the same GOOS the gate runs on",
-		baseline, current)
+		baseline, current,
+	)
 }
 
 // Improvements lists scopes that now exceed their baseline by at least
