@@ -30,7 +30,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  GO_VERSION: '1.26.6'
+  GO_VERSION: '1.26.10'
 
 jobs:
   test:
@@ -82,6 +82,8 @@ jobs:
 
       - name: Calculate next version
         id: version
+        env:
+          BUMP: ${{ inputs.bump }}
         run: |
           # Get latest version tag
           LATEST_TAG=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || echo "v0.0.0")
@@ -90,7 +92,7 @@ jobs:
           
           IFS='.' read -r major minor patch <<< "$CURRENT"
           
-          case "${{ inputs.bump }}" in
+          case "$BUMP" in
             major)
               major=$((major + 1))
               minor=0
@@ -116,9 +118,11 @@ jobs:
         id: version_pr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEXT_VERSION: ${{ steps.version.outputs.next }}
+          CURRENT_VERSION: ${{ steps.version.outputs.current }}
         run: |
-          VERSION="${{ steps.version.outputs.next }}"
-          PREV="v${{ steps.version.outputs.current }}"
+          VERSION="$NEXT_VERSION"
+          PREV="v${CURRENT_VERSION}"
           BRANCH="release/v${VERSION}"
           
           # Delete branch if it already exists (from previous failed runs)
@@ -179,9 +183,8 @@ jobs:
       - name: Enable auto-merge and wait for merge
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.version_pr.outputs.pr_number }}
         run: |
-          PR_NUMBER="${{ steps.version_pr.outputs.pr_number }}"
-          
           echo "Waiting for CI checks to be queued..."
           sleep 10
           
@@ -252,10 +255,10 @@ jobs:
           fi
 
       - name: Checkout main and create tag
+        env:
+          VERSION: ${{ steps.version.outputs.next }}
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
-          VERSION="${{ steps.version.outputs.next }}"
-          TAG="${{ steps.version.outputs.tag }}"
-          
           git checkout main
           git pull origin main
           
@@ -266,9 +269,9 @@ jobs:
 
       - name: Extract release notes
         id: release_notes
+        env:
+          VERSION: ${{ steps.version.outputs.next }}
         run: |
-          VERSION="${{ steps.version.outputs.next }}"
-          
           awk '
             BEGIN { in_section = 0 }
             /^## \['"$VERSION"'\]/ { in_section = 1; next }
@@ -294,8 +297,10 @@ jobs:
       - name: Notify extension repos
         env:
           GH_TOKEN: ${{ secrets.EXTENSIONS_DISPATCH_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          AZD_APP_BRANCH: ${{ inputs.azd_app_branch }}
+          AZD_REST_BRANCH: ${{ inputs.azd_rest_branch }}
         run: |
-          TAG="${{ steps.version.outputs.tag }}"
           echo "Waiting for Go module proxy to pick up the release..."
           sleep 10
           GOPROXY=direct go list -m github.com/jongio/azd-core@$TAG || true
@@ -327,7 +332,7 @@ jobs:
           echo ""
 
           REPOS=("jongio/azd-app" "jongio/azd-rest")
-          BRANCHES=("${{ inputs.azd_app_branch }}" "${{ inputs.azd_rest_branch }}")
+          BRANCHES=("$AZD_APP_BRANCH" "$AZD_REST_BRANCH")
           FAILED=0
 
           for i in "${!REPOS[@]}"; do
