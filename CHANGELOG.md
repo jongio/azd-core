@@ -1,3 +1,20 @@
+## [0.6.1] - 2026-11-09
+
+- chore(deps): bump github.com/azure/azure-dev/cli/azd (#196) (e896e35)
+- chore(deps): bump codecov/codecov-action (#188) (d0511de)
+- chore(deps): bump github.com/prometheus/client_golang (#198) (7158c5a)
+- chore(deps): bump golang.org/x/term from 0.46.0 to 0.47.0 (#197) (0af01e7)
+- ci: standardize release workflow environment variables (#199) (6cadb1f)
+- chore(deps): update dependencies (#189) (22d4460)
+- chore(deps): update dependencies (#187) (1a0b787)
+- deps: update Go dependencies (#185) (38d97d5)
+- deps: update all dependencies to latest (#155) (f610231)
+- style: replace em dashes and en dashes with standard punctuation (#165) (1115872)
+- fix(security): update Go to 1.26.6 (#167) (19da377)
+- build: stop running a second, policy-blind gosec in preflight (#164) (acb84bc)
+- style: bring the tree up to gofumpt (#163) (ed6c1ad)
+- fix: detect version-qualified azd-core replace directives (#162) (c37094c)
+
 ## [0.6.0] - 2026-08-11
 
 - feat: align azd-core with the azdext SDK for v0.6.0 (#160) (4c89ed9)
